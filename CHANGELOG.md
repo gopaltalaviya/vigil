@@ -61,3 +61,6 @@ All notable changes are recorded here. The format follows
   command line, HTTP API, configuration, contract and judges documents.
 - Video tooling under `scripts/video`: narrated overview, demo and security videos recorded from
   the live app.
+- Home page that explains the product on its first screen, with a live watchtower card; the
+  former overview is now the Dashboard.
+- Learn page comparing nine situations without Vigil and with it.

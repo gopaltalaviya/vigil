@@ -9,9 +9,16 @@ The web app comes in two forms, built from the same pages:
 
 The theme button in the header switches between system, light and dark. The choice is remembered.
 
-## Overview
+## Home
 
-The first page answers "is the rollup healthy?" at a glance.
+The front page explains Vigil on one screen: what it is, the three things it guarantees, and a
+live card from the watchtower with the latest batches and their verdicts. Further down: what
+changes with Vigil, the settlement diagram, the six parts, the post-quantum algorithms, and how
+to check everything yourself.
+
+## Dashboard
+
+The dashboard answers "is the rollup healthy?" at a glance.
 
 - **The status badge** in the header reads "On duty" when the watchtower has checked the rollup in
   the last three minutes. It turns amber when the watchtower is silent and red when it has found an
@@ -72,4 +79,5 @@ batching, and challenges it sent.
 
 ## Learn and Docs
 
-**Learn** explains the concept with an animated diagram. **Docs** holds these pages.
+**Learn** explains the concept with an animated diagram, and compares the same situations without
+Vigil and with it under **Before and after**. **Docs** holds these pages.

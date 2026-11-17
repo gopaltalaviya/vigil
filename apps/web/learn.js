@@ -4,6 +4,7 @@
 const PAGES = [
   ["concept", "Concept"],
   ["how-it-works", "How it works"],
+  ["before-after", "Before and after"],
   ["security", "Security"],
   ["post-quantum", "Post-quantum"],
   ["glossary", "Glossary"],
@@ -20,7 +21,7 @@ function svg(tag, attributes = {}, children = []) {
 }
 
 /** The settlement path as an animated diagram. Stages light up in order; paths carry a moving dash. */
-function diagram() {
+export function diagram() {
   const nodes = [
     { id: "users", x: 0, y: 140, label: "Users", sub: "sign with ML-DSA-44", tone: "info" },
     { id: "inbox", x: 225, y: 140, label: "Inbox", sub: "on QoreChain", tone: "info" },
@@ -240,6 +241,143 @@ export function learnView({ el, pill, latestBatch }) {
               }),
             )
           : null,
+      ];
+    },
+
+    "before-after": () => {
+      const side = (kind, label, title, text) =>
+        el("div", { className: `ba-side ${kind}` }, [
+          el("span", { className: "ba-tag", text: label }),
+          el("h4", { text: title }),
+          el("p", { text }),
+        ]);
+      const rows = [
+        [
+          "A submitter posts a forged batch",
+          "Accepted, then final",
+          "QoreChain accepts the batch at once. Unless someone happens to prove it wrong within the hour, it becomes final and its withdrawals pay out balances that never existed.",
+          "Caught within seconds",
+          "The watchtower re-executes the batch on its next round, finds the wrong root, builds the fraud proof, checks it locally and challenges. The batch is rejected and the submitter's bond is slashed.",
+        ],
+        [
+          "Knowing whether a batch is right",
+          "Trust the submitter",
+          "The rollup kit has no watchtower for qledger-v1 rollups. Checking a batch means writing your own re-execution code.",
+          "A verdict on every batch",
+          "Every batch is re-executed from a verified copy of the inbox. The verdict sits next to the chain's status on the Batches page, for anyone to see.",
+        ],
+        [
+          "A contract that needs proof of settlement",
+          "Not possible",
+          "The batch's ML-DSA-87 settlement signature is stored by QoreChain, but no contract can check it.",
+          "One call",
+          "VigilReceipts verifies the signature against the signer's registered key and records it. Any contract can call isAnchorRecorded.",
+        ],
+        [
+          "A note attached to a payment",
+          "Public, or nowhere",
+          "Anything written into a transaction is readable by everyone, forever.",
+          "Sealed with ML-KEM-1024",
+          "Only the recipient's key opens the memo, and the app checks that it points to a real, signed transfer from the same sender.",
+        ],
+        [
+          "The rollup's history",
+          "Lost when nodes prune",
+          "Inbox entries are read from the chain's nodes, which do not keep them forever. Old batches become impossible to check.",
+          "Archived and verified",
+          "Every entry is checked against the chain's hash chain and stored, so any batch can be re-checked later.",
+        ],
+        [
+          "The base chain itself",
+          "Problems go unnoticed",
+          "A halt, a slow block time or a silent settings change is noticed only when something breaks. Mainnet runs at 4.78 s per block against a documented 3.1 s, and nothing said so.",
+          "Watched every minute",
+          "The monitor measures block production and block time, compares them with the documentation, and records every settings change with what changed.",
+        ],
+        [
+          "Our own batcher makes a mistake",
+          "The bond is lost",
+          "A bug that produces a wrong batch is indistinguishable from fraud: it gets challenged and the 1,000 QOR bond is slashed.",
+          "It refuses to submit",
+          "The batcher re-executes its own batch first and will not build on a batch the watchtower judged invalid.",
+        ],
+        [
+          "A future quantum computer",
+          "Classical signatures fall",
+          "Settlement that rests on elliptic-curve signatures alone could be forged.",
+          "Post-quantum where it counts",
+          "Batches are anchored with ML-DSA-87, rollup transactions use ML-DSA-44, and memos use ML-KEM-1024.",
+        ],
+        [
+          "Running the rollup day to day",
+          "Scripts and guesswork",
+          "Command-line tools, block explorers and manual checks, with no single place that says whether everything is healthy.",
+          "One console",
+          "Overview, wallet, batch explorer, alerts to Telegram or a webhook, and these docs, in one app.",
+        ],
+      ];
+      const timeline = (kind, title, events) =>
+        el("div", { className: `ba-timeline ${kind}` }, [
+          el("h3", { text: title }),
+          el(
+            "ol",
+            {},
+            events.map(([time, text], index) => {
+              const item = el("li", {}, [
+                el("span", { className: "ba-time", text: time }),
+                el("span", { text }),
+              ]);
+              item.style.setProperty("--i", String(index));
+              return item;
+            }),
+          ),
+        ]);
+      return [
+        el("p", {
+          className: "lead",
+          text: "The same situations, without Vigil and with it. Everything on the right runs today on the QoreChain testnet.",
+        }),
+        h2("A forged batch, minute by minute"),
+        el("div", { className: "ba-race" }, [
+          timeline("without", "Without Vigil", [
+            ["0:00", "A forged batch claims balances that do not exist. QoreChain accepts it."],
+            ["0:01 – 59:59", "Nobody re-executes it. The challenge window runs down."],
+            ["60:00", "The batch is final."],
+            ["60:01", "Withdrawals from the forged balances are claimed and paid."],
+          ]),
+          timeline("with", "With Vigil", [
+            ["0:00", "The same forged batch is submitted and accepted."],
+            ["0:15", "The watchtower re-executes it: the state root is wrong. Alert raised."],
+            ["0:20", "Fraud proof built, checked locally and sent as a challenge."],
+            ["about 0:35", "QoreChain re-executes, rejects the batch and slashes the bond."],
+          ]),
+        ]),
+        el("p", {
+          className: "muted",
+          text: "The timings on the right are typical for a 15-second watchtower round. In our testnet drill the forged batch was rejected ten blocks after it was submitted.",
+        }),
+        h2("Side by side"),
+        el(
+          "div",
+          { className: "ba-grid" },
+          rows.map(([topic, beforeTitle, beforeText, afterTitle, afterText]) =>
+            el("section", { className: "ba-row", "aria-label": topic }, [
+              el("h3", { className: "ba-topic", text: topic }),
+              el("div", { className: "ba-pair" }, [
+                side("without", "Without Vigil", beforeTitle, beforeText),
+                side("with", "With Vigil", afterTitle, afterText),
+              ]),
+            ]),
+          ),
+        ),
+        el("div", { className: "actions" }, [
+          el("a", { className: "button", href: "#/batches", text: "See the live verdicts" }),
+          el("a", {
+            className: "button ghost",
+            href: "#/learn/how-it-works",
+            text: "How it works",
+          }),
+        ]),
       ];
     },
 

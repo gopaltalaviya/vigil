@@ -1,5 +1,6 @@
 import { docsView } from "./docs.js";
-import { learnView } from "./learn.js";
+import { homeView } from "./home.js";
+import { diagram, learnView } from "./learn.js";
 
 // Vigil web app. No dependencies and no build step. Every value that comes
 // from the network is written with textContent, so nothing read from the chain
@@ -442,7 +443,7 @@ function networkCard(network) {
 
 const views = {
   overview: {
-    title: "Overview",
+    title: "Dashboard",
     async load() {
       const entries = await api("/api/entries").catch(() => ({ entries: [] }));
       return { ...state.overview, entries: entries.entries };
@@ -462,17 +463,14 @@ const views = {
       ];
       const openBatches = data.rollup.batches.filter((b) => b.status === "submitted");
       return el("div", { className: "stack" }, [
-        el("section", { className: "hero" }, [
+        el("div", { className: "page-head" }, [
           el("span", { className: "eyebrow" }, [
             el("span", { className: "pulse" }),
             `Live on QoreChain testnet · rollup ${data.rollup.id}`,
           ]),
-          el("h1", {}, [
-            document.createTextNode("The rollup that "),
-            el("em", { text: "never looks away." }),
-          ]),
+          el("h1", { text: "Dashboard" }),
           el("p", {
-            text: "Vigil is a post-quantum rollup on QoreChain. Every batch is signed with ML-DSA-87, and a watchtower re-executes each one from the inbox and compares it with what the submitter claimed.",
+            text: "The rollup right now: what users posted, what was batched, what the watchtower re-executed, and what is final.",
           }),
           el("div", { className: "actions" }, [
             el("a", { className: "button", href: "#/wallet", text: "Open wallet" }),
@@ -1471,12 +1469,20 @@ views.learn = learnView({
   latestBatch: () => state.overview?.rollup.batches[0],
 });
 views.docs = docsView({ el });
+views.home = homeView({
+  el,
+  pill,
+  verdictPill: (batch) => pill(...lookup(VERDICT, batch.verdict)),
+  statusCell,
+  countValue,
+  ago,
+  diagram,
+  overview: () => state.overview,
+});
 
 function parseRoute() {
-  const [, route = "overview", param] = location.hash.split("/");
-  return views[route]
-    ? { route, param: param || undefined }
-    : { route: "overview", param: undefined };
+  const [, route = "home", param] = location.hash.split("/");
+  return views[route] ? { route, param: param || undefined } : { route: "home", param: undefined };
 }
 
 async function refreshSession() {
