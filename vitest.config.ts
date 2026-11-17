@@ -18,7 +18,15 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["packages/*/src/**/*.ts"],
-      exclude: ["packages/*/src/index.ts", "packages/*/src/main.ts"],
+      // Excluded: entry points, generated code, and thin on-chain glue that is exercised
+      // against the testnet instead of in unit tests.
+      exclude: [
+        "packages/*/src/index.ts",
+        "packages/*/src/main.ts",
+        "packages/receipts/src/abi.ts",
+        "packages/receipts/src/contract.ts",
+        "packages/receipts/src/deployer.ts",
+      ],
       thresholds: { lines: 90, functions: 90, branches: 80, statements: 90 },
     },
   },

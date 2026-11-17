@@ -22,7 +22,9 @@
     "watchtower": "tsx packages/watchtower/src/main.ts",
     "vigil": "tsx packages/wallet/src/main.ts",
     "batcher": "tsx packages/batcher/src/main.ts",
-    "rollup:bootstrap": "tsx scripts/bootstrap-rollup.ts"
+    "rollup:bootstrap": "tsx scripts/bootstrap-rollup.ts",
+    "receipts": "tsx packages/receipts/src/main.ts",
+    "gen:abi": "tsx scripts/gen-abi.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

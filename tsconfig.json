@@ -4,6 +4,7 @@
     "noEmit": true,
     "paths": {
       "@vigil/batcher": ["./packages/batcher/src/index.ts"],
+      "@vigil/receipts": ["./packages/receipts/src/index.ts"],
       "@vigil/core": ["./packages/core/src/index.ts"],
       "@vigil/watchtower": ["./packages/watchtower/src/index.ts"],
       "@vigil/wallet": ["./packages/wallet/src/index.ts"]

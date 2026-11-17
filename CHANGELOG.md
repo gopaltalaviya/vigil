@@ -20,3 +20,5 @@ All notable changes are recorded here. The format follows
 - `@vigil/batcher`: bonded submitter that never sends a batch failing its own re-execution.
 - `scripts/bootstrap-rollup.ts`: idempotent rollup creation and bonding, dry run by default.
 - Rollup `vigil-1` created on the QoreChain testnet; first anchored batch submitted.
+- `@vigil/receipts`: deploys `VigilReceipts` and records settlement anchors through it; the
+  contract is live on the testnet and holds the receipt of the first batch.

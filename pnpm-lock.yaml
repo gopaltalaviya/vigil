@@ -81,6 +81,30 @@ importers:
         specifier: 4.6.7
         version: 4.6.7
 
+  packages/receipts:
+    dependencies:
+      '@cosmjs/proto-signing':
+        specifier: 0.39.0
+        version: 0.39.0
+      '@cosmjs/stargate':
+        specifier: 0.39.0
+        version: 0.39.0
+      '@qorechain/evm':
+        specifier: 0.14.0
+        version: 0.14.0(viem@2.57.20(typescript@5.9.3)(zod@4.6.7))
+      '@qorechain/rdk':
+        specifier: 0.9.0
+        version: 0.9.0(viem@2.57.20(typescript@5.9.3)(zod@4.6.7))
+      '@qorechain/sdk':
+        specifier: 0.14.0
+        version: 0.14.0(viem@2.57.20(typescript@5.9.3)(zod@4.6.7))
+      '@vigil/core':
+        specifier: workspace:*
+        version: link:../core
+      viem:
+        specifier: 2.57.20
+        version: 2.57.20(typescript@5.9.3)(zod@4.6.7)
+
   packages/wallet:
     dependencies:
       '@qorechain/rdk':
@@ -513,6 +537,11 @@ packages:
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
 
+  '@qorechain/evm@0.14.0':
+    resolution: {integrity: sha512-IdIJpbmJX8T+ctDnGPv50UGUM2o80TfrWAjU41UjUfIEaWTcTVt64fXQR8V86BDuXRlOuFAa9UiM4RtnyKD5Tg==}
+    peerDependencies:
+      viem: ^2.0.0
+
   '@qorechain/evm@0.8.0':
     resolution: {integrity: sha512-exugvytAknDNBNJf+KFypsdZ2IJBKLORvezXz38RDr5MZbTiV7x8kOBFd6+wcktjrw/3NrgFdBgefvDY52SF4Q==}
     peerDependencies:
@@ -527,6 +556,14 @@ packages:
 
   '@qorechain/sdk@0.10.0':
     resolution: {integrity: sha512-PUZAnoLXJ5isBVEiueY+BZ9e5dZogSrvB5q9vVAi3gD8KQ64pNW0fGUhdfS/OJpUDOuseCCHswKiFQP7v9XHhA==}
+    peerDependencies:
+      viem: ^2.0.0
+    peerDependenciesMeta:
+      viem:
+        optional: true
+
+  '@qorechain/sdk@0.14.0':
+    resolution: {integrity: sha512-EwoH2WX5hRUK685a3NDDd0dZcn7QL/6M11huVh7Kx37nFDMryF8QAHrJe0to8EcRmRnLbMH5UNnZbjoI48wo9Q==}
     peerDependencies:
       viem: ^2.0.0
     peerDependenciesMeta:
@@ -1928,6 +1965,10 @@ snapshots:
 
   '@pinojs/redact@0.4.0': {}
 
+  '@qorechain/evm@0.14.0(viem@2.57.20(typescript@5.9.3)(zod@4.6.7))':
+    dependencies:
+      viem: 2.57.20(typescript@5.9.3)(zod@4.6.7)
+
   '@qorechain/evm@0.8.0(viem@2.57.20(typescript@5.9.3)(zod@4.6.7))':
     dependencies:
       viem: 2.57.20(typescript@5.9.3)(zod@4.6.7)
@@ -1965,6 +2006,30 @@ snapshots:
       '@noble/curves': 1.9.7
       '@noble/hashes': 1.8.0
       '@qorechain/evm': 0.8.0(viem@2.57.20(typescript@5.9.3)(zod@4.6.7))
+      '@qorechain/pqc': 0.2.3
+      '@scure/base': 1.2.6
+      '@scure/bip32': 1.7.0
+      '@scure/bip39': 1.6.0
+      bech32: 2.0.0
+      cosmjs-types: 0.11.0
+      micro-key-producer: 0.9.0
+    optionalDependencies:
+      viem: 2.57.20(typescript@5.9.3)(zod@4.6.7)
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
+  '@qorechain/sdk@0.14.0(viem@2.57.20(typescript@5.9.3)(zod@4.6.7))':
+    dependencies:
+      '@bufbuild/protobuf': 2.17.0
+      '@cosmjs/amino': 0.39.0
+      '@cosmjs/cosmwasm-stargate': 0.39.0
+      '@cosmjs/proto-signing': 0.39.0
+      '@cosmjs/stargate': 0.39.0
+      '@cosmjs/tendermint-rpc': 0.39.0
+      '@noble/curves': 1.9.7
+      '@noble/hashes': 1.8.0
+      '@qorechain/evm': 0.14.0(viem@2.57.20(typescript@5.9.3)(zod@4.6.7))
       '@qorechain/pqc': 0.2.3
       '@scure/base': 1.2.6
       '@scure/bip32': 1.7.0

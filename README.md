@@ -27,6 +27,7 @@ fills that gap, and adds the pieces an operator needs around it.
 | `packages/batcher`        | Bonded submitter: plans a batch, re-checks it against its own archive, signs and submits it                               | Working                     |
 | `packages/wallet`         | `vigil` command line: encrypted L2 keys, deposit, transfer, withdraw, claim                                               | Working                     |
 | `contracts/VigilReceipts` | Verifies a settlement receipt's ML-DSA-87 signature on chain through the `pqcVerify` precompile                           | Working                     |
+| `packages/receipts`       | Reads a batch's settlement anchor from the base chain and records it through the contract                                 | Working                     |
 | `packages/memo`           | Confidential memos sealed with ML-KEM-1024 to the recipient's registered key                                              | Planned                     |
 | `packages/monitor`        | Base-chain monitor: halts, block-time drift, upgrades, parameter and feature-flag changes                                 | Planned                     |
 | `apps/status`             | Public status page                                                                                                        | Planned                     |
@@ -75,6 +76,12 @@ Vigil runs its own rollup, `vigil-1`, on the QoreChain testnet (`qorechain-diana
 sequencing, `qledger-v1` execution, one-hour challenge window. Its batches are submitted by the
 batcher in this repository and carry the creator's ML-DSA-87 anchor signature.
 
+| What                   | Where                                                                                     |
+| ---------------------- | ----------------------------------------------------------------------------------------- |
+| Rollup                 | `vigil-1` (layer `vigil-1`) on `qorechain-diana`                                          |
+| Receipts contract      | `0xced683ad4319a34873e2c1aa90d18e2fcf1af1d1` on EVM chain 9800                            |
+| First recorded receipt | batch 0, transaction `0xa4e7838ccc9e11bb03d7650a53579aa99e34f3c7a67177b322f6dfe0cc7b1855` |
+
 ```sh
 ROLLUP_ID=vigil-1 pnpm watchtower --once   # re-execute and judge every batch yourself
 pnpm live:probe vigil-1                    # check an anchor signature with the chain's precompiles
@@ -101,6 +108,20 @@ pnpm rollup:bootstrap            # dry run: simulates creation and the bond, sen
 pnpm rollup:bootstrap --execute  # creates the rollup named by ROLLUP_ID and bonds the submitter
 pnpm batcher                     # submit batches as entries arrive
 ```
+
+## Recording receipts on chain
+
+```sh
+pnpm receipts status      # deployer account, its key, EVM window, contract
+pnpm receipts setup       # fund the deployer, register its ML-DSA-87 key, open a window
+pnpm receipts deploy      # deploy VigilReceipts
+pnpm receipts check 0     # verify batch 0's anchor through the contract, read-only
+pnpm receipts record 0    # verify and record it
+```
+
+QoreChain's EVM side only accepts transactions from an account with a registered post-quantum
+key and an open authorisation window, so `setup` does both. The deployer only pays gas; receipts
+are signed by the rollup's creator and checked against the creator's registered key.
 
 ## Running the watchtower
 
