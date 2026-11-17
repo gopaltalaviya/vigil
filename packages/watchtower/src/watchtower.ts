@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import {
+  claimId,
   ledgerAtSequence,
   serializeLedger,
   toBatchClaim,
@@ -101,7 +103,11 @@ export class Watchtower {
     this.now = options.now ?? (() => Math.floor(Date.now() / 1_000));
   }
 
-  async tick(): Promise<TickReport> {
+  /**
+   * Runs one round. Pass `flush: false` to deliver alerts later, for example
+   * after challenging, so a slow alert destination never delays a challenge.
+   */
+  async tick(options: { flush?: boolean } = {}): Promise<TickReport> {
     const { store, archive, view, rollupId, alerts } = this.options;
     const sync = await archive.sync();
     const [batches, inbox, tip, windowSecs] = await Promise.all([
@@ -112,13 +118,17 @@ export class Watchtower {
     ]);
     batches.sort((a, b) => a.batchIndex - b.batchIndex || a.submittedAt - b.submittedAt);
     for (const batch of batches) store.upsertBatch(rollupId, batch);
+    store.supersedeMissing(rollupId, new Set(batches.map((batch) => claimId(batch))));
 
     let alertsRaised = 0;
     const judged: JudgedBatch[] = [];
     const challengeable: ChallengeCandidate[] = [];
 
     for (const batch of batches) {
-      let verdict = store.verdict(rollupId, batch.batchIndex, batch.stateRoot);
+      // A verdict belongs to the whole claim: a replacement at the same index, even with the
+      // same state root, is a different claim and is judged from scratch.
+      const identity = shortId(claimId(batch));
+      let verdict = store.verdict(rollupId, claimId(batch));
       if (verdict === undefined || verdict.verdict === "undecidable") {
         verdict = this.judge(batch, sync.head);
         store.saveVerdict(rollupId, verdict);
@@ -140,14 +150,14 @@ export class Watchtower {
 
       if (batch.status === "finalized") {
         alertsRaised += this.raise({
-          key: `finalized-invalid:${rollupId}:${String(batch.batchIndex)}:${batch.stateRoot}`,
+          key: `finalized-invalid:${rollupId}:${identity}`,
           severity: "critical",
           title: `Invalid ${label} was finalized`,
           body: `${facts}\nThe challenge window closed without a successful challenge.`,
         });
       } else if (batch.status === "rejected") {
         alertsRaised += this.raise({
-          key: `rejected:${rollupId}:${String(batch.batchIndex)}:${batch.stateRoot}`,
+          key: `rejected:${rollupId}:${identity}`,
           severity: "info",
           title: `Invalid ${label} was rejected by the chain`,
           body: facts,
@@ -155,14 +165,14 @@ export class Watchtower {
       } else {
         challengeable.push({ batch, secondsRemaining });
         alertsRaised += this.raise({
-          key: `invalid:${rollupId}:${String(batch.batchIndex)}:${batch.stateRoot}`,
+          key: `invalid:${rollupId}:${identity}`,
           severity: "critical",
           title: `Invalid ${label}`,
           body: `${facts}\nChallenge window closes in ${formatDuration(secondsRemaining)}.`,
         });
         if (secondsRemaining <= this.deadlineWarnSecs) {
           alertsRaised += this.raise({
-            key: `deadline:${rollupId}:${String(batch.batchIndex)}:${batch.stateRoot}`,
+            key: `deadline:${rollupId}:${identity}`,
             severity: "critical",
             title: `Challenge window for invalid ${label} is about to close`,
             body: `${facts}\nTime left: ${formatDuration(secondsRemaining)}.`,
@@ -171,12 +181,28 @@ export class Watchtower {
       }
     }
 
+    for (const batch of batches) {
+      const verdict = store.verdict(rollupId, claimId(batch));
+      const secondsRemaining = batch.submittedTime + windowSecs - tip.timeSecs;
+      const open = batch.status === "submitted" || batch.status === "challenged";
+      if (verdict?.verdict === "undecidable" && open && secondsRemaining <= this.deadlineWarnSecs) {
+        alertsRaised += this.raise({
+          key: `undecidable:${rollupId}:${shortId(claimId(batch))}`,
+          severity: "critical",
+          title: `Batch ${String(batch.batchIndex)} of ${rollupId} cannot be checked`,
+          body:
+            `Its inbox range (${String(batch.inboxStart + 1)}-${String(batch.inboxEnd)}) is not in the verified archive, ` +
+            `and its challenge window closes in ${formatDuration(secondsRemaining)}.`,
+        });
+      }
+    }
+
     if (inbox.head > inbox.consumed) {
       const oldest = store.inboxEntry(rollupId, inbox.consumed + 1);
       const waited = oldest === undefined ? 0 : tip.height - oldest.height;
       if (waited > this.stallBlocks) {
         alertsRaised += this.raise({
-          key: `stalled:${rollupId}:${String(inbox.consumed)}`,
+          key: `stalled:${rollupId}:${String(inbox.consumed)}:${String(oldest?.height ?? 0)}`,
           severity: "warning",
           title: `Rollup ${rollupId} is not batching its inbox`,
           body:
@@ -187,13 +213,19 @@ export class Watchtower {
       }
     }
 
-    await alerts.flush();
+    store.heartbeat(
+      "watchtower",
+      this.now(),
+      JSON.stringify({ rollupId, inboxHead: sync.head, batches: batches.length }),
+    );
+    if (options.flush !== false) await alerts.flush();
     return { inboxHead: sync.head, entriesAdded: sync.added, judged, challengeable, alertsRaised };
   }
 
   private judge(batch: StoredBatch, archiveHead: number) {
     const { chainId, rollupId, store, archive } = this.options;
     const base = {
+      claimId: claimId(batch),
       batchIndex: batch.batchIndex,
       stateRoot: batch.stateRoot,
       checkedAt: this.now(),
@@ -243,6 +275,11 @@ export class Watchtower {
 /** Whether the chain will take no further action on a batch. */
 export function isFinal(batch: StoredBatch): boolean {
   return FINAL.has(batch.status);
+}
+
+/** Short, stable tag for a claim, used in alert keys. */
+function shortId(claim: string): string {
+  return createHash("sha256").update(claim).digest("hex").slice(0, 16);
 }
 
 function formatDuration(seconds: number): string {

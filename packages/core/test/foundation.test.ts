@@ -10,7 +10,9 @@ import {
   Store,
   StoreError,
   bytesEqual,
+  claimId,
   createLogger,
+  envInt,
   fromHex,
   loadConfig,
   normalizeHex,
@@ -55,6 +57,14 @@ describe("config", () => {
       expect(text).toContain("HTTP_TIMEOUT_MS");
       expect(text).not.toContain("do-not-print-me");
       expect(text).not.toContain("Not A Rollup");
+    }
+  });
+
+  it("reads integer settings strictly", () => {
+    expect(envInt("X", 5, { min: 1, max: 10 }, {})).toBe(5);
+    expect(envInt("X", 5, { min: 1, max: 10 }, { X: " 7 " })).toBe(7);
+    for (const bad of ["abc", "0", "11", "1.5", "NaN"]) {
+      expect(() => envInt("X", 5, { min: 1, max: 10 }, { X: bad }), bad).toThrow(/X/);
     }
   });
 
@@ -114,6 +124,9 @@ describe("hex and url helpers", () => {
     expect(redactUrl("https://api.example/bot123:secret/sendMessage")).toBe(
       "https://api.example/bot[redacted]/sendMessage",
     );
+    expect(redactUrl("https://hooks.example/services/T000/B000/SECRET?x=1", true)).toBe(
+      "https://hooks.example/[redacted]",
+    );
     expect(redactUrl("not a url")).toBe("<invalid url>");
   });
 });
@@ -150,7 +163,7 @@ describe("store", () => {
       first.close();
 
       const second = Store.open(path);
-      expect(second.schemaVersion).toBe(2);
+      expect(second.schemaVersion).toBe(3);
       expect(second.inboxRange("r1", 0, 2).map((e) => e.sequence)).toEqual([1, 2]);
       expect(second.inboxEntry("r1", 2)?.payload).toEqual(new Uint8Array([2, 2, 3]));
       expect(second.inboxEntry("r1", 3)).toBeUndefined();
@@ -203,6 +216,7 @@ describe("store", () => {
   it("stores and replaces verdicts", () => {
     const store = Store.open(":memory:");
     const verdict = {
+      claimId: claimId(batch),
       batchIndex: 0,
       stateRoot: batch.stateRoot,
       verdict: "invalid" as const,
@@ -212,10 +226,43 @@ describe("store", () => {
       checkedAt: 5,
     };
     store.saveVerdict("r1", verdict);
-    expect(store.verdict("r1", 0, batch.stateRoot)).toEqual(verdict);
+    expect(store.verdict("r1", claimId(batch))).toEqual(verdict);
     store.saveVerdict("r1", { ...verdict, verdict: "valid", reasons: [] });
-    expect(store.verdict("r1", 0, batch.stateRoot)?.verdict).toBe("valid");
-    expect(store.verdict("r1", 1, batch.stateRoot)).toBeUndefined();
+    expect(store.verdict("r1", claimId(batch))?.verdict).toBe("valid");
+
+    // Same index and state root, different withdrawals root: a different claim, no verdict.
+    const replacement = { ...batch, withdrawalsRoot: "ee".repeat(32), submittedAt: 11 };
+    expect(claimId(replacement)).not.toBe(claimId(batch));
+    expect(store.verdict("r1", claimId(replacement))).toBeUndefined();
+  });
+
+  it("marks open claims the chain no longer lists as rejected, and leaves final ones", () => {
+    const store = Store.open(":memory:");
+    const finalized = { ...batch, status: "finalized", finalizedAt: 50 };
+    const open = { ...batch, batchIndex: 1, stateRoot: "55".repeat(32), submittedAt: 60 };
+    const replacement = { ...open, withdrawalsRoot: "ee".repeat(32), submittedAt: 70 };
+    store.upsertBatch("r1", finalized);
+    store.upsertBatch("r1", open);
+    store.upsertBatch("r1", replacement);
+
+    expect(store.supersedeMissing("r1", new Set([claimId(replacement)]))).toBe(1);
+    expect(store.batches("r1").map((b) => b.status)).toEqual([
+      "finalized",
+      "rejected",
+      "submitted",
+    ]);
+    expect(store.supersedeMissing("r1", new Set([claimId(replacement)]))).toBe(0);
+  });
+
+  it("records the latest heartbeat of each service", () => {
+    const store = Store.open(":memory:");
+    store.heartbeat("watchtower", 10, "a");
+    store.heartbeat("watchtower", 20, "b");
+    store.heartbeat("batcher", 15);
+    expect(store.heartbeats()).toEqual([
+      { service: "batcher", at: 15, detail: "" },
+      { service: "watchtower", at: 20, detail: "b" },
+    ]);
   });
 
   it("returns the newest snapshot at or before a position", () => {
@@ -278,10 +325,19 @@ describe("store", () => {
     });
     expect(store.recentChainEvents(5)).toMatchObject([{ id: 1, title: "Chain halted" }]);
 
-    const receipt = { batchIndex: 0, contract: "0xabc", txHash: "0x1", recordedAt: 40 };
+    const receipt = {
+      batchIndex: 0,
+      stateRoot: "aa".repeat(32),
+      contract: "0xabc",
+      txHash: "0x1",
+      recordedAt: 40,
+    };
     store.saveReceipt("r1", receipt);
     store.saveReceipt("r1", { ...receipt, txHash: "0x2" });
     expect(store.receipts("r1")).toEqual([receipt]);
+    // A receipt for a different state root at the same index replaces the old one.
+    store.saveReceipt("r1", { ...receipt, stateRoot: "bb".repeat(32), txHash: "0x3" });
+    expect(store.receipts("r1")).toMatchObject([{ stateRoot: "bb".repeat(32), txHash: "0x3" }]);
 
     store.upsertBatch("r1", batch);
     expect(store.verdicts("r1")).toEqual([]);
@@ -295,7 +351,7 @@ describe("store", () => {
       store.appendInboxEntries("r1", [entry(1)]);
       store.close();
       const reopened = Store.open(path);
-      expect(reopened.schemaVersion).toBe(2);
+      expect(reopened.schemaVersion).toBe(3);
       expect(reopened.lastInboxEntry("r1")?.sequence).toBe(1);
       reopened.close();
     } finally {

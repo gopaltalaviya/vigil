@@ -84,6 +84,17 @@ describe("HttpClient", () => {
     expect(seen).toHaveLength(1);
   });
 
+  it("shows only the host when the URL itself is a secret", async () => {
+    const transport: Transport = () =>
+      Promise.resolve({ ok: false, status: 404, statusText: "", json: () => Promise.resolve({}) });
+    const client = new HttpClient({ source: "alerts", transport, maxRetries: 0, secretUrls: true });
+    const error: unknown = await client
+      .postJson("https://hooks.example/services/T000/B000/SECRETTOKEN", {})
+      .catch((e: unknown) => e);
+    expect(JSON.stringify([(error as Error).message, error])).not.toContain("SECRETTOKEN");
+    expect((error as Error).message).toContain("hooks.example");
+  });
+
   it("gives up after the retry budget and reports the source as unavailable", async () => {
     const { client, seen } = harness([response(500), response(500), response(500)], {
       maxRetries: 2,

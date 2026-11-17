@@ -31,7 +31,8 @@ fills that gap, and adds the pieces an operator needs around it.
 | `packages/memo`           | Confidential memos sealed with ML-KEM-1024 to the recipient's registered key and bound to an L2 transfer                   | Working |
 | `packages/monitor`        | Base-chain monitor for testnet and mainnet: halts, block-time drift, upgrades, proposals, setting and feature-flag changes | Working |
 | `packages/api`            | Read-only JSON API and Prometheus metrics over the local database                                                          | Working |
-| `apps/status`             | Public status page: batch verdicts, receipts, base-chain health, alerts                                                    | Working |
+| `packages/console`        | Operator console: the web app's wallet actions behind a password                                                           | Working |
+| `apps/web`                | Web app: overview, wallet, batch explorer, account lookup, base-chain monitor, alerts                                      | Working |
 
 ## How the watchtower decides
 
@@ -110,12 +111,35 @@ pnpm rollup:bootstrap --execute  # creates the rollup named by ROLLUP_ID and bon
 pnpm batcher                     # submit batches as entries arrive
 ```
 
-## Base-chain monitor and status page
+## The web app
+
+```sh
+pnpm api       # public, read-only site on port 8080
+pnpm console   # the same site plus wallet actions, on 127.0.0.1:8090
+```
+
+| Page       | What it shows                                                                           | Needs sign-in      |
+| ---------- | --------------------------------------------------------------------------------------- | ------------------ |
+| Overview   | Verdict counts, latest batches, service health                                          | No                 |
+| Wallet     | Balance, send, deposit, withdraw, claim, private memos, activity                        | Yes (console only) |
+| Batches    | Every batch with the watchtower's verdict; each batch's roots and decoded inbox entries | No                 |
+| Accounts   | Balance and nonce of any rollup account, recent inbox activity                          | No                 |
+| Base chain | Block production and block time on testnet and mainnet, detected changes                | No                 |
+| Alerts     | Everything the watchtower raised                                                        | No                 |
+
+The public API reads only the local database: it holds no key and makes no chain requests. It
+accepts GET and HEAD only, limits requests per client and sets a strict content security policy.
+
+The console adds the wallet. It signs with the account in `.env`, so it is protected by
+`VIGIL_CONSOLE_PASSWORD` (session cookie: HttpOnly, SameSite=Strict; failed sign-ins are locked
+out). Requests that change anything must be JSON and carry a header a cross-site page cannot
+send. It listens on `127.0.0.1` by default: reach it through SSH or a VPN, not the open internet.
+
+## Base-chain monitor
 
 ```sh
 pnpm monitor --once   # check both networks once (read-only, no key)
 pnpm monitor          # keep checking every minute
-pnpm api              # serve the status page, /api/overview and /metrics on port 8080
 ```
 
 The monitor reads the tip of each network, measures the average block time over the last 1,000
@@ -124,10 +148,6 @@ breaker list, EVM settings and active precompiles, rollup, layer, post-quantum a
 parameters, and the published node release. Each answer is stored in canonical form. When the
 content changes, the monitor records what changed and raises an alert; a source that cannot be
 read is shown as unavailable, never as changed.
-
-The API reads only the local database. It holds no key and makes no chain requests, so it is safe
-to expose. It accepts GET and HEAD only, limits requests per client and sets strict security
-headers.
 
 ## Confidential memos
 
@@ -139,9 +159,15 @@ pnpm vigil memo send <qor1...> <account-id> 0.25 "text"   # transfer plus a seal
 pnpm vigil memo inbox                                     # decrypt memos addressed to you
 ```
 
-The memo is encrypted with ML-KEM-1024 to the key the recipient registered on the base chain,
-posted through the rollup inbox, and bound to the hash of its transfer, so it cannot be attached
-to another payment or replayed on another rollup. The ledger ignores memo payloads.
+The memo is encrypted with ML-KEM-1024 to the key the recipient registered on the base chain and
+posted through the rollup inbox. It carries the hash of its transfer, authenticated with the
+ciphertext, so it cannot be re-pointed at another payment or replayed on another rollup. The
+ledger ignores memo payloads.
+
+A memo is not proof of payment. Anyone can post a memo that points at any inbox entry. The
+reader therefore marks the link as verified only when the entry is a correctly signed transfer
+posted by the same account as the memo, and even then the transfer may not have executed: check
+the balance.
 
 What stays public: who posted the memo, when, its size, and the transfer it points to, including
 the amount. Only the text is hidden.
@@ -180,7 +206,9 @@ Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`, or `ALERT_WEBHOOK_URL`, to rece
 | Rollup is not batching its inbox        | Warning  | Inbox entries have waited more than 600 blocks for a batch            |
 | Invalid batch was rejected by the chain | Info     | A challenge succeeded                                                 |
 
-Each condition is reported once, stored before delivery, and retried until delivered.
+Each condition is stored once, before delivery, and delivery is retried until every configured
+destination accepts it (so a destination may see an alert twice after a partial failure). With
+no destination configured, alerts are only stored and shown in the web app.
 
 ### Challenging fraud
 
@@ -188,6 +216,9 @@ Each condition is reported once, stored before delivery, and retried until deliv
 only alerts, `dry-run` also builds the fraud proof and checks it locally, `on` submits the
 challenge with the configured account. A proof is sent only after the same check the chain runs
 has confirmed it locally.
+
+A verdict belongs to a whole claim (index, both state roots, withdrawals root, data hash, inbox
+range and submission height), so a replacement batch is always judged from scratch.
 
 `pnpm fraud:drill` rehearses this on a live network: a throwaway account bonds and submits a batch
 with a wrong state root. It is a dry run unless `--execute` is given, because the drill bond is
@@ -207,12 +238,14 @@ verification code on a live node with `eth_call`.
 ## Deployment
 
 ```sh
-docker compose -f deploy/compose.yaml up -d --build
+docker compose --env-file .env -f deploy/compose.yaml up -d --build
 ```
 
 One image, one process per container: watchtower, batcher, receipts, monitor and the API. They
-run as a non-root user with a read-only file system and share a SQLite database on a volume. Add
-`--profile public` and set `VIGIL_DOMAIN` to put the status page behind Caddy with automatic TLS.
+run as a non-root user with a read-only file system and share a SQLite database on a volume. Only
+the services that send transactions receive the seed phrase. Add `--profile console` for the
+operator console, and `--profile public` with `VIGIL_DOMAIN` to put the public site behind Caddy
+with automatic TLS.
 See [docs/RUNBOOK.md](docs/RUNBOOK.md).
 
 ## Documentation
@@ -222,6 +255,19 @@ See [docs/RUNBOOK.md](docs/RUNBOOK.md).
   test or a testnet transaction for every claim.
 - [Runbook](docs/RUNBOOK.md): deployment, alerts and incidents.
 - [Demo walkthrough](docs/DEMO.md).
+
+## Relying on recorded receipts
+
+`VigilReceipts` records that the key registered for a given signer signed a given anchor at the
+time of recording. If you consume it:
+
+- Always check the signer. Anyone with a registered key can record an anchor they signed
+  themselves; only the rollup creator's signature means settlement. Use
+  `isAnchorRecorded(signer, receipt)` with the signer you trust, not the events alone.
+- A record does not say which key signed, and it is never revoked: after a key rotation, older
+  records still read as recorded.
+- A signer can sign two different roots for the same height; both can be recorded. Query with the
+  full receipt.
 
 ## Security
 

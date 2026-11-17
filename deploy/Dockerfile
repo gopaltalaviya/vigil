@@ -16,6 +16,7 @@ COPY packages/memo/package.json packages/memo/
 COPY packages/receipts/package.json packages/receipts/
 COPY packages/monitor/package.json packages/monitor/
 COPY packages/api/package.json packages/api/
+COPY packages/console/package.json packages/console/
 RUN pnpm install --frozen-lockfile --filter "./packages/*..." --filter .
 
 COPY packages packages
@@ -33,7 +34,7 @@ WORKDIR /app
 COPY --from=build --chown=node:node /app/node_modules node_modules
 COPY --from=build --chown=node:node /app/packages packages
 COPY --chown=node:node package.json LICENSE NOTICE ./
-COPY --chown=node:node apps/status apps/status
+COPY --chown=node:node apps/web apps/web
 RUN mkdir /data && chown node:node /data
 USER node
 VOLUME ["/data"]

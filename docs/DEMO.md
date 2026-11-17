@@ -7,9 +7,12 @@ commands from the repository root with a funded account in `.env`. Replace `pnpm
 ## Before you start
 
 ```sh
-docker compose -f deploy/compose.yaml up -d   # watchtower, batcher, receipts, monitor, api
-open http://127.0.0.1:8080                    # the status page
+docker compose --env-file .env -f deploy/compose.yaml --profile console up -d
+open http://127.0.0.1:8090    # the web app with the wallet (sign in with the console password)
+open http://127.0.0.1:8080    # the public, read-only site
 ```
+
+Every step below can be done in the web app's Wallet page or on the command line.
 
 ## 1. Use the rollup (about 40 seconds)
 

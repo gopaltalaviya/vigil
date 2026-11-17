@@ -152,14 +152,113 @@ describe("Challenger", () => {
     expect(rollup.batches[0]?.status).toBe("rejected");
   });
 
-  it("surfaces a rejected challenge transaction instead of hiding it", async () => {
+  it("reports a rejected challenge transaction and still handles the other candidates", async () => {
     const { rollup, watchtower, challenger } = setup();
     rollup.deposit("qor1user", alice.accountId, 5n * QOR);
     submitTheft(rollup);
-    const report = await watchtower.tick();
+    const [candidate] = (await watchtower.tick()).challengeable;
+    if (candidate === undefined) throw new Error("expected a candidate");
 
     rollup.failNextWith = 10;
-    await expect(challenger.challengeAll(report.challengeable)).rejects.toThrow(/challenge-batch/);
-    expect(rollup.batches[0]?.status).toBe("submitted");
+    const outcomes = await challenger.challengeAll([candidate, candidate]);
+    expect(outcomes.map((o) => o.action)).toEqual(["failed", "challenged"]);
+    expect(JSON.stringify(outcomes[0])).toContain("challenge-batch");
+    expect(rollup.batches[0]?.status).toBe("rejected");
+  });
+
+  it("judges a replacement batch on its own, even with the same index and state root", async () => {
+    const { rollup, watchtower, challenger, store } = setup();
+    rollup.deposit("qor1user", alice.accountId, 5n * QOR);
+    rollup.post("qor1user", signed(0, QOR, { recipient: WATCHER }));
+
+    // An honest batch is judged valid, then the chain rejects it for an unrelated reason.
+    const honest = rollup.submitHonestBatch();
+    expect((await watchtower.tick()).judged.map((j) => j.verdict)).toEqual(["valid"]);
+    honest.status = "rejected";
+
+    // Its replacement has the same index and the same state root, but forged withdrawals.
+    const plan = rollup.plan(rollup.ledgerAt(0));
+    rollup.batches.length = 0;
+    rollup.acceptBatch({ ...plan.input, withdrawalsRoot: new Uint8Array(32).fill(0xee) });
+
+    const report = await watchtower.tick();
+    expect(report.judged).toMatchObject([{ verdict: "invalid", reasons: ["withdrawals_root"] }]);
+    expect(report.challengeable).toHaveLength(1);
+    await challenger.challengeAll(report.challengeable);
+    expect(rollup.batches[0]?.status).toBe("rejected");
+    expect(store.batches(FAKE_ROLLUP_ID).map((b) => b.status)).toContain("rejected");
+  });
+
+  it("does not carry an old 'invalid' verdict over to an honest replacement", async () => {
+    const { rollup, watchtower } = setup();
+    rollup.deposit("qor1user", alice.accountId, 5n * QOR);
+    rollup.post("qor1user", signed(0, QOR, { recipient: WATCHER }));
+    const plan = rollup.plan(rollup.ledgerAt(0));
+    rollup.acceptBatch({ ...plan.input, withdrawalsRoot: new Uint8Array(32).fill(0xee) });
+    expect((await watchtower.tick()).challengeable).toHaveLength(1);
+
+    rollup.batches.length = 0;
+    rollup.submitHonestBatch();
+    const report = await watchtower.tick();
+    expect(report.judged).toMatchObject([{ verdict: "valid" }]);
+    expect(report.challengeable).toEqual([]);
+  });
+
+  it("never resolves a challenge against a batch its own proof does not condemn", async () => {
+    const { rollup } = setup();
+    rollup.deposit("qor1user", alice.accountId, 5n * QOR);
+    const honest = rollup.submitHonestBatch({ status: "challenged" });
+
+    const archive = new InboxArchive({
+      chainId: FAKE_CHAIN_ID,
+      rollupId: FAKE_ROLLUP_ID,
+      store: Store.open(":memory:"),
+      source: rollup.source(),
+    });
+    await archive.sync();
+    const outcome = await new Challenger({
+      chainId: FAKE_CHAIN_ID,
+      rollupId: FAKE_ROLLUP_ID,
+      store: Store.open(":memory:"),
+      archive,
+      sender: rollup.sender(WATCHER),
+      alerts: new AlertDispatcher({ store: Store.open(":memory:"), sinks: [], log }),
+      log,
+    }).challenge({ batch: honest, secondsRemaining: 100 });
+    expect(outcome).toMatchObject({ action: "skipped" });
+    expect(honest.status).toBe("challenged");
+  });
+
+  it("skips a batch that was replaced between judging and challenging", async () => {
+    const rollup = new FakeRollup();
+    const store = Store.open(":memory:");
+    const archive = new InboxArchive({
+      chainId: FAKE_CHAIN_ID,
+      rollupId: FAKE_ROLLUP_ID,
+      store,
+      source: rollup.source(),
+    });
+    const alerts = new AlertDispatcher({ store, sinks: [], log });
+    const shared = {
+      chainId: FAKE_CHAIN_ID,
+      rollupId: FAKE_ROLLUP_ID,
+      store,
+      archive,
+      alerts,
+      log,
+    };
+    rollup.deposit("qor1user", alice.accountId, 5n * QOR);
+    submitTheft(rollup);
+    const report = await new Watchtower({ ...shared, view: rollup.view() }).tick();
+
+    const challenger = new Challenger({
+      ...shared,
+      sender: rollup.sender(WATCHER, store),
+      current: () => Promise.resolve(rollup.submitHonestBatch()),
+    });
+    expect(await challenger.challengeAll(report.challengeable)).toMatchObject([
+      { action: "skipped", reason: "the batch changed since it was judged" },
+    ]);
+    expect(rollup.challenges).toEqual([]);
   });
 });

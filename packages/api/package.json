@@ -19,9 +19,13 @@
   "dependencies": {
     "@qorechain/rdk": "0.9.0",
     "@vigil/core": "workspace:*",
-    "@vigil/watchtower": "workspace:*"
+    "@vigil/memo": "workspace:*"
   },
   "bin": {
     "vigil-api": "./dist/main.js"
+  },
+  "devDependencies": {
+    "@qorechain/qoreseal": "0.1.0",
+    "@vigil/watchtower": "workspace:*"
   }
 }

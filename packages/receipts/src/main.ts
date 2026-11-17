@@ -7,14 +7,23 @@
  *   vigil-receipts deploy           deploy VigilReceipts (needs `forge build` output)
  *   vigil-receipts check <batch>    verify a batch's anchor through the contract, read-only
  *   vigil-receipts record <batch>   verify and record a batch's anchor on chain
- *   vigil-receipts sync             record every anchored batch that is not on chain yet
+ *   vigil-receipts sync             record every finalized batch the watchtower judged valid
+ *   vigil-receipts watch            run sync every two minutes until stopped
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { uqorToQor } from "@qorechain/rdk";
 import type { Abi, Hex } from "viem";
-import { Store, VigilError, createChain, createLogger, loadConfig } from "@vigil/core";
+import {
+  Store,
+  VigilError,
+  claimId,
+  createChain,
+  createLogger,
+  envInt,
+  loadConfig,
+} from "@vigil/core";
 import {
   deployerAccount,
   deployerStatus,
@@ -23,7 +32,7 @@ import {
   registerDeployerKey,
 } from "./deployer.js";
 import { ReceiptsContract } from "./contract.js";
-import { buildAnchorCall } from "./receipts.js";
+import { buildAnchorCall, type AnchorCall } from "./receipts.js";
 
 const print = (line: string): void => {
   process.stdout.write(`${line}\n`);
@@ -36,11 +45,12 @@ async function main(argv: string[]): Promise<void> {
   const chain = createChain(config);
   const context = { config, rdk: chain.rdk, log };
   const contract = new ReceiptsContract(config);
-  const remember = (batchIndex: number, txHash: string): void => {
+  const remember = (batchIndex: number, stateRoot: string, txHash: string): void => {
     const store = Store.open(join(config.dataDir, "vigil.sqlite"));
     try {
       store.saveReceipt(config.rollupId, {
         batchIndex,
+        stateRoot: stateRoot.replace(/^0x/, "").toLowerCase(),
         contract: address(),
         txHash,
         recordedAt: Math.floor(Date.now() / 1_000),
@@ -70,6 +80,76 @@ async function main(argv: string[]): Promise<void> {
       print(`Opened an EVM window: ${await openDeployerWindow(context)}`);
     }
   };
+  /**
+   * Records one anchor. Someone else may record the same receipt first (it is
+   * public data); that is the outcome we wanted, so it counts as success.
+   */
+  const recordOne = async (index: number, call: AnchorCall): Promise<string> => {
+    if (await contract.isAnchorRecorded(address(), call)) {
+      remember(index, call.receipt.stateRoot, "");
+      return `Batch ${String(index)}: already recorded.`;
+    }
+    if (!(await contract.checkAnchor(address(), call))) {
+      return `Batch ${String(index)}: signature does not verify; nothing was sent.`;
+    }
+    await ensureWindow();
+    try {
+      const hash = await contract.recordAnchor(await key(), address(), call);
+      remember(index, call.receipt.stateRoot, hash);
+      return `Batch ${String(index)}: recorded. Transaction ${hash}`;
+    } catch (error) {
+      if (await contract.isAnchorRecorded(address(), call)) {
+        remember(index, call.receipt.stateRoot, "");
+        return `Batch ${String(index)}: recorded by another sender first.`;
+      }
+      throw error;
+    }
+  };
+
+  /**
+   * Records the receipt of every batch that is final on the base chain and that
+   * our own watchtower judged valid. A batch still in its challenge window, or
+   * one nobody has re-executed, gets no receipt.
+   */
+  const syncOnce = async (): Promise<void> => {
+    const store = Store.open(join(config.dataDir, "vigil.sqlite"));
+    let judgedValid: Set<string>;
+    try {
+      judgedValid = new Set(
+        store
+          .batches(config.rollupId)
+          .filter((b) => store.verdict(config.rollupId, claimId(b))?.verdict === "valid")
+          .map((b) => `${String(b.batchIndex)}:${b.stateRoot}`),
+      );
+    } finally {
+      store.close();
+    }
+    for (const item of await chain.rdk.rest.listBatches(config.rollupId)) {
+      const index = item.batchIndex;
+      if (item.status !== "finalized") continue;
+      if (!judgedValid.has(`${String(index)}:${item.stateRoot.replace(/^0x/, "").toLowerCase()}`)) {
+        print(`Batch ${String(index)}: not judged valid by the watchtower yet, skipped.`);
+        continue;
+      }
+      let call: AnchorCall;
+      try {
+        call = await buildAnchorCall(chain.rdk, config.chainId, config.rollupId, index);
+      } catch (error) {
+        if (error instanceof VigilError && error.code === "INTEGRITY") {
+          print(`Batch ${String(index)}: no anchor, skipped.`);
+          continue;
+        }
+        throw error;
+      }
+      try {
+        print(await recordOne(index, call));
+      } catch (error) {
+        log.error({ batch: index, err: error }, "could not record the receipt");
+        print(`Batch ${String(index)}: failed, will retry on the next round.`);
+      }
+    }
+  };
+
   const key = async (): Promise<Hex> => (await deployerAccount(config)).privateKey as Hex;
 
   switch (command) {
@@ -129,58 +209,43 @@ async function main(argv: string[]): Promise<void> {
     case "record": {
       const index = batch();
       const call = await buildAnchorCall(chain.rdk, config.chainId, config.rollupId, index);
-      if (await contract.isAnchorRecorded(address(), call)) {
-        remember(index, "");
-        print(`Batch ${String(index)} is already recorded.`);
-        break;
-      }
-      if (!(await contract.checkAnchor(address(), call))) {
-        throw new VigilError(
-          "INTEGRITY",
-          "the anchor's signature does not verify; nothing was sent",
-        );
-      }
-      await ensureWindow();
-      const hash = await contract.recordAnchor(await key(), address(), call);
-      remember(index, hash);
-      print(`Recorded batch ${String(index)}. Transaction ${hash}`);
+      print(await recordOne(index, call));
       break;
     }
     case "sync": {
-      const batches = await chain.rdk.rest.listBatches(config.rollupId);
-      for (const item of batches) {
-        if (item.status === "rejected") continue;
-        const index = item.batchIndex;
-        let call;
+      await syncOnce();
+      break;
+    }
+    case "watch": {
+      // Long-running form of `sync`, for a container: no shell loop, clean shutdown.
+      const intervalMs = envInt("RECEIPTS_INTERVAL_MS", 120_000, { min: 10_000, max: 86_400_000 });
+      const state = { stop: false, wake: undefined as (() => void) | undefined };
+      for (const signal of ["SIGINT", "SIGTERM"] as const) {
+        process.once(signal, () => {
+          state.stop = true;
+          state.wake?.();
+        });
+      }
+      while (!state.stop) {
         try {
-          call = await buildAnchorCall(chain.rdk, config.chainId, config.rollupId, index);
+          await syncOnce();
         } catch (error) {
-          if (error instanceof VigilError && error.code === "INTEGRITY") {
-            print(`Batch ${String(index)}: no anchor, skipped.`);
-            continue;
-          }
-          throw error;
+          log.error({ err: error }, "receipt sync failed; will retry");
         }
-        if (await contract.isAnchorRecorded(address(), call)) {
-          remember(index, "");
-          print(`Batch ${String(index)}: already recorded.`);
-          continue;
-        }
-        if (!(await contract.checkAnchor(address(), call))) {
-          print(`Batch ${String(index)}: signature does not verify, skipped.`);
-          continue;
-        }
-        await ensureWindow();
-        const hash = await contract.recordAnchor(await key(), address(), call);
-        remember(index, hash);
-        print(`Batch ${String(index)}: recorded. Transaction ${hash}`);
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, intervalMs);
+          state.wake = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+        });
       }
       break;
     }
     default:
       throw new VigilError(
         "CONFIG_INVALID",
-        "usage: vigil-receipts <status|setup|deploy|check|record|sync>",
+        "usage: vigil-receipts <status|setup|deploy|check|record|sync|watch>",
       );
   }
 }

@@ -35,3 +35,18 @@ All notable changes are recorded here. The format follows
 ### Fixed
 
 - Archiving the same inbox entries from two services at once no longer fails.
+- Web app (`apps/web`) with a new emerald brand: overview, wallet, batch explorer with decoded
+  inbox entries, account lookup, base-chain monitor and alerts.
+- `@vigil/console`: password-protected operator console that performs wallet actions.
+- Service heartbeats, shown in the web app.
+
+### Fixed (independent review)
+
+- Verdicts are keyed by the whole batch claim; a replacement batch is judged from scratch.
+- Resolving a challenge now requires the same local fraud check as opening one.
+- A webhook URL can no longer reach logs.
+- Memo links are verified before they are shown as transfers.
+- One failing challenge or claim no longer blocks the rest; challenges run before alert delivery.
+- Receipts are recorded only for finalized batches the watchtower judged valid.
+- The seed phrase is given only to services that send transactions.
+- Opening the database from several processes at once no longer fails.

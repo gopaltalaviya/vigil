@@ -7,7 +7,7 @@
  * Usage: vigil-monitor [--once]
  */
 import { join } from "node:path";
-import { HttpClient, Store, createLogger, loadConfig } from "@vigil/core";
+import { HttpClient, Store, createLogger, envInt, loadConfig } from "@vigil/core";
 import {
   AlertDispatcher,
   runLoop,
@@ -20,11 +20,17 @@ import { BaseChainMonitor, QORECHAIN_NETWORKS } from "./monitor.js";
 const config = loadConfig();
 const log = createLogger({ service: "monitor", level: config.logLevel });
 const once = process.argv.includes("--once");
-const intervalMs = Number(process.env.MONITOR_INTERVAL_MS ?? 60_000);
+const intervalMs = envInt("MONITOR_INTERVAL_MS", 60_000, { min: 5_000, max: 3_600_000 });
 const store = Store.open(join(config.dataDir, "vigil.sqlite"));
 
 const sinks: AlertSink[] = [];
-const alertHttp = new HttpClient({ source: "alerts", maxRetries: 2, timeoutMs: 10_000 });
+// Alert URLs carry credentials, so this client never puts a path into an error.
+const alertHttp = new HttpClient({
+  source: "alerts",
+  maxRetries: 2,
+  timeoutMs: 10_000,
+  secretUrls: true,
+});
 if (config.alerts.telegramBotToken !== undefined && config.alerts.telegramChatId !== undefined) {
   sinks.push(telegramSink(alertHttp, config.alerts.telegramBotToken, config.alerts.telegramChatId));
 }
@@ -51,6 +57,7 @@ const monitors = Object.values(QORECHAIN_NETWORKS).map(
 
 const tick = async (): Promise<void> => {
   for (const monitor of monitors) log.info(await monitor.tick(), "network checked");
+  store.heartbeat("monitor", Math.floor(Date.now() / 1_000));
 };
 
 log.info({ networks: Object.keys(QORECHAIN_NETWORKS), once }, "monitor starting");

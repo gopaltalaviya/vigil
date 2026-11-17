@@ -153,7 +153,7 @@ export class BaseChainMonitor {
     ];
     for (const target of targets) {
       try {
-        const body = canonicalJson(await http.getJson(target.url));
+        const body = canonicalJson(stable(target.source, await http.getJson(target.url)));
         if (this.record(target.source, body, target.label)) report.changed.push(target.source);
       } catch (error) {
         report.unavailable.push(target.source);
@@ -304,6 +304,19 @@ export class BaseChainMonitor {
       });
     }
   }
+}
+
+/**
+ * Removes parts of an answer that change constantly without meaning anything
+ * to a builder. The node manifest republishes its state-sync checkpoint many
+ * times a day; only the release itself (version, binary, notes) is tracked.
+ */
+function stable(source: string, value: unknown): unknown {
+  if (source !== "node-manifest" || value === null || typeof value !== "object") return value;
+  const release = { ...(value as Record<string, unknown>) };
+  delete release.stateSync;
+  delete release.releasedAt;
+  return release;
 }
 
 /** A short, readable account of which top-level parts of a JSON document changed. */

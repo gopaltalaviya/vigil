@@ -7,6 +7,7 @@
       "@vigil/memo": ["./packages/memo/src/index.ts"],
       "@vigil/monitor": ["./packages/monitor/src/index.ts"],
       "@vigil/api": ["./packages/api/src/index.ts"],
+      "@vigil/console": ["./packages/console/src/index.ts"],
       "@vigil/receipts": ["./packages/receipts/src/index.ts"],
       "@vigil/core": ["./packages/core/src/index.ts"],
       "@vigil/watchtower": ["./packages/watchtower/src/index.ts"],

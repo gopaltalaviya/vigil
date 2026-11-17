@@ -27,7 +27,8 @@
     "gen:abi": "tsx scripts/gen-abi.ts",
     "fraud:drill": "tsx scripts/fraud-drill.ts",
     "monitor": "tsx packages/monitor/src/main.ts",
-    "api": "tsx packages/api/src/main.ts"
+    "api": "tsx packages/api/src/main.ts",
+    "console": "tsx packages/console/src/main.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

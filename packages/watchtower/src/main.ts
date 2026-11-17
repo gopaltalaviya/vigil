@@ -20,7 +20,9 @@ import {
   connectTxSender,
   createChain,
   createLogger,
+  envInt,
   loadConfig,
+  toStoredBatch,
 } from "@vigil/core";
 import { AlertDispatcher, telegramSink, webhookSink, type AlertSink } from "./alerts.js";
 import { Challenger } from "./challenger.js";
@@ -30,14 +32,20 @@ import { Watchtower, chainRollupView } from "./watchtower.js";
 const config = loadConfig();
 const log = createLogger({ service: "watchtower", level: config.logLevel });
 const once = process.argv.includes("--once");
-const intervalMs = Number(process.env.WATCHTOWER_INTERVAL_MS ?? 15_000);
-const healthPort = Number(process.env.WATCHTOWER_HEALTH_PORT ?? 8081);
+const intervalMs = envInt("WATCHTOWER_INTERVAL_MS", 15_000, { min: 1_000, max: 3_600_000 });
+const healthPort = envInt("WATCHTOWER_HEALTH_PORT", 8081, { min: 1, max: 65_535 });
 
 const store = Store.open(join(config.dataDir, "vigil.sqlite"));
 const chain = createChain(config);
 
 const sinks: AlertSink[] = [];
-const alertHttp = new HttpClient({ source: "alerts", maxRetries: 2, timeoutMs: 10_000 });
+// Alert URLs carry credentials, so this client never puts a path into an error.
+const alertHttp = new HttpClient({
+  source: "alerts",
+  maxRetries: 2,
+  timeoutMs: 10_000,
+  secretUrls: true,
+});
 if (config.alerts.telegramBotToken !== undefined && config.alerts.telegramChatId !== undefined) {
   sinks.push(telegramSink(alertHttp, config.alerts.telegramBotToken, config.alerts.telegramChatId));
 }
@@ -66,15 +74,18 @@ const challenger =
         ...shared,
         sender: await connectTxSender(config, chain.rdk, { store, log }),
         dryRun: challengeMode === "dry-run",
+        current: async (batchIndex) =>
+          toStoredBatch(await chain.rdk.rest.getBatch(config.rollupId, batchIndex)),
       });
 
 const tick = async (): Promise<void> => {
-  const report = await watchtower.tick();
+  // Challenge first, deliver alerts second: a slow chat API must not delay a fraud proof.
+  const report = await watchtower.tick({ flush: false });
   if (challenger !== undefined && report.challengeable.length > 0) {
     const outcomes = await challenger.challengeAll(report.challengeable);
     log.warn({ outcomes }, "challenge outcomes");
-    await alerts.flush();
   }
+  await alerts.flush();
   log.info(
     {
       inboxHead: report.inboxHead,
@@ -127,6 +138,17 @@ if (once) {
     log,
     onSuccess: () => {
       lastSuccess = Date.now();
+    },
+    // A watchtower that cannot see the chain is blind; say so instead of failing quietly.
+    onFailure: (failures, error) => {
+      if (failures !== 5) return;
+      alerts.raise({
+        key: `watchtower-blind:${config.rollupId}:${String(Math.floor(Date.now() / 3_600_000))}`,
+        severity: "critical",
+        title: `Watchtower for ${config.rollupId} cannot check batches`,
+        body: `Five rounds in a row failed. Last error: ${error instanceof Error ? error.message : "unknown"}`,
+      });
+      void alerts.flush();
     },
   });
   server.close();

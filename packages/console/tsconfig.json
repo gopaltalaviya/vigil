@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "noEmit": true,
+    "paths": {
+      "@vigil/core": ["../core/src/index.ts"],
+      "@vigil/api": ["../api/src/index.ts"],
+      "@vigil/wallet": ["../wallet/src/index.ts"],
+      "@vigil/memo": ["../memo/src/index.ts"],
+      "@vigil/watchtower": ["../watchtower/src/index.ts"]
+    }
+  },
+  "include": ["src", "test"]
+}

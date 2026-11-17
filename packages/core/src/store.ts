@@ -89,15 +89,44 @@ export interface StoredChainEvent {
 /** A settlement receipt recorded through the receipts contract. */
 export interface StoredReceipt {
   batchIndex: number;
+  /** State root the recorded anchor commits to; empty for records made before it was stored. */
+  stateRoot: string;
   contract: string;
   txHash: string;
   recordedAt: number;
+}
+
+/**
+ * Identity of one batch claim. A rejected batch and its replacement share an
+ * index, and an honest batch and a forged one over the same entries can share
+ * a state root, so nothing less than every committed field identifies a claim.
+ */
+export function claimId(batch: StoredBatch): string {
+  return [
+    batch.batchIndex,
+    batch.prevStateRoot,
+    batch.stateRoot,
+    batch.withdrawalsRoot,
+    batch.dataHash,
+    batch.inboxStart,
+    batch.inboxEnd,
+    batch.submittedAt,
+  ].join(":");
+}
+
+/** Last sign of life of one service. */
+export interface StoredHeartbeat {
+  service: string;
+  at: number;
+  detail: string;
 }
 
 export type VerdictKind = "valid" | "invalid" | "undecidable";
 
 /** The watchtower's judgement of one batch. */
 export interface StoredVerdict {
+  /** The claim this verdict is about; see `claimId`. */
+  claimId: string;
   batchIndex: number;
   stateRoot: string;
   verdict: VerdictKind;
@@ -226,6 +255,59 @@ const MIGRATIONS: readonly string[] = [
     PRIMARY KEY (rollup_id, batch_index, contract)
   ) STRICT;
   `,
+  `
+  CREATE TABLE batches_v3 (
+    rollup_id        TEXT NOT NULL,
+    claim_id         TEXT NOT NULL,
+    batch_index      INTEGER NOT NULL,
+    state_root       TEXT NOT NULL,
+    prev_state_root  TEXT NOT NULL,
+    data_hash        TEXT NOT NULL,
+    withdrawals_root TEXT NOT NULL,
+    inbox_start      INTEGER NOT NULL,
+    inbox_end        INTEGER NOT NULL,
+    tx_count         INTEGER NOT NULL,
+    status           TEXT NOT NULL,
+    submitted_at     INTEGER NOT NULL,
+    submitted_time   INTEGER NOT NULL,
+    finalized_at     INTEGER NOT NULL,
+    PRIMARY KEY (rollup_id, claim_id)
+  ) STRICT;
+
+  INSERT INTO batches_v3
+    SELECT rollup_id,
+           batch_index || ':' || prev_state_root || ':' || state_root || ':' || withdrawals_root
+             || ':' || data_hash || ':' || inbox_start || ':' || inbox_end || ':' || submitted_at,
+           batch_index, state_root, prev_state_root, data_hash, withdrawals_root, inbox_start,
+           inbox_end, tx_count, status, submitted_at, submitted_time, finalized_at
+    FROM batches;
+  DROP TABLE batches;
+  ALTER TABLE batches_v3 RENAME TO batches;
+  CREATE INDEX batches_by_index ON batches (rollup_id, batch_index, submitted_at);
+
+  -- Verdicts were keyed too coarsely; every batch is judged again under its full identity.
+  DROP TABLE verdicts;
+  CREATE TABLE verdicts (
+    rollup_id                 TEXT NOT NULL,
+    claim_id                  TEXT NOT NULL,
+    batch_index               INTEGER NOT NULL,
+    state_root                TEXT NOT NULL,
+    verdict                   TEXT NOT NULL CHECK (verdict IN ('valid', 'invalid', 'undecidable')),
+    expected_state_root       TEXT NOT NULL,
+    expected_withdrawals_root TEXT NOT NULL,
+    reasons                   TEXT NOT NULL,
+    checked_at                INTEGER NOT NULL,
+    PRIMARY KEY (rollup_id, claim_id)
+  ) STRICT;
+
+  ALTER TABLE receipts ADD COLUMN state_root TEXT NOT NULL DEFAULT '';
+
+  CREATE TABLE heartbeats (
+    service TEXT PRIMARY KEY,
+    at      INTEGER NOT NULL,
+    detail  TEXT NOT NULL
+  ) STRICT;
+  `,
 ];
 
 const text = (row: Row, key: string): string => {
@@ -264,8 +346,10 @@ export class Store {
     try {
       if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
       const db = new DatabaseSync(path);
+      // The busy timeout comes first: several services open the same file at start-up, and
+      // switching to WAL needs a lock another process may hold for a moment.
+      db.exec("PRAGMA busy_timeout = 10000;");
       db.exec("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;");
-      db.exec("PRAGMA busy_timeout = 5000;");
       const store = new Store(db);
       store.migrate();
       return store;
@@ -361,18 +445,20 @@ export class Store {
 
   // --- batches and verdicts ------------------------------------------------
 
+  /** Stores a batch claim, or updates the status of one already stored. */
   upsertBatch(rollupId: string, batch: StoredBatch): void {
     this.db
       .prepare(
-        `INSERT INTO batches (rollup_id, batch_index, state_root, prev_state_root, data_hash,
-           withdrawals_root, inbox_start, inbox_end, tx_count, status, submitted_at, submitted_time,
-           finalized_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT (rollup_id, batch_index, state_root)
+        `INSERT INTO batches (rollup_id, claim_id, batch_index, state_root, prev_state_root,
+           data_hash, withdrawals_root, inbox_start, inbox_end, tx_count, status, submitted_at,
+           submitted_time, finalized_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (rollup_id, claim_id)
          DO UPDATE SET status = excluded.status, finalized_at = excluded.finalized_at`,
       )
       .run(
         rollupId,
+        claimId(batch),
         batch.batchIndex,
         batch.stateRoot,
         batch.prevStateRoot,
@@ -388,6 +474,27 @@ export class Store {
       );
   }
 
+  /**
+   * Marks open claims the chain no longer lists as rejected. The chain keeps one
+   * record per index, so a claim that vanished while still open was replaced.
+   * Returns how many were marked.
+   */
+  supersedeMissing(rollupId: string, liveClaimIds: ReadonlySet<string>): number {
+    const update = this.db.prepare(
+      "UPDATE batches SET status = 'rejected' WHERE rollup_id = ? AND claim_id = ?",
+    );
+    let marked = 0;
+    for (const batch of this.batches(rollupId)) {
+      const open = batch.status === "submitted" || batch.status === "challenged";
+      if (open && !liveClaimIds.has(claimId(batch))) {
+        update.run(rollupId, claimId(batch));
+        marked += 1;
+      }
+    }
+    return marked;
+  }
+
+  /** Every claim ever seen for the rollup, in batch order, oldest claim first within an index. */
   batches(rollupId: string): StoredBatch[] {
     return this.all(
       "SELECT * FROM batches WHERE rollup_id = ? ORDER BY batch_index, submitted_at",
@@ -411,10 +518,10 @@ export class Store {
   saveVerdict(rollupId: string, verdict: StoredVerdict): void {
     this.db
       .prepare(
-        `INSERT INTO verdicts (rollup_id, batch_index, state_root, verdict, expected_state_root,
-           expected_withdrawals_root, reasons, checked_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT (rollup_id, batch_index, state_root)
+        `INSERT INTO verdicts (rollup_id, claim_id, batch_index, state_root, verdict,
+           expected_state_root, expected_withdrawals_root, reasons, checked_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (rollup_id, claim_id)
          DO UPDATE SET verdict = excluded.verdict,
            expected_state_root = excluded.expected_state_root,
            expected_withdrawals_root = excluded.expected_withdrawals_root,
@@ -422,6 +529,7 @@ export class Store {
       )
       .run(
         rollupId,
+        verdict.claimId,
         verdict.batchIndex,
         verdict.stateRoot,
         verdict.verdict,
@@ -432,12 +540,12 @@ export class Store {
       );
   }
 
-  verdict(rollupId: string, batchIndex: number, stateRoot: string): StoredVerdict | undefined {
+  /** The verdict on one claim; see `claimId`. */
+  verdict(rollupId: string, claim: string): StoredVerdict | undefined {
     const row = this.get(
-      "SELECT * FROM verdicts WHERE rollup_id = ? AND batch_index = ? AND state_root = ?",
+      "SELECT * FROM verdicts WHERE rollup_id = ? AND claim_id = ?",
       rollupId,
-      batchIndex,
-      stateRoot,
+      claim,
     );
     if (row === undefined) return undefined;
     const kind = text(row, "verdict");
@@ -445,6 +553,7 @@ export class Store {
       throw new StoreError("unknown verdict value in the database");
     }
     return {
+      claimId: text(row, "claim_id"),
       batchIndex: int(row, "batch_index"),
       stateRoot: text(row, "state_root"),
       verdict: kind,
@@ -453,6 +562,26 @@ export class Store {
       reasons: JSON.parse(text(row, "reasons")) as string[],
       checkedAt: int(row, "checked_at"),
     };
+  }
+
+  // --- heartbeats ----------------------------------------------------------
+
+  /** Records that `service` completed a unit of work at `at` (Unix seconds). */
+  heartbeat(service: string, at: number, detail = ""): void {
+    this.db
+      .prepare(
+        `INSERT INTO heartbeats (service, at, detail) VALUES (?, ?, ?)
+         ON CONFLICT (service) DO UPDATE SET at = excluded.at, detail = excluded.detail`,
+      )
+      .run(service, at, detail);
+  }
+
+  heartbeats(): StoredHeartbeat[] {
+    return this.all("SELECT * FROM heartbeats ORDER BY service").map((row) => ({
+      service: text(row, "service"),
+      at: int(row, "at"),
+      detail: text(row, "detail"),
+    }));
   }
 
   // --- ledger snapshots ----------------------------------------------------
@@ -661,10 +790,22 @@ export class Store {
   saveReceipt(rollupId: string, receipt: StoredReceipt): void {
     this.db
       .prepare(
-        `INSERT INTO receipts (rollup_id, batch_index, contract, tx_hash, recorded_at)
-         VALUES (?, ?, ?, ?, ?) ON CONFLICT (rollup_id, batch_index, contract) DO NOTHING`,
+        `INSERT INTO receipts (rollup_id, batch_index, contract, tx_hash, recorded_at, state_root)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT (rollup_id, batch_index, contract)
+         DO UPDATE SET state_root = excluded.state_root,
+           tx_hash = CASE WHEN excluded.tx_hash = '' THEN receipts.tx_hash ELSE excluded.tx_hash END,
+           recorded_at = excluded.recorded_at
+         WHERE receipts.state_root <> excluded.state_root OR receipts.tx_hash = ''`,
       )
-      .run(rollupId, receipt.batchIndex, receipt.contract, receipt.txHash, receipt.recordedAt);
+      .run(
+        rollupId,
+        receipt.batchIndex,
+        receipt.contract,
+        receipt.txHash,
+        receipt.recordedAt,
+        receipt.stateRoot,
+      );
   }
 
   receipts(rollupId: string): StoredReceipt[] {
@@ -673,6 +814,7 @@ export class Store {
       rollupId,
     ).map((row) => ({
       batchIndex: int(row, "batch_index"),
+      stateRoot: text(row, "state_root"),
       contract: text(row, "contract"),
       txHash: text(row, "tx_hash"),
       recordedAt: int(row, "recorded_at"),
@@ -682,25 +824,29 @@ export class Store {
   /** Every stored verdict for a rollup, in batch order. */
   verdicts(rollupId: string): StoredVerdict[] {
     return this.batches(rollupId).flatMap((batch) => {
-      const verdict = this.verdict(rollupId, batch.batchIndex, batch.stateRoot);
+      const verdict = this.verdict(rollupId, claimId(batch));
       return verdict === undefined ? [] : [verdict];
     });
   }
 
   // --- internals -----------------------------------------------------------
 
+  /**
+   * Applies pending migrations. The version is read again inside the write
+   * transaction, so several processes starting together apply each step once.
+   */
   private migrate(): void {
-    const current = this.schemaVersion;
-    if (current > MIGRATIONS.length) {
+    if (this.schemaVersion > MIGRATIONS.length) {
       throw new StoreError("the database was written by a newer version of Vigil", {
-        databaseVersion: current,
+        databaseVersion: this.schemaVersion,
         supportedVersion: MIGRATIONS.length,
       });
     }
-    for (let version = current; version < MIGRATIONS.length; version++) {
-      const sql = MIGRATIONS[version];
-      if (sql === undefined) throw new StoreError("missing migration", { version });
+    while (this.schemaVersion < MIGRATIONS.length) {
       this.transaction(() => {
+        const version = this.schemaVersion;
+        const sql = MIGRATIONS[version];
+        if (sql === undefined) return;
         this.db.exec(sql);
         this.db.exec(`PRAGMA user_version = ${String(version + 1)}`);
       });

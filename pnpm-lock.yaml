@@ -68,6 +68,13 @@ importers:
       '@vigil/core':
         specifier: workspace:*
         version: link:../core
+      '@vigil/memo':
+        specifier: workspace:*
+        version: link:../memo
+    devDependencies:
+      '@qorechain/qoreseal':
+        specifier: 0.1.0
+        version: 0.1.0
       '@vigil/watchtower':
         specifier: workspace:*
         version: link:../watchtower
@@ -83,6 +90,27 @@ importers:
       '@vigil/watchtower':
         specifier: workspace:*
         version: link:../watchtower
+
+  packages/console:
+    dependencies:
+      '@qorechain/qoreseal':
+        specifier: 0.1.0
+        version: 0.1.0
+      '@qorechain/rdk':
+        specifier: 0.9.0
+        version: 0.9.0(viem@2.57.20(typescript@5.9.3)(zod@4.6.7))
+      '@vigil/api':
+        specifier: workspace:*
+        version: link:../api
+      '@vigil/core':
+        specifier: workspace:*
+        version: link:../core
+      '@vigil/memo':
+        specifier: workspace:*
+        version: link:../memo
+      '@vigil/wallet':
+        specifier: workspace:*
+        version: link:../wallet
 
   packages/core:
     dependencies:

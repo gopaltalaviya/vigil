@@ -15,6 +15,7 @@ import {
   connectTxSender,
   createChain,
   createLogger,
+  envInt,
   loadConfig,
 } from "@vigil/core";
 import { runLoop } from "@vigil/watchtower";
@@ -23,8 +24,8 @@ import { Batcher } from "./batcher.js";
 const config = loadConfig();
 const log = createLogger({ service: "batcher", level: config.logLevel });
 const once = process.argv.includes("--once");
-const intervalMs = Number(process.env.BATCHER_INTERVAL_MS ?? 20_000);
-const healthPort = Number(process.env.BATCHER_HEALTH_PORT ?? 8082);
+const intervalMs = envInt("BATCHER_INTERVAL_MS", 20_000, { min: 1_000, max: 3_600_000 });
+const healthPort = envInt("BATCHER_HEALTH_PORT", 8082, { min: 1, max: 65_535 });
 
 const store = Store.open(join(config.dataDir, "vigil.sqlite"));
 const chain = createChain(config);
@@ -60,6 +61,7 @@ const batcher = new Batcher({
 
 const tick = async (): Promise<void> => {
   const report = await batcher.tick();
+  store.heartbeat("batcher", Math.floor(Date.now() / 1_000), JSON.stringify(report));
   log.info(report, "tick complete");
 };
 

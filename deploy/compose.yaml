@@ -1,17 +1,18 @@
-# Vigil on one host. Usage, from the repository root:
-#   docker compose -f deploy/compose.yaml up -d --build
-# Secrets come from ../.env (never committed). State lives in the vigil-data volume.
+# Vigil on one host. Run from the repository root, so that both the containers and
+# the ${...} values below come from the same .env file:
+#
+#   docker compose --env-file .env -f deploy/compose.yaml up -d --build
+#
+# Secrets (.env) are given only to the services that send transactions.
+# State lives in the vigil-data volume.
 name: vigil
 
-x-service: &service
+x-base: &base
   image: vigil:latest
   build:
     context: ..
     dockerfile: deploy/Dockerfile
   restart: unless-stopped
-  env_file: ../.env
-  environment: &environment
-    VIGIL_DATA_DIR: /data
   volumes:
     - vigil-data:/data
   read_only: true
@@ -27,6 +28,25 @@ x-service: &service
       max-size: "10m"
       max-file: "5"
 
+# Settings that are not secret. Services without the seed phrase get only these.
+x-public-env: &public-env
+  VIGIL_DATA_DIR: /data
+  ROLLUP_ID: ${ROLLUP_ID:?set ROLLUP_ID in .env}
+  VIGIL_MODE: ${VIGIL_MODE:-shared}
+  QORE_NETWORK: ${QORE_NETWORK:-testnet}
+  QORE_CHAIN_ID: ${QORE_CHAIN_ID:-qorechain-diana}
+  QORE_RPC_URL: ${QORE_RPC_URL:-https://rpc-testnet.qore.host}
+  QORE_REST_URL: ${QORE_REST_URL:-https://api-testnet.qore.host}
+  QORE_EVM_RPC_URL: ${QORE_EVM_RPC_URL:-https://evm-testnet.qore.host}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  VIGIL_RECEIPTS_ADDRESS: ${VIGIL_RECEIPTS_ADDRESS:-}
+
+# Where alerts go. Needed by the services that raise alerts, and by nothing else.
+x-alert-env: &alert-env
+  ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+  TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+
 x-healthcheck: &healthcheck
   interval: 30s
   timeout: 5s
@@ -34,13 +54,13 @@ x-healthcheck: &healthcheck
   start_period: 40s
 
 services:
+  # Holds the seed phrase: it submits challenges when WATCHTOWER_CHALLENGE=on in .env.
   watchtower:
-    <<: *service
+    <<: *base
     command: ["packages/watchtower/dist/main.js"]
+    env_file: ../.env
     environment:
-      <<: *environment
-      WATCHTOWER_INTERVAL_MS: ${WATCHTOWER_INTERVAL_MS:-5000}
-      WATCHTOWER_CHALLENGE: ${WATCHTOWER_CHALLENGE:-on}
+      VIGIL_DATA_DIR: /data
     healthcheck:
       <<: *healthcheck
       test:
@@ -51,9 +71,13 @@ services:
           "fetch('http://127.0.0.1:8081/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
         ]
 
+  # Holds the seed phrase: it submits batches.
   batcher:
-    <<: *service
+    <<: *base
     command: ["packages/batcher/dist/main.js"]
+    env_file: ../.env
+    environment:
+      VIGIL_DATA_DIR: /data
     healthcheck:
       <<: *healthcheck
       test:
@@ -64,25 +88,29 @@ services:
           "fetch('http://127.0.0.1:8082/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
         ]
 
-  monitor:
-    <<: *service
-    command: ["packages/monitor/dist/main.js"]
-
+  # Holds the seed phrase: it records receipts through the contract.
   receipts:
-    <<: *service
-    # Records the receipt of every newly anchored batch, every five minutes.
-    entrypoint: ["/bin/sh", "-c"]
-    command: ["while true; do node packages/receipts/dist/main.js sync || true; sleep 300; done"]
-
-  api:
-    <<: *service
-    command: ["packages/api/dist/main.js"]
-    # The API reads the database only: it gets no seed phrase and no tokens.
-    env_file: []
+    <<: *base
+    command: ["packages/receipts/dist/main.js", "watch"]
+    env_file: ../.env
     environment:
-      <<: *environment
-      ROLLUP_ID: ${ROLLUP_ID:-vigil-1}
-      VIGIL_RECEIPTS_ADDRESS: ${VIGIL_RECEIPTS_ADDRESS:-}
+      VIGIL_DATA_DIR: /data
+    stop_grace_period: 90s
+
+  # No seed phrase: read-only chain monitoring plus alert delivery.
+  monitor:
+    <<: *base
+    command: ["packages/monitor/dist/main.js"]
+    environment:
+      <<: [*public-env, *alert-env]
+
+  # No secrets at all: serves the public pages from the database.
+  api:
+    <<: *base
+    command: ["packages/api/dist/main.js"]
+    environment:
+      <<: *public-env
+      TRUST_PROXY: ${TRUST_PROXY:-0}
     ports:
       - "127.0.0.1:8080:8080"
     healthcheck:
@@ -93,6 +121,30 @@ services:
           "node",
           "-e",
           "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
+        ]
+
+  # Operator console: the web app with wallet actions. Holds the seed phrase and is
+  # protected by VIGIL_CONSOLE_PASSWORD. Bound to this host only; reach it over SSH or a VPN.
+  console:
+    <<: *base
+    command: ["packages/console/dist/main.js"]
+    env_file: ../.env
+    environment:
+      VIGIL_DATA_DIR: /data
+      # Inside the container it must listen on all interfaces; the port below is
+      # published on this host's loopback address only.
+      CONSOLE_HOST: 0.0.0.0
+    ports:
+      - "127.0.0.1:8090:8090"
+    profiles: ["console"]
+    healthcheck:
+      <<: *healthcheck
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8090/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))",
         ]
 
   caddy:
@@ -108,6 +160,12 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       api:
         condition: service_healthy

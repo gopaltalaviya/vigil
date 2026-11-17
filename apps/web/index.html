@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#05130e" />
+    <title>Vigil</title>
+    <meta
+      name="description"
+      content="Vigil: a post-quantum rollup on QoreChain with a watchtower that re-checks every batch."
+    />
+    <link rel="icon" href="logo-mark.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip" href="#view">Skip to content</a>
+
+    <header class="top">
+      <div class="bar">
+        <a class="brand" href="#/overview">
+          <img src="logo-mark.svg" width="36" height="36" alt="" />
+          <span>Vigil</span>
+        </a>
+        <nav aria-label="Sections">
+          <ul class="tabs" id="tabs">
+            <li><a href="#/overview" data-route="overview">Overview</a></li>
+            <li><a href="#/wallet" data-route="wallet">Wallet</a></li>
+            <li><a href="#/batches" data-route="batches">Batches</a></li>
+            <li><a href="#/accounts" data-route="accounts">Accounts</a></li>
+            <li><a href="#/chain" data-route="chain">Base chain</a></li>
+            <li><a href="#/alerts" data-route="alerts">Alerts</a></li>
+          </ul>
+        </nav>
+        <div class="bar-end">
+          <div class="state" id="state" role="status" aria-live="polite">
+            <span class="dot"></span>
+            <span id="state-text">Loading</span>
+          </div>
+          <button class="button ghost small" id="sign-out" type="button" hidden>Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <main id="view" tabindex="-1"></main>
+
+    <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+    <footer>
+      <p>
+        Vigil is a post-quantum rollup on the QoreChain testnet. Signatures: ML-DSA-87. Memos:
+        ML-KEM-1024. Open source under Apache-2.0.
+        <span id="updated" class="muted"></span>
+      </p>
+    </footer>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>

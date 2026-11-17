@@ -9,6 +9,7 @@ export default defineConfig({
       "@vigil/memo": fileURLToPath(new URL("./packages/memo/src/index.ts", import.meta.url)),
       "@vigil/monitor": fileURLToPath(new URL("./packages/monitor/src/index.ts", import.meta.url)),
       "@vigil/api": fileURLToPath(new URL("./packages/api/src/index.ts", import.meta.url)),
+      "@vigil/console": fileURLToPath(new URL("./packages/console/src/index.ts", import.meta.url)),
       "@vigil/wallet": fileURLToPath(new URL("./packages/wallet/src/index.ts", import.meta.url)),
       "@vigil/watchtower": fileURLToPath(
         new URL("./packages/watchtower/src/index.ts", import.meta.url),

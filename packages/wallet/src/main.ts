@@ -121,13 +121,19 @@ async function main(argv: string[]): Promise<void> {
         break;
       }
       case "claim": {
-        const paid = await wallet.claim(await sender());
-        if (paid.length === 0) print("Nothing to claim yet.");
+        const { paid, failed } = await wallet.claim(await sender());
+        if (paid.length === 0 && failed.length === 0) print("Nothing to claim yet.");
         for (const { withdrawal, outcome } of paid) {
           print(
             `Claimed ${formatQor(withdrawal.amount)} QOR from batch ${String(withdrawal.batchIndex)}. Transaction ${outcome.hash}`,
           );
         }
+        for (const { withdrawal, reason } of failed) {
+          print(
+            `Could not claim ${formatQor(withdrawal.amount)} QOR from batch ${String(withdrawal.batchIndex)}: ${reason}`,
+          );
+        }
+        if (failed.length > 0) process.exitCode = 1;
         break;
       }
       case "status": {
@@ -191,13 +197,16 @@ async function main(argv: string[]): Promise<void> {
             store,
             keys,
             inboxHead: state.inboxHead,
+            payee: state.accountId,
           });
           if (memos.length === 0) print("No memos for this account.");
           for (const memo of memos) {
             const bound =
               memo.transfer === undefined
-                ? "not bound to a transfer in the inbox"
-                : `with a transfer of ${formatQor(memo.transfer.amount)} QOR (entry ${String(memo.transfer.sequence)})`;
+                ? "not linked to a transfer in the inbox"
+                : memo.transfer.verified
+                  ? `with a signed transfer of ${formatQor(memo.transfer.amount)} QOR (entry ${String(memo.transfer.sequence)}${memo.transfer.paysPayee === true ? ", to this account" : ", to another account"})`
+                  : `pointing at entry ${String(memo.transfer.sequence)}, which is NOT a verified transfer from this sender`;
             print(`Entry ${String(memo.sequence)} from ${memo.poster}, ${bound}:`);
             print(`  ${memo.text}`);
           }

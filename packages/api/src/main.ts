@@ -7,15 +7,15 @@
  */
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Store, createLogger, loadConfig } from "@vigil/core";
+import { Store, createLogger, envInt, loadConfig } from "@vigil/core";
 import { Api } from "./api.js";
 import { createApiServer } from "./server.js";
 
 const config = loadConfig();
 const log = createLogger({ service: "api", level: config.logLevel });
-const port = Number(process.env.API_PORT ?? 8080);
+const port = envInt("API_PORT", 8080, { min: 1, max: 65_535 });
 const staticDir =
-  process.env.STATUS_PAGE_DIR ?? fileURLToPath(new URL("../../../apps/status", import.meta.url));
+  process.env.STATUS_PAGE_DIR ?? fileURLToPath(new URL("../../../apps/web", import.meta.url));
 const receiptsContract = process.env.VIGIL_RECEIPTS_ADDRESS?.trim();
 
 const store = Store.open(join(config.dataDir, "vigil.sqlite"));
@@ -26,7 +26,12 @@ const api = new Api({
   networks: ["testnet", "mainnet"],
   ...(receiptsContract === undefined || receiptsContract === "" ? {} : { receiptsContract }),
 });
-const server = createApiServer({ api, staticDir, log }).listen(port, () => {
+const server = createApiServer({
+  api,
+  staticDir,
+  log,
+  trustProxy: process.env.TRUST_PROXY === "1",
+}).listen(port, () => {
   log.info({ port, rollup: config.rollupId }, "api listening");
 });
 

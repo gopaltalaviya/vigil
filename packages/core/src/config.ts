@@ -39,6 +39,28 @@ const schema = z.object({
   TELEGRAM_CHAT_ID: optionalText,
 });
 
+/**
+ * Reads an integer setting such as a port or an interval. A value that is not
+ * a whole number inside the allowed range is a configuration error, never a
+ * silent fallback: a mistyped interval must not turn into a busy loop.
+ */
+export function envInt(
+  name: string,
+  fallback: number,
+  range: { min: number; max: number },
+  env: Record<string, string | undefined> = process.env,
+): number {
+  const raw = env[name]?.trim();
+  if (raw === undefined || raw === "") return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < range.min || value > range.max) {
+    throw new ConfigError(`invalid configuration: ${name}`, {
+      problems: [{ variable: name, problem: "not an integer in range" }],
+    });
+  }
+  return value;
+}
+
 /** Validated runtime settings. Secrets are present here and nowhere else. */
 export type VigilConfig = Readonly<{
   mode: "own" | "shared";

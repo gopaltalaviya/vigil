@@ -1,45 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Vigil mark">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Vigil mark">
   <title>Vigil</title>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#141C36"/>
-      <stop offset="1" stop-color="#070B17"/>
+      <stop offset="0" stop-color="#0C2A20"/>
+      <stop offset="1" stop-color="#04100C"/>
     </linearGradient>
-    <radialGradient id="halo" cx="256" cy="132" r="190" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FFB020" stop-opacity="0.42"/>
-      <stop offset="0.55" stop-color="#FFB020" stop-opacity="0.08"/>
-      <stop offset="1" stop-color="#FFB020" stop-opacity="0"/>
+    <radialGradient id="glow" cx="100" cy="96" r="110" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#34D399" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#34D399" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="beacon" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFD071"/>
-      <stop offset="1" stop-color="#FF9A0A"/>
-    </linearGradient>
-    <linearGradient id="tier1" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#5EEAD4"/>
-      <stop offset="1" stop-color="#2DD4BF"/>
-    </linearGradient>
-    <linearGradient id="tier2" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#2DD4BF"/>
-      <stop offset="1" stop-color="#14B8A6"/>
-    </linearGradient>
-    <linearGradient id="tier3" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#14B8A6"/>
-      <stop offset="1" stop-color="#0F8F84"/>
-    </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
-  <rect x="1.5" y="1.5" width="509" height="509" rx="114.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="3"/>
-  <rect width="512" height="512" rx="116" fill="url(#halo)"/>
-  <!-- Beacon: the watchtower's light -->
-  <g fill="none" stroke="url(#beacon)" stroke-linecap="round">
-    <path d="M186 78 A78 78 0 0 0 186 186" stroke-width="20"/>
-    <path d="M326 78 A78 78 0 0 1 326 186" stroke-width="20"/>
-    <path d="M142 46 A128 128 0 0 0 142 218" stroke-width="14" stroke-opacity="0.45"/>
-    <path d="M370 46 A128 128 0 0 1 370 218" stroke-width="14" stroke-opacity="0.45"/>
-  </g>
-  <circle cx="256" cy="132" r="36" fill="url(#beacon)"/>
-  <!-- Tower built from stacked batches, widest at the base chain -->
-  <rect x="188" y="232" width="136" height="54" rx="18" fill="url(#tier1)"/>
-  <rect x="146" y="310" width="220" height="54" rx="18" fill="url(#tier2)"/>
-  <rect x="104" y="388" width="304" height="54" rx="18" fill="url(#tier3)"/>
+  <rect width="200" height="200" rx="46" fill="url(#bg)"/>
+  <rect x="1" y="1" width="198" height="198" rx="45" fill="none" stroke="#A7F3D0" stroke-opacity="0.14" stroke-width="2"/>
+  <rect width="200" height="200" rx="46" fill="url(#glow)"/>
+  <!-- An emerald crystal: six facets, lit from the upper left -->
+  <polygon points="100,16 50,64 100,86" fill="#D1FAE5"/>
+  <polygon points="100,16 150,64 100,86" fill="#6EE7B7"/>
+  <polygon points="50,64 100,86 100,152 50,130" fill="#34D399"/>
+  <polygon points="150,64 100,86 100,152 150,130" fill="#10B981"/>
+  <polygon points="50,130 100,152 100,186" fill="#059669"/>
+  <polygon points="150,130 100,152 100,186" fill="#047857"/>
+  <path d="M50 64 L100 86 L150 64 M100 86 V152 M50 130 L100 152 L150 130" fill="none" stroke="#ECFDF5" stroke-opacity="0.55" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M160 30 l4 10 10 4 -10 4 -4 10 -4 -10 -10 -4 10 -4z" fill="#ECFDF5"/>
 </svg>

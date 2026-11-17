@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { hexToBech32 } from "@qorechain/rdk";
 import { afterAll, describe, expect, it } from "vitest";
-import { InboxArchive, IntegrityError, Store, TxFailedError, toHex } from "@vigil/core";
+import { InboxArchive, IntegrityError, Store, toHex } from "@vigil/core";
 import { FAKE_CHAIN_ID, FAKE_ROLLUP_ID, FakeRollup } from "../../core/test/fake-rollup.js";
 import {
   InputError,
@@ -133,21 +133,21 @@ describe("wallet", () => {
     expect(pending.pending).toEqual({ balance: 2n * QOR, nonce: 2n });
     expect(pending.batched.balance).toBe(0n);
     expect((await wallet.state(bob.accountId)).pending.balance).toBe(2n * QOR);
-    expect(await wallet.claim(sender)).toEqual([]);
+    expect(await wallet.claim(sender)).toEqual({ paid: [], failed: [] });
 
     rollup.submitHonestBatch();
     const open = await wallet.withdrawals(L1);
     expect(open).toHaveLength(1);
     expect(open[0]).toMatchObject({ amount: QOR, batchStatus: "submitted", claimed: false });
-    expect(await wallet.claim(sender)).toEqual([]);
+    expect(await wallet.claim(sender)).toEqual({ paid: [], failed: [] });
 
     rollup.finalizeAll();
-    const paid = await wallet.claim(sender);
+    const { paid } = await wallet.claim(sender);
     expect(paid).toHaveLength(1);
     expect(rollup.payouts).toEqual([{ withdrawalIndex: 0n, recipient: L1, amount: QOR }]);
     expect(store.claim(FAKE_ROLLUP_ID, 0)?.txHash).toBe(paid[0]?.outcome.hash);
 
-    expect(await wallet.claim(sender)).toEqual([]);
+    expect(await wallet.claim(sender)).toEqual({ paid: [], failed: [] });
     expect(rollup.payouts).toHaveLength(1);
     expect((await wallet.state(alice.accountId)).batched.balance).toBe(2n * QOR);
     expect(store.recentTxs(10).map((t) => t.label)).toEqual([
@@ -200,9 +200,32 @@ describe("wallet", () => {
     rollup.finalizeAll();
 
     rollup.failNextWith = 54;
-    await expect(wallet.claim(sender)).rejects.toBeInstanceOf(TxFailedError);
+    const first = await wallet.claim(sender);
+    expect(first.paid).toEqual([]);
+    expect(first.failed).toHaveLength(1);
+    expect(first.failed[0]?.reason).toContain("claim");
     expect(store.claim(FAKE_ROLLUP_ID, 0)).toBeUndefined();
-    expect(await wallet.claim(sender)).toHaveLength(1);
+    expect((await wallet.claim(sender)).paid).toHaveLength(1);
+  });
+
+  it("keeps claiming the other withdrawals when one fails, and can mark one as paid elsewhere", async () => {
+    const { rollup, wallet, sender } = setup();
+    const alice = newAccount();
+    await wallet.deposit(sender, alice.accountId, 3n * QOR);
+    await wallet.withdraw(sender, alice, L1, QOR);
+    await wallet.withdraw(sender, alice, L1, QOR);
+    rollup.submitHonestBatch();
+    rollup.finalizeAll();
+
+    rollup.failNextWith = 54;
+    const result = await wallet.claim(sender);
+    expect(result.failed).toHaveLength(1);
+    expect(result.paid).toHaveLength(1);
+
+    const [stuck] = result.failed;
+    if (stuck === undefined) throw new Error("expected a failed claim");
+    wallet.markClaimed(stuck.withdrawal);
+    expect(await wallet.claim(sender)).toEqual({ paid: [], failed: [] });
   });
 
   it("ignores withdrawals in rejected batches and ones addressed to others", async () => {

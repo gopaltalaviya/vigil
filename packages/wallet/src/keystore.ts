@@ -20,8 +20,8 @@ interface KeystoreFile {
   accountId: string;
 }
 
-const SCRYPT = { n: 2 ** 15, r: 8, p: 1 };
-const SCRYPT_MAX_MEMORY = 64 * 1024 * 1024;
+const SCRYPT = { n: 2 ** 16, r: 8, p: 1 };
+const SCRYPT_MAX_MEMORY = 256 * 1024 * 1024;
 const MIN_PASSPHRASE_LENGTH = 12;
 
 function deriveKey(passphrase: string, salt: Uint8Array, kdf: typeof SCRYPT): Buffer {
@@ -115,7 +115,14 @@ function readKeystoreFile(path: string): KeystoreFile {
     file.kdf?.name !== "scrypt" ||
     file.cipher?.name !== "aes-256-gcm" ||
     !Number.isInteger(file.kdf.n) ||
+    file.kdf.n < 2 ** 14 ||
     file.kdf.n > 2 ** 20 ||
+    file.kdf.r !== 8 ||
+    file.kdf.p !== 1 ||
+    file.kdf.salt.length < 32 ||
+    file.cipher.iv.length !== 24 ||
+    file.cipher.tag.length !== 32 ||
+    file.cipher.ciphertext.length !== 64 ||
     !hex(file.kdf.salt) ||
     !hex(file.cipher.iv) ||
     !hex(file.cipher.tag) ||

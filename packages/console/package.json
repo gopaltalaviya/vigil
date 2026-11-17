@@ -1,0 +1,30 @@
+{
+  "name": "@vigil/console",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@qorechain/qoreseal": "0.1.0",
+    "@qorechain/rdk": "0.9.0",
+    "@vigil/api": "workspace:*",
+    "@vigil/core": "workspace:*",
+    "@vigil/memo": "workspace:*",
+    "@vigil/wallet": "workspace:*"
+  },
+  "bin": {
+    "vigil-console": "./dist/main.js"
+  }
+}

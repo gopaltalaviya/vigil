@@ -37,8 +37,8 @@ export class ConfigError extends VigilError {
 export class HttpStatusError extends VigilError {
   readonly status: number;
 
-  constructor(url: string, status: number) {
-    super("HTTP_STATUS", `HTTP ${String(status)} from ${redactUrl(url)}`, { status });
+  constructor(url: string, status: number, hostOnly = false) {
+    super("HTTP_STATUS", `HTTP ${String(status)} from ${redactUrl(url, hostOnly)}`, { status });
     this.status = status;
   }
 }
@@ -79,9 +79,11 @@ export class StoreError extends VigilError {
 }
 
 /** Strips query strings, credentials and path tokens so URLs are safe to log. */
-export function redactUrl(url: string): string {
+export function redactUrl(url: string, hostOnly = false): string {
   try {
     const parsed = new URL(url);
+    // A webhook URL is itself a credential: show the host and nothing else.
+    if (hostOnly) return `${parsed.protocol}//${parsed.host}/[redacted]`;
     // Some APIs carry a credential in the path (for example `/bot<token>/sendMessage`).
     const path = parsed.pathname.replace(/\/bot[^/]+/g, "/bot[redacted]");
     return `${parsed.protocol}//${parsed.host}${path}`;

@@ -26,6 +26,8 @@ export interface HttpClientOptions {
   breakerCooldownMs?: number;
   baseDelayMs?: number;
   maxDelayMs?: number;
+  /** Set when request URLs carry credentials (webhooks, bot tokens): errors show the host only. */
+  secretUrls?: boolean;
   transport?: Transport;
   /** Injectable clock, sleep and randomness, so behaviour is testable. */
   now?: () => number;
@@ -56,6 +58,7 @@ export class HttpClient {
   private readonly breakerCooldownMs: number;
   private readonly baseDelayMs: number;
   private readonly maxDelayMs: number;
+  private readonly secretUrls: boolean;
   private readonly transport: Transport;
   private readonly now: () => number;
   private readonly sleep: (ms: number) => Promise<void>;
@@ -77,6 +80,7 @@ export class HttpClient {
     this.breakerCooldownMs = options.breakerCooldownMs ?? 30_000;
     this.baseDelayMs = options.baseDelayMs ?? 250;
     this.maxDelayMs = options.maxDelayMs ?? 10_000;
+    this.secretUrls = options.secretUrls ?? false;
     this.transport = options.transport ?? globalThis.fetch;
     this.now = options.now ?? Date.now;
     this.sleep = options.sleep ?? defaultSleep;
@@ -119,7 +123,7 @@ export class HttpClient {
           this.recordSuccess();
           return response;
         }
-        lastError = new HttpStatusError(url, response.status);
+        lastError = new HttpStatusError(url, response.status, this.secretUrls);
         if (attempt < this.maxRetries) {
           await this.sleep(this.delayFor(attempt, response.headers?.get("retry-after") ?? null));
         }
@@ -132,7 +136,7 @@ export class HttpClient {
     this.recordFailure();
     throw new SourceUnavailableError(
       this.source,
-      `no usable answer from ${redactUrl(url)} after ${String(this.maxRetries + 1)} attempts`,
+      `no usable answer from ${redactUrl(url, this.secretUrls)} after ${String(this.maxRetries + 1)} attempts`,
       { cause: lastError },
     );
   }
@@ -140,7 +144,7 @@ export class HttpClient {
   /** GETs a URL and parses JSON; a non-2xx answer becomes an `HttpStatusError`. */
   async getJson(url: string): Promise<unknown> {
     const response = await this.request(url);
-    if (!response.ok) throw new HttpStatusError(url, response.status);
+    if (!response.ok) throw new HttpStatusError(url, response.status, this.secretUrls);
     return response.json();
   }
 
@@ -151,7 +155,7 @@ export class HttpClient {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (!response.ok) throw new HttpStatusError(url, response.status);
+    if (!response.ok) throw new HttpStatusError(url, response.status, this.secretUrls);
     return response.json();
   }
 

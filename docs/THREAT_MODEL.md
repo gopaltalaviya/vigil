@@ -36,6 +36,9 @@ challenges. This was observed on the testnet: a batch with a flipped state root 
 - The watchtower re-executes every batch from its own verified copy of the inbox and compares the
   state root, withdrawals root, data hash, previous state root and inbox range.
   Tests: `packages/core/test/golden.test.ts`, `packages/watchtower/test/watchtower.test.ts`.
+- A verdict is stored per claim, identified by every committed field. A replacement batch at
+  the same index is judged from scratch even if it has the same state root.
+  Tests: "judges a replacement batch on its own", "does not carry an old 'invalid' verdict over".
 - For an invalid batch it builds a re-execution fraud proof, confirms locally with the chain's own
   check that it proves fraud, and submits the challenge.
   Tests: `packages/watchtower/test/challenger.test.ts`.
@@ -117,27 +120,41 @@ to remain secure.
 ### 7. Someone reads or misuses a memo
 
 - A memo is encrypted to the recipient's registered ML-KEM-1024 key. A different key, a changed
-  ciphertext, another transfer, another rollup and another chain all fail to open it.
+  ciphertext, another transfer hash, another rollup and another chain all fail to open it.
+- The reader reports a memo's transfer as verified only if that entry is a correctly signed
+  transfer posted by the same account as the memo, and removes control characters from the text.
+  Test: "does not present a forged or borrowed transfer as a verified payment".
   Tests: `packages/memo/test/memo.test.ts`.
   Testnet: memo `1D39B55A28FDD65478B4769200156D5785449DA02B33C751D0A067E125BCA674`.
 
-**Limits.** Only the text is hidden. The poster, the time, the size and the transfer the memo
-points to, including its amount, are public. The sender is not authenticated by the memo itself;
+**Limits.** A memo is not proof of payment: anyone can post one that points at any entry, and a
+verified link still does not show that the transfer executed. Only the text is hidden. The
+poster, the time, the size and the transfer the memo points to, including its amount, are public. The sender is not authenticated by the memo itself;
 the poster's base-chain address is the only indication of origin. Losing the seed phrase loses
 every memo. The encryption library is version 0.1.0 and has not had an external review.
 
 ### 8. Stolen or leaked keys
 
-- Secrets are read from the environment only, are redacted from logs and never appear in error
-  messages, including a bot token inside a URL.
-  Tests: "redacts secret fields", "never puts the bot token in an error".
+- Secrets are read from the environment only and are redacted from logs. Alert destinations are
+  credentials in themselves (a webhook URL, a bot token in a path), so errors from the alert
+  client show the host only.
+  Tests: "redacts secret fields", "never puts the bot token in an error", "shows only the host
+  when the URL itself is a secret".
 - L2 keys are stored encrypted (scrypt, AES-256-GCM); a wrong passphrase and a modified file are
   both refused. Tests: "keystore" in `packages/wallet/test/wallet.test.ts`.
-- The public API is given no secrets at all and only reads the database.
+- The public API is given no secrets at all and only reads the database. The monitor is given
+  alert destinations but no seed phrase.
   Test: "never exposes secrets, keys or transaction logs".
-- Containers run as a non-root user with a read-only file system and no capabilities.
+- The operator console holds the seed phrase and can spend. It requires a password, keeps
+  sessions in HttpOnly, SameSite=Strict cookies, locks out repeated failures, refuses requests a
+  cross-site page could forge, and listens on the local interface by default.
+  Tests: `packages/console/test/console.test.ts`.
+- Vigil's containers run as a non-root user with a read-only file system and no capabilities.
+  The Caddy container keeps only the capability to bind low ports.
 
-**Limits.** The batcher and watchtower hold the account's seed phrase in memory. Anyone with
+**Limits.** The batcher, the receipts service, the console and a challenging watchtower hold the
+account's seed phrase in memory. The console's password is a single shared secret with no second
+factor; exposing the console to the internet is not supported. Anyone with
 access to the host or its `.env` file controls the account, the bond and the rollup's anchors.
 There is no hardware key support and no key rotation procedure yet.
 
@@ -157,12 +174,37 @@ been observed during a real halt.
 
 ### 10. The status page lies or is attacked
 
-- The API is read-only, accepts GET and HEAD only, limits requests per client, serves files from
-  one directory with no path traversal, and sets a strict content security policy. The page writes
+- The API is read-only, accepts GET and HEAD only, limits requests per client (per visitor behind
+  a trusted proxy when `TRUST_PROXY=1`), serves files from one directory with no path traversal,
+  and sets a strict content security policy.
+- The page shows when each service last completed a round, and reports the watchtower as silent
+  instead of claiming all is well. The page writes
   every value as text. Tests: `packages/api/test/api.test.ts`.
 
 **Limit.** The page shows what the operator's database contains. To verify independently, run
 your own watchtower: `ROLLUP_ID=vigil-1 pnpm watchtower --once`.
+
+## Independent review
+
+Before release the code was reviewed by two independent reviewers who had only the source, one
+for the contract and one for the services.
+
+- **Contract.** No critical, high or medium findings. Low and informational points are
+  documented for consumers in the README ("Relying on recorded receipts"): events alone do not
+  identify a receipt, a record is point-in-time and never revoked, and conflicting anchors can
+  both be recorded. A front-run of `recordAnchor` only makes the honest transaction revert with
+  the intended state already in place; the client treats that as success.
+- **Services.** One critical and one high finding, both in how verdicts were cached, are fixed
+  and covered by regression tests (threat 1). The medium findings are fixed as well: a webhook
+  URL could reach logs, a memo link could be mistaken for proof of payment, the API cache and
+  rate limit, a status page that could look healthy with a dead watchtower, one failing challenge
+  blocking the others, secrets handed to services that did not need them, receipts recorded for
+  unfinalized batches, a stuck `claim`, and a start-up race on the shared database.
+
+Not changed, and stated here instead: the batcher builds on the latest batch even while that
+batch is still in its challenge window; a batch that stays undecidable is only alerted on near its
+deadline; the HTTP client follows redirects and does not cap response size; the keystore
+passphrase sits next to the seed phrase on a server.
 
 ## Out of scope
 

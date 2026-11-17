@@ -1,5 +1,10 @@
 import { createHash } from "node:crypto";
-import { QLEDGER_MAX_POST_BYTES, decodeQledgerTx } from "@qorechain/rdk";
+import {
+  QLEDGER_MAX_POST_BYTES,
+  decodeQledgerTx,
+  qledgerAccountId,
+  verifyQledgerTx,
+} from "@qorechain/rdk";
 import {
   ML_KEM_1024_PUBLIC_KEY_LENGTH,
   deriveSealKeys,
@@ -130,20 +135,46 @@ export function openMemo(input: {
   }
 }
 
-/** A memo the recipient could read, with the transfer it belongs to. */
+/** A memo the recipient could read, with what is known about the transfer it points to. */
 export interface ReceivedMemo {
   sequence: number;
   height: number;
   poster: string;
+  /** Memo text with control characters removed, so it cannot forge terminal or page output. */
   text: string;
-  /** The L2 transfer the memo is bound to, if it is in the inbox. */
-  transfer: { sequence: number; amount: bigint; to: string | undefined } | undefined;
+  /**
+   * The L2 transfer the memo points to. `verified` is true only when that
+   * transfer carries a valid signature and was posted by the same base-chain
+   * account as the memo. An unverified link must not be read as proof of payment.
+   */
+  transfer:
+    | {
+        sequence: number;
+        amount: bigint;
+        from: string;
+        to: string | undefined;
+        verified: boolean;
+        /** Whether the transfer pays the account given as `payee`. */
+        paysPayee: boolean | undefined;
+      }
+    | undefined;
 }
+
+// Everything a terminal or page could act on: C0 and C1 controls (newline kept) and line separators.
+const CONTROL_CHARACTERS = /[\p{Cc}\u2028\u2029]/gu;
+
+/** Replaces control characters with spaces; a newline is kept. */
+const clean = (text: string): string =>
+  text.replace(CONTROL_CHARACTERS, (character) => (character === "\n" ? "\n" : " "));
 
 /**
  * Reads every memo addressed to `keys` from the local, verified inbox archive.
- * A memo whose transfer cannot be found is still returned, marked as unbound,
- * so a recipient is never misled about which payment a note refers to.
+ *
+ * Anyone can post a memo that points at any payload, including someone else's
+ * transfer or bytes that only look like one. The link is therefore reported as
+ * verified only when the transfer's signature is valid and the memo and the
+ * transfer came from the same poster. Even then it shows that the transfer was
+ * posted, not that it executed: check the balance for that.
  */
 export function readMemos(input: {
   chainId: string;
@@ -151,9 +182,11 @@ export function readMemos(input: {
   store: Store;
   keys: SealKeyPair;
   inboxHead: number;
+  /** The reader's L2 account id (hex), to flag whether a linked transfer pays it. */
+  payee?: string;
 }): ReceivedMemo[] {
   const entries = input.store.inboxRange(input.rollupId, 0, input.inboxHead);
-  const byHash = new Map<string, { sequence: number; payload: Uint8Array }>();
+  const byHash = new Map<string, { sequence: number; poster: string; payload: Uint8Array }>();
   for (const entry of entries) {
     if (parseMemo(entry.payload) === undefined) {
       byHash.set(toHex(transferHash(entry.payload)), entry);
@@ -166,18 +199,24 @@ export function readMemos(input: {
     if (opened === undefined) continue;
     const bound = byHash.get(toHex(opened.boundTo));
     const decoded = bound === undefined ? undefined : decodeQledgerTx(bound.payload);
+    const to = decoded?.to === undefined ? undefined : toHex(decoded.to);
     memos.push({
       sequence: entry.sequence,
       height: entry.height,
-      poster: entry.poster,
-      text: opened.text,
+      poster: clean(entry.poster),
+      text: clean(opened.text),
       transfer:
         bound === undefined || decoded === undefined
           ? undefined
           : {
               sequence: bound.sequence,
               amount: decoded.amount,
-              to: decoded.to === undefined ? undefined : toHex(decoded.to),
+              from: toHex(qledgerAccountId(decoded.publicKey, decoded.scheme)),
+              to,
+              verified:
+                bound.poster === entry.poster &&
+                verifyQledgerTx(decoded, input.chainId, input.rollupId),
+              paysPayee: input.payee === undefined ? undefined : to === input.payee.toLowerCase(),
             },
     });
   }

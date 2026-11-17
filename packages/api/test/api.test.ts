@@ -3,7 +3,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { Store, createLogger } from "@vigil/core";
+import { Store, claimId, createLogger } from "@vigil/core";
 import { Api, createApiServer } from "../src/index.js";
 
 const log = createLogger({ service: "test", level: "silent" });
@@ -25,15 +25,16 @@ function seeded() {
     submittedTime: NOW - 4_000,
     finalizedAt: 200,
   };
-  store.upsertBatch("vigil-1", batch);
-  store.upsertBatch("vigil-1", {
+  const rejected = {
     ...batch,
     batchIndex: 1,
     stateRoot: "cc".repeat(32),
     status: "rejected",
     inboxStart: 3,
     inboxEnd: 4,
-  });
+  };
+  store.upsertBatch("vigil-1", batch);
+  store.upsertBatch("vigil-1", rejected);
   store.upsertBatch("vigil-1", {
     ...batch,
     batchIndex: 2,
@@ -43,6 +44,7 @@ function seeded() {
     inboxEnd: 6,
   });
   const verdict = {
+    claimId: claimId(batch),
     batchIndex: 0,
     stateRoot: batch.stateRoot,
     verdict: "valid" as const,
@@ -54,6 +56,7 @@ function seeded() {
   store.saveVerdict("vigil-1", verdict);
   store.saveVerdict("vigil-1", {
     ...verdict,
+    claimId: claimId(rejected),
     batchIndex: 1,
     stateRoot: "cc".repeat(32),
     verdict: "invalid",
@@ -61,12 +64,14 @@ function seeded() {
   });
   store.saveReceipt("vigil-1", {
     batchIndex: 0,
+    stateRoot: batch.stateRoot,
     contract: "0xced6",
     txHash: "0xa4e7",
     recordedAt: NOW,
   });
   store.saveReceipt("vigil-1", {
     batchIndex: 1,
+    stateRoot: rejected.stateRoot,
     contract: "0xced6",
     txHash: "0xdead",
     recordedAt: NOW,
@@ -153,6 +158,27 @@ describe("Api", () => {
       createdAt: NOW,
     });
     expect(api.overview().alerts.map((a) => a.title)).toEqual(["Invalid batch 1"]);
+  });
+
+  it("does not show a receipt recorded for a different state root at the same index", () => {
+    const { api, store } = seeded();
+    store.saveReceipt("vigil-1", {
+      batchIndex: 2,
+      stateRoot: "99".repeat(32),
+      contract: "0xced6",
+      txHash: "0xold",
+      recordedAt: NOW,
+    });
+    expect(api.overview().rollup.batches[0]).toMatchObject({ index: 2, receipt: undefined });
+  });
+
+  it("reports when each service was last seen", () => {
+    const { api, store } = seeded();
+    expect(api.overview().services).toEqual([]);
+    store.heartbeat("watchtower", NOW - 30);
+    expect(api.overview().services).toEqual([
+      { service: "watchtower", lastSeen: NOW - 30, ageSecs: 30 },
+    ]);
   });
 
   it("reports each network, including one with no data yet", () => {
@@ -250,6 +276,30 @@ describe("HTTP server", () => {
       expect((await fetch(`${base}/%2e%2e/%2e%2e/etc/passwd.html`)).status).toBe(404);
     } finally {
       close();
+    }
+  });
+
+  it("does not let unknown paths grow the cache, and separates clients behind a trusted proxy", async () => {
+    const { api } = seeded();
+    const server = createApiServer({
+      api,
+      staticDir: dir,
+      log,
+      requestsPerMinute: 2,
+      trustProxy: true,
+    }).listen(0, "127.0.0.1");
+    await new Promise((resolve) => server.once("listening", resolve));
+    const base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+    try {
+      const from = (ip: string) =>
+        fetch(`${base}/api/nope-${ip}`, { headers: { "x-forwarded-for": `1.1.1.1, ${ip}` } });
+      expect([(await from("10.0.0.1")).status, (await from("10.0.0.1")).status]).toEqual([
+        404, 404,
+      ]);
+      expect((await from("10.0.0.1")).status).toBe(429);
+      expect((await from("10.0.0.2")).status).toBe(404);
+    } finally {
+      server.close();
     }
   });
 

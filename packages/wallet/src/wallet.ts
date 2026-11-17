@@ -47,6 +47,12 @@ export interface AccountState {
   inboxConsumed: number;
 }
 
+/** Outcome of `Wallet.claim`. */
+export interface ClaimResult {
+  paid: { withdrawal: Withdrawal; outcome: TxOutcome }[];
+  failed: { withdrawal: Withdrawal; reason: string }[];
+}
+
 /** A posted L2 transaction: the base-chain outcome plus the exact bytes that were posted. */
 export type PostedTx = TxOutcome & { payload: Uint8Array };
 
@@ -154,31 +160,51 @@ export class Wallet {
     return found;
   }
 
-  /** Pays out every finalized, unclaimed withdrawal addressed to the sender. */
-  async claim(sender: TxSender): Promise<{ withdrawal: Withdrawal; outcome: TxOutcome }[]> {
+  /**
+   * Pays out every finalized, unclaimed withdrawal addressed to the sender.
+   * A withdrawal that fails (for example because it was already paid from
+   * another machine) is reported in `failed` and does not block the others.
+   */
+  async claim(sender: TxSender): Promise<ClaimResult> {
     const { rollupId, store } = this.options;
-    const paid: { withdrawal: Withdrawal; outcome: TxOutcome }[] = [];
+    const result: ClaimResult = { paid: [], failed: [] };
     for (const withdrawal of await this.withdrawals(sender.address)) {
       if (withdrawal.claimed || withdrawal.batchStatus !== "finalized") continue;
-      const outcome = await sender.send("claim", (tx) =>
-        tx.executeWithdrawal({
-          rollupId,
+      try {
+        const outcome = await sender.send("claim", (tx) =>
+          tx.executeWithdrawal({
+            rollupId,
+            batchIndex: withdrawal.batchIndex,
+            withdrawalIndex: withdrawal.index,
+            recipient: withdrawal.recipient,
+            denom: "uqor",
+            amount: withdrawal.amount,
+            proof: withdrawal.proof,
+          }),
+        );
+        store.saveClaim(rollupId, {
+          withdrawalIndex: Number(withdrawal.index),
           batchIndex: withdrawal.batchIndex,
-          withdrawalIndex: withdrawal.index,
-          recipient: withdrawal.recipient,
-          denom: "uqor",
-          amount: withdrawal.amount,
-          proof: withdrawal.proof,
-        }),
-      );
-      store.saveClaim(rollupId, {
-        withdrawalIndex: Number(withdrawal.index),
-        batchIndex: withdrawal.batchIndex,
-        txHash: outcome.hash,
-      });
-      paid.push({ withdrawal, outcome });
+          txHash: outcome.hash,
+        });
+        result.paid.push({ withdrawal, outcome });
+      } catch (error) {
+        result.failed.push({
+          withdrawal,
+          reason: error instanceof Error ? error.message : "unknown error",
+        });
+      }
     }
-    return paid;
+    return result;
+  }
+
+  /** Records that a withdrawal was paid outside this wallet, so it is not attempted again. */
+  markClaimed(withdrawal: Withdrawal, txHash = ""): void {
+    this.options.store.saveClaim(this.options.rollupId, {
+      withdrawalIndex: Number(withdrawal.index),
+      batchIndex: withdrawal.batchIndex,
+      txHash,
+    });
   }
 
   private async post(

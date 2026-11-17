@@ -165,6 +165,25 @@ describe("BaseChainMonitor", () => {
     expect((await monitor.tick()).changed).toEqual([]);
   });
 
+  it("ignores the node manifest's state-sync checkpoint but reports a new release", async () => {
+    const { monitor, world, store } = setup();
+    const manifest = (version: string, trustHeight: number) => ({
+      version,
+      binary: { sha256: version },
+      releasedAt: `2026-11-17T0${String(trustHeight % 10)}:00:00Z`,
+      stateSync: { trustHeight, trustHash: `hash-${String(trustHeight)}` },
+    });
+    world.bodies["latest.json"] = manifest("3.2.8", 1);
+    await monitor.tick();
+
+    world.bodies["latest.json"] = manifest("3.2.8", 2);
+    expect((await monitor.tick()).changed).toEqual([]);
+
+    world.bodies["latest.json"] = manifest("3.2.9", 3);
+    expect((await monitor.tick()).changed).toEqual(["node-manifest"]);
+    expect(store.recentChainEvents(1)[0]?.detail).toContain('version: "3.2.8" -> "3.2.9"');
+  });
+
   it("marks an unreachable source as unavailable instead of changed, and recovers", async () => {
     const { monitor, world, store } = setup();
     await monitor.tick();

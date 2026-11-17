@@ -45,6 +45,13 @@ const store = Store.open(join(config.dataDir, "vigil.sqlite"));
 const drill = await connectTxSender(drillConfig, chain.rdk, { log });
 const qor = (uqor: string | bigint): string => `${uqorToQor(uqor)} QOR`;
 
+// The drill account's bond is slashed on purpose. It must never be the real operator.
+const main = await connectTxSender(config, chain.rdk, { log });
+const rollup = await rest.getRollup(config.rollupId);
+if (drill.address === main.address || drill.address === rollup.creator) {
+  throw new Error("QORE_DRILL_MNEMONIC is the operator's own account; use a throwaway key");
+}
+
 const params = await chain.rdk.params();
 const bondNeeded = BigInt(params.minSubmitterBond ?? "1000000000");
 const reserve = 5_000_000n;

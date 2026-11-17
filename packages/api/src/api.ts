@@ -1,4 +1,5 @@
-import type { Store, StoredBatch } from "@vigil/core";
+import { claimId, type Store, type StoredBatch } from "@vigil/core";
+import { Explorer } from "./explorer.js";
 
 export interface ApiOptions {
   store: Store;
@@ -49,9 +50,11 @@ const json = (status: number, value: unknown): ApiResponse => ({
 export class Api {
   private readonly options: ApiOptions;
   private readonly now: () => number;
+  private readonly explorer: Explorer;
 
   constructor(options: ApiOptions) {
     this.options = options;
+    this.explorer = new Explorer(options);
     this.now = options.now ?? (() => Math.floor(Date.now() / 1_000));
   }
 
@@ -68,18 +71,77 @@ export class Api {
           contentType: "text/plain; version=0.0.4; charset=utf-8",
           body: this.metrics(),
         };
+      case "/api/session":
+        // The read-only server has no console. The operator console answers this itself.
+        return json(200, { console: false, signedIn: false });
+      case "/api/entries":
+        return json(200, { entries: this.explorer.recentEntries(50) });
       default:
-        return json(404, { error: "not found" });
+        return this.lookup(path);
     }
+  }
+
+  /** Routes with a parameter: one batch, one account. */
+  private lookup(path: string): ApiResponse {
+    const batch = /^\/api\/batches\/(\d{1,9})$/.exec(path);
+    if (batch?.[1] !== undefined) {
+      const detail = this.batchDetail(Number(batch[1]));
+      return detail === undefined ? json(404, { error: "no such batch" }) : json(200, detail);
+    }
+    const account = /^\/api\/accounts\/([0-9a-fA-F]{64})$/.exec(path);
+    if (account?.[1] !== undefined) {
+      return json(200, this.explorer.account(account[1].toLowerCase()));
+    }
+    return json(404, { error: "not found" });
+  }
+
+  /** Everything known about the batches at one index, with their inbox entries decoded. */
+  batchDetail(index: number) {
+    const { store, rollupId } = this.options;
+    const receipts = new Map(
+      store.receipts(rollupId).map((r) => [`${String(r.batchIndex)}:${r.stateRoot}`, r]),
+    );
+    const claims = store.batches(rollupId).filter((batch) => batch.batchIndex === index);
+    const current = claims.findLast((batch) => batch.status !== "rejected") ?? claims.at(-1);
+    if (current === undefined) return undefined;
+    const verdict = store.verdict(rollupId, claimId(current));
+    return {
+      batch: {
+        ...this.batchView(current, receipts),
+        prevStateRoot: current.prevStateRoot,
+        withdrawalsRoot: current.withdrawalsRoot,
+        dataHash: current.dataHash,
+        submittedAtHeight: current.submittedAt,
+        finalizedAtHeight: current.finalizedAt,
+        expectedStateRoot: verdict?.expectedStateRoot ?? null,
+        expectedWithdrawalsRoot: verdict?.expectedWithdrawalsRoot ?? null,
+        checkedAt: verdict?.checkedAt ?? null,
+      },
+      // Earlier claims at this index that the chain rejected.
+      rejectedClaims: claims
+        .filter((batch) => batch !== current)
+        .map((batch) => this.batchView(batch, receipts)),
+      entries: this.explorer.entries(current.inboxStart, current.inboxEnd),
+    };
   }
 
   overview() {
     const { store, rollupId, chainId, receiptsContract, networks } = this.options;
-    const receipts = new Map(store.receipts(rollupId).map((r) => [r.batchIndex, r]));
+    // A receipt belongs to the state root it was recorded for, not just to an index.
+    const receipts = new Map(
+      store.receipts(rollupId).map((r) => [`${String(r.batchIndex)}:${r.stateRoot}`, r]),
+    );
     const batches = store.batches(rollupId).map((batch) => this.batchView(batch, receipts));
     const judged = batches.filter((b) => b.verdict !== "pending");
     return {
       generatedAt: this.now(),
+      // When each service last finished a round. A page that only knew the API was up could
+      // say "all valid" while the watchtower was dead.
+      services: store.heartbeats().map((beat) => ({
+        service: beat.service,
+        lastSeen: beat.at,
+        ageSecs: Math.max(0, this.now() - beat.at),
+      })),
       rollup: {
         id: rollupId,
         chainId,
@@ -119,14 +181,13 @@ export class Api {
 
   private batchView(
     batch: StoredBatch,
-    receipts: Map<number, { txHash: string; contract: string }>,
+    receipts: Map<string, { txHash: string; contract: string }>,
   ): BatchView {
-    const verdict = this.options.store.verdict(
-      this.options.rollupId,
-      batch.batchIndex,
-      batch.stateRoot,
-    );
-    const receipt = batch.status === "rejected" ? undefined : receipts.get(batch.batchIndex);
+    const verdict = this.options.store.verdict(this.options.rollupId, claimId(batch));
+    const receipt =
+      batch.status === "rejected"
+        ? undefined
+        : receipts.get(`${String(batch.batchIndex)}:${batch.stateRoot}`);
     return {
       index: batch.batchIndex,
       status: batch.status,

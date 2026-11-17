@@ -1,6 +1,7 @@
 import type { QledgerBatchPlan, QledgerLedger } from "@qorechain/rdk";
 import {
   IntegrityError,
+  VigilError,
   ledgerAtSequence,
   toHex,
   verifyBatch,
@@ -74,8 +75,11 @@ export class Batcher {
     try {
       plan = await view.plan(parent.clone());
     } catch (error) {
+      // A dead endpoint is a failure to report, not a reason to wait quietly.
+      if (error instanceof VigilError) throw error;
       const reason = error instanceof Error ? error.message : "the batch could not be planned";
-      log.info({ reason }, "no batch can be submitted yet");
+      const bondProblem = /bond/i.test(reason);
+      log[bondProblem ? "error" : "info"]({ reason }, "no batch can be submitted yet");
       return { action: "waiting", reason };
     }
 

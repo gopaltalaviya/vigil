@@ -80,7 +80,12 @@ service loop backs off and retries; a transaction is logged as confirmed, failed
 Deadlines are computed from block time reported by the chain, not from the local clock.
 
 **No secrets where they are not needed.** Only the processes that send transactions receive the
-seed phrase. The API container receives no secret at all.
+seed phrase: batcher, receipts, console, and the watchtower so that it can challenge. The monitor
+receives alert destinations only, and the public API receives no secret at all.
+
+**A verdict belongs to a claim.** Batches and verdicts are keyed by every committed field of a
+batch, not by its index: the chain reuses an index when it replaces a rejected batch, and an
+honest and a forged batch over the same entries share a state root.
 
 **Reuse the kit for consensus-critical code.** Execution of L2 transactions, the inbox hashing
 rules, fraud proof encoding and anchor sign bytes come from `@qorechain/rdk`, so Vigil computes

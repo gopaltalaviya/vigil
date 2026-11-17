@@ -10,6 +10,8 @@ export interface LoopOptions {
   /** Longest pause after repeated failures. */
   maxBackoffMs?: number;
   onSuccess?: () => void;
+  /** Called after each failed tick with the number of consecutive failures. */
+  onFailure?: (failures: number, error: unknown) => void;
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
 }
 
@@ -47,6 +49,7 @@ export async function runLoop(options: LoopOptions): Promise<void> {
       failures += 1;
       const code = error instanceof VigilError ? error.code : "UNEXPECTED";
       options.log.error({ err: error, code, failures }, "tick failed; will retry");
+      options.onFailure?.(failures, error);
     }
     const pause =
       failures === 0

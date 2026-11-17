@@ -11,16 +11,20 @@ Requirements: a Linux host with Docker and the Compose plugin, and a funded test
    Protect the file: `chmod 600 .env`.
 2. Start the services:
    ```sh
-   docker compose -f deploy/compose.yaml up -d --build
-   docker compose -f deploy/compose.yaml ps
+   docker compose --env-file .env -f deploy/compose.yaml up -d --build
+   docker compose --env-file .env -f deploy/compose.yaml ps
    ```
    `api`, `batcher` and `watchtower` should report `healthy` within a minute.
 3. To publish the status page with TLS, point a DNS name at the host, set `VIGIL_DOMAIN` in the
    shell or in `deploy/.env`, and add the public profile:
    ```sh
-   VIGIL_DOMAIN=status.example.org docker compose -f deploy/compose.yaml --profile public up -d
+   VIGIL_DOMAIN=status.example.org docker compose --env-file .env -f deploy/compose.yaml --profile public up -d
    ```
-   Without the profile the API listens on `127.0.0.1:8080` only.
+   Without the profile the API listens on `127.0.0.1:8080` only. Set `TRUST_PROXY=1` when the
+   proxy is in front, so that rate limits apply per visitor.
+4. For the operator console, set `VIGIL_CONSOLE_PASSWORD` in `.env` and add `--profile console`.
+   It listens on `127.0.0.1:8090`; open it through an SSH tunnel
+   (`ssh -L 8090:127.0.0.1:8090 user@host`), never directly from the internet.
 
 ## Services
 
@@ -34,17 +38,17 @@ Requirements: a Linux host with Docker and the Compose plugin, and a funded test
 
 ## Routine operations
 
-- **Logs:** `docker compose -f deploy/compose.yaml logs -f watchtower`. Logs are JSON, one event
+- **Logs:** `docker compose --env-file .env -f deploy/compose.yaml logs -f watchtower`. Logs are JSON, one event
   per line; secrets are redacted.
 - **Metrics:** `curl http://127.0.0.1:8080/metrics` (Prometheus format). The public proxy does
   not expose this path.
 - **Backup:** `deploy/backup.sh /path/to/backups` takes a consistent copy of the database while
   services run. Back up `.env` separately and securely.
-- **Upgrade:** `git pull`, then `docker compose -f deploy/compose.yaml up -d --build`. Database
+- **Upgrade:** `git pull`, then `docker compose --env-file .env -f deploy/compose.yaml up -d --build`. Database
   migrations run automatically and only move forward.
 - **Wallet commands on the host:** run them in a one-off container so they use the same data:
   ```sh
-  docker compose -f deploy/compose.yaml run --rm watchtower packages/wallet/dist/main.js status
+  docker compose --env-file .env -f deploy/compose.yaml run --rm watchtower packages/wallet/dist/main.js status
   ```
 
 ## Alerts and what to do

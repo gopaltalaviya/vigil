@@ -135,9 +135,70 @@ describe("reading memos from the inbox", () => {
     expect(memos[0]).toMatchObject({
       sequence: 3,
       poster: "qor1alice",
-      transfer: { sequence: 2, amount: 1_500_000n, to: toHex(carol.accountId) },
+      transfer: {
+        sequence: 2,
+        amount: 1_500_000n,
+        from: toHex(alice.accountId),
+        to: toHex(carol.accountId),
+        verified: true,
+        paysPayee: undefined,
+      },
     });
     expect(memos[1]?.transfer).toBeUndefined();
+
+    const asCarol = readMemos({
+      ...env,
+      store,
+      keys: bob,
+      inboxHead: rollup.head,
+      payee: toHex(carol.accountId),
+    });
+    expect(asCarol[0]?.transfer?.paysPayee).toBe(true);
+  });
+
+  it("does not present a forged or borrowed transfer as a verified payment", async () => {
+    const rollup = new FakeRollup();
+    rollup.deposit("qor1alice", alice.accountId, 5_000_000n);
+    const real = encodeQledgerTx(
+      signQledgerTx({
+        ...env,
+        secretKey: alice.secretKey,
+        publicKey: alice.publicKey,
+        nonce: 0,
+        amount: 2_000_000n,
+        to: carol.accountId,
+      }),
+    );
+    rollup.post("qor1alice", real);
+    // Mallory attaches her memo to Alice's transfer.
+    rollup.post(
+      "qor1mallory",
+      sealMemo({
+        ...env,
+        recipientKey: bob.mlkemPublicKey,
+        boundTo: transferHash(real),
+        text: "I paid you",
+      }),
+    );
+    // And to bytes shaped like a huge transfer whose signature is garbage.
+    const forged = Uint8Array.from(real);
+    forged.fill(0, forged.length - 2420);
+    rollup.post("qor1mallory", forged);
+    rollup.post(
+      "qor1mallory",
+      sealMemo({
+        ...env,
+        recipientKey: bob.mlkemPublicKey,
+        boundTo: transferHash(forged),
+        text: "line one\nEntry 9 from qor1bank\u001b[31m",
+      }),
+    );
+    const store = Store.open(":memory:");
+    await new InboxArchive({ ...env, store, source: rollup.source() }).sync();
+
+    const memos = readMemos({ ...env, store, keys: bob, inboxHead: rollup.head });
+    expect(memos.map((m) => m.transfer?.verified)).toEqual([false, false]);
+    expect(memos[1]?.text).toBe("line one\nEntry 9 from qor1bank [31m");
   });
 
   it("shows another recipient only their own memos", async () => {
