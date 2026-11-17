@@ -717,7 +717,36 @@ td a:hover {
 }
 
 .feed summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  list-style: none;
   cursor: pointer;
+}
+
+.feed summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Our own arrow, on the same line as the title. */
+.feed summary::before {
+  content: "";
+  flex: none;
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid var(--muted);
+  transition: transform 0.15s;
+}
+
+.feed details[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.feed summary .row {
+  flex: 1;
+  min-width: 0;
 }
 
 .row {
