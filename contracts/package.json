@@ -1,0 +1,16 @@
+{
+  "name": "@vigil/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test -vv",
+    "format": "forge fmt",
+    "format:check": "forge fmt --check",
+    "typecheck": "forge build --sizes"
+  },
+  "devDependencies": {
+    "forge-std": "github:foundry-rs/forge-std#v1.9.7"
+  }
+}
