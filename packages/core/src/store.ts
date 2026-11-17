@@ -62,6 +62,38 @@ export interface StoredClaim {
   txHash: string;
 }
 
+/** The latest answer of one monitored endpoint. */
+export interface StoredSnapshotOfSource {
+  network: string;
+  source: string;
+  hash: string;
+  body: string;
+  fetchedAt: number;
+  /** When the content last changed. */
+  changedAt: number;
+  /** Whether the last fetch succeeded. */
+  available: boolean;
+}
+
+/** Something the base-chain monitor observed. */
+export interface StoredChainEvent {
+  id: number;
+  network: string;
+  source: string;
+  severity: AlertSeverity;
+  title: string;
+  detail: string;
+  createdAt: number;
+}
+
+/** A settlement receipt recorded through the receipts contract. */
+export interface StoredReceipt {
+  batchIndex: number;
+  contract: string;
+  txHash: string;
+  recordedAt: number;
+}
+
 export type VerdictKind = "valid" | "invalid" | "undecidable";
 
 /** The watchtower's judgement of one batch. */
@@ -161,6 +193,37 @@ const MIGRATIONS: readonly string[] = [
     batch_index      INTEGER NOT NULL,
     tx_hash          TEXT NOT NULL,
     PRIMARY KEY (rollup_id, withdrawal_index)
+  ) STRICT;
+  `,
+  `
+  CREATE TABLE monitor_snapshots (
+    network    TEXT NOT NULL,
+    source     TEXT NOT NULL,
+    hash       TEXT NOT NULL,
+    body       TEXT NOT NULL,
+    fetched_at INTEGER NOT NULL,
+    changed_at INTEGER NOT NULL,
+    available  INTEGER NOT NULL,
+    PRIMARY KEY (network, source)
+  ) STRICT;
+
+  CREATE TABLE chain_events (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    network    TEXT NOT NULL,
+    source     TEXT NOT NULL,
+    severity   TEXT NOT NULL CHECK (severity IN ('info', 'warning', 'critical')),
+    title      TEXT NOT NULL,
+    detail     TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  ) STRICT;
+
+  CREATE TABLE receipts (
+    rollup_id   TEXT NOT NULL,
+    batch_index INTEGER NOT NULL,
+    contract    TEXT NOT NULL,
+    tx_hash     TEXT NOT NULL,
+    recorded_at INTEGER NOT NULL,
+    PRIMARY KEY (rollup_id, batch_index, contract)
   ) STRICT;
   `,
 ];
@@ -515,6 +578,102 @@ export class Store {
     };
   }
 
+  // --- base-chain monitor ---------------------------------------------------
+
+  monitorSnapshot(network: string, source: string): StoredSnapshotOfSource | undefined {
+    const row = this.get(
+      "SELECT * FROM monitor_snapshots WHERE network = ? AND source = ?",
+      network,
+      source,
+    );
+    return row === undefined ? undefined : Store.toMonitorSnapshot(row);
+  }
+
+  monitorSnapshots(network: string): StoredSnapshotOfSource[] {
+    return this.all(
+      "SELECT * FROM monitor_snapshots WHERE network = ? ORDER BY source",
+      network,
+    ).map((row) => Store.toMonitorSnapshot(row));
+  }
+
+  saveMonitorSnapshot(snapshot: StoredSnapshotOfSource): void {
+    this.db
+      .prepare(
+        `INSERT INTO monitor_snapshots (network, source, hash, body, fetched_at, changed_at, available)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (network, source)
+         DO UPDATE SET hash = excluded.hash, body = excluded.body, fetched_at = excluded.fetched_at,
+           changed_at = excluded.changed_at, available = excluded.available`,
+      )
+      .run(
+        snapshot.network,
+        snapshot.source,
+        snapshot.hash,
+        snapshot.body,
+        snapshot.fetchedAt,
+        snapshot.changedAt,
+        snapshot.available ? 1 : 0,
+      );
+  }
+
+  addChainEvent(event: Omit<StoredChainEvent, "id">): void {
+    this.db
+      .prepare(
+        "INSERT INTO chain_events (network, source, severity, title, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+      )
+      .run(event.network, event.source, event.severity, event.title, event.detail, event.createdAt);
+  }
+
+  /** Most recent chain events, newest first. */
+  recentChainEvents(limit: number): StoredChainEvent[] {
+    return this.all("SELECT * FROM chain_events ORDER BY id DESC LIMIT ?", limit).map((row) => {
+      const severity = text(row, "severity");
+      if (severity !== "info" && severity !== "warning" && severity !== "critical") {
+        throw new StoreError("unknown event severity in the database");
+      }
+      return {
+        id: int(row, "id"),
+        network: text(row, "network"),
+        source: text(row, "source"),
+        severity,
+        title: text(row, "title"),
+        detail: text(row, "detail"),
+        createdAt: int(row, "created_at"),
+      };
+    });
+  }
+
+  // --- receipts and read models --------------------------------------------
+
+  saveReceipt(rollupId: string, receipt: StoredReceipt): void {
+    this.db
+      .prepare(
+        `INSERT INTO receipts (rollup_id, batch_index, contract, tx_hash, recorded_at)
+         VALUES (?, ?, ?, ?, ?) ON CONFLICT (rollup_id, batch_index, contract) DO NOTHING`,
+      )
+      .run(rollupId, receipt.batchIndex, receipt.contract, receipt.txHash, receipt.recordedAt);
+  }
+
+  receipts(rollupId: string): StoredReceipt[] {
+    return this.all(
+      "SELECT * FROM receipts WHERE rollup_id = ? ORDER BY batch_index",
+      rollupId,
+    ).map((row) => ({
+      batchIndex: int(row, "batch_index"),
+      contract: text(row, "contract"),
+      txHash: text(row, "tx_hash"),
+      recordedAt: int(row, "recorded_at"),
+    }));
+  }
+
+  /** Every stored verdict for a rollup, in batch order. */
+  verdicts(rollupId: string): StoredVerdict[] {
+    return this.batches(rollupId).flatMap((batch) => {
+      const verdict = this.verdict(rollupId, batch.batchIndex, batch.stateRoot);
+      return verdict === undefined ? [] : [verdict];
+    });
+  }
+
   // --- internals -----------------------------------------------------------
 
   private migrate(): void {
@@ -541,6 +700,18 @@ export class Store {
 
   private all(sql: string, ...params: SQLInputValue[]): Row[] {
     return this.db.prepare(sql).all(...params);
+  }
+
+  private static toMonitorSnapshot(row: Row): StoredSnapshotOfSource {
+    return {
+      network: text(row, "network"),
+      source: text(row, "source"),
+      hash: text(row, "hash"),
+      body: text(row, "body"),
+      fetchedAt: int(row, "fetched_at"),
+      changedAt: int(row, "changed_at"),
+      available: int(row, "available") === 1,
+    };
   }
 
   private static toAlert(row: Row): StoredAlert {

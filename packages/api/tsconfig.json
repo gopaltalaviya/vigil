@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "noEmit": true,
+    "paths": {
+      "@vigil/core": ["../core/src/index.ts"],
+      "@vigil/watchtower": ["../watchtower/src/index.ts"]
+    }
+  },
+  "include": ["src", "test"]
+}

@@ -25,7 +25,9 @@
     "rollup:bootstrap": "tsx scripts/bootstrap-rollup.ts",
     "receipts": "tsx packages/receipts/src/main.ts",
     "gen:abi": "tsx scripts/gen-abi.ts",
-    "fraud:drill": "tsx scripts/fraud-drill.ts"
+    "fraud:drill": "tsx scripts/fraud-drill.ts",
+    "monitor": "tsx packages/monitor/src/main.ts",
+    "api": "tsx packages/api/src/main.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

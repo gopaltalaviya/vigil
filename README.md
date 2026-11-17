@@ -20,17 +20,18 @@ fills that gap, and adds the pieces an operator needs around it.
 
 ## Components
 
-| Component                 | What it does                                                                                                     | Status  |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------- |
-| `packages/core`           | Resilient chain access, verified inbox archive, ledger replay and snapshots, storage                             | Working |
-| `packages/watchtower`     | Re-executes each batch, compares every commitment, raises alerts, and challenges fraud with a re-execution proof | Working |
-| `packages/batcher`        | Bonded submitter: plans a batch, re-checks it against its own archive, signs and submits it                      | Working |
-| `packages/wallet`         | `vigil` command line: encrypted L2 keys, deposit, transfer, withdraw, claim                                      | Working |
-| `contracts/VigilReceipts` | Verifies a settlement receipt's ML-DSA-87 signature on chain through the `pqcVerify` precompile                  | Working |
-| `packages/receipts`       | Reads a batch's settlement anchor from the base chain and records it through the contract                        | Working |
-| `packages/memo`           | Confidential memos sealed with ML-KEM-1024 to the recipient's registered key and bound to an L2 transfer         | Working |
-| `packages/monitor`        | Base-chain monitor: halts, block-time drift, upgrades, parameter and feature-flag changes                        | Planned |
-| `apps/status`             | Public status page                                                                                               | Planned |
+| Component                 | What it does                                                                                                               | Status  |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `packages/core`           | Resilient chain access, verified inbox archive, ledger replay and snapshots, storage                                       | Working |
+| `packages/watchtower`     | Re-executes each batch, compares every commitment, raises alerts, and challenges fraud with a re-execution proof           | Working |
+| `packages/batcher`        | Bonded submitter: plans a batch, re-checks it against its own archive, signs and submits it                                | Working |
+| `packages/wallet`         | `vigil` command line: encrypted L2 keys, deposit, transfer, withdraw, claim                                                | Working |
+| `contracts/VigilReceipts` | Verifies a settlement receipt's ML-DSA-87 signature on chain through the `pqcVerify` precompile                            | Working |
+| `packages/receipts`       | Reads a batch's settlement anchor from the base chain and records it through the contract                                  | Working |
+| `packages/memo`           | Confidential memos sealed with ML-KEM-1024 to the recipient's registered key and bound to an L2 transfer                   | Working |
+| `packages/monitor`        | Base-chain monitor for testnet and mainnet: halts, block-time drift, upgrades, proposals, setting and feature-flag changes | Working |
+| `packages/api`            | Read-only JSON API and Prometheus metrics over the local database                                                          | Working |
+| `apps/status`             | Public status page: batch verdicts, receipts, base-chain health, alerts                                                    | Working |
 
 ## How the watchtower decides
 
@@ -108,6 +109,25 @@ pnpm rollup:bootstrap            # dry run: simulates creation and the bond, sen
 pnpm rollup:bootstrap --execute  # creates the rollup named by ROLLUP_ID and bonds the submitter
 pnpm batcher                     # submit batches as entries arrive
 ```
+
+## Base-chain monitor and status page
+
+```sh
+pnpm monitor --once   # check both networks once (read-only, no key)
+pnpm monitor          # keep checking every minute
+pnpm api              # serve the status page, /api/overview and /metrics on port 8080
+```
+
+The monitor reads the tip of each network, measures the average block time over the last 1,000
+blocks, and fetches a fixed set of settings: the upgrade plan, proposals in voting, the circuit
+breaker list, EVM settings and active precompiles, rollup, layer, post-quantum and staking
+parameters, and the published node release. Each answer is stored in canonical form. When the
+content changes, the monitor records what changed and raises an alert; a source that cannot be
+read is shown as unavailable, never as changed.
+
+The API reads only the local database. It holds no key and makes no chain requests, so it is safe
+to expose. It accepts GET and HEAD only, limits requests per client and sets strict security
+headers.
 
 ## Confidential memos
 

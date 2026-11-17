@@ -60,6 +60,18 @@ importers:
         specifier: github:foundry-rs/forge-std#v1.9.7
         version: https://codeload.github.com/foundry-rs/forge-std/tar.gz/77041d2ce690e692d6e03cc812b57d1ddaa4d505
 
+  packages/api:
+    dependencies:
+      '@qorechain/rdk':
+        specifier: 0.9.0
+        version: 0.9.0(viem@2.57.20(typescript@5.9.3)(zod@4.6.7))
+      '@vigil/core':
+        specifier: workspace:*
+        version: link:../core
+      '@vigil/watchtower':
+        specifier: workspace:*
+        version: link:../watchtower
+
   packages/batcher:
     dependencies:
       '@qorechain/rdk':
@@ -95,6 +107,18 @@ importers:
       '@vigil/core':
         specifier: workspace:*
         version: link:../core
+
+  packages/monitor:
+    dependencies:
+      '@qorechain/rdk':
+        specifier: 0.9.0
+        version: 0.9.0(viem@2.57.20(typescript@5.9.3)(zod@4.6.7))
+      '@vigil/core':
+        specifier: workspace:*
+        version: link:../core
+      '@vigil/watchtower':
+        specifier: workspace:*
+        version: link:../watchtower
 
   packages/receipts:
     dependencies:

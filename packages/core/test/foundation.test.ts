@@ -150,7 +150,7 @@ describe("store", () => {
       first.close();
 
       const second = Store.open(path);
-      expect(second.schemaVersion).toBe(1);
+      expect(second.schemaVersion).toBe(2);
       expect(second.inboxRange("r1", 0, 2).map((e) => e.sequence)).toEqual([1, 2]);
       expect(second.inboxEntry("r1", 2)?.payload).toEqual(new Uint8Array([2, 2, 3]));
       expect(second.inboxEntry("r1", 3)).toBeUndefined();
@@ -233,6 +233,62 @@ describe("store", () => {
     store.markAlertDelivered(1, 9);
     expect(store.undeliveredAlerts().map((a) => a.key)).toEqual(["stalled:r1:4"]);
     expect(store.recentAlerts(5)[1]).toMatchObject({ key: "invalid:r1:0", deliveredAt: 9 });
+  });
+
+  it("keeps the latest snapshot per monitored source, chain events and receipts", () => {
+    const store = Store.open(":memory:");
+    const snapshot = {
+      network: "testnet",
+      source: "upgrade-plan",
+      hash: "h1",
+      body: "{}",
+      fetchedAt: 10,
+      changedAt: 10,
+      available: true,
+    };
+    store.saveMonitorSnapshot(snapshot);
+    store.saveMonitorSnapshot({ ...snapshot, hash: "h2", fetchedAt: 20, changedAt: 20 });
+    store.saveMonitorSnapshot({ ...snapshot, source: "tip", available: false });
+    expect(store.monitorSnapshot("testnet", "upgrade-plan")).toMatchObject({ hash: "h2" });
+    expect(store.monitorSnapshots("testnet").map((s) => [s.source, s.available])).toEqual([
+      ["tip", false],
+      ["upgrade-plan", true],
+    ]);
+    expect(store.monitorSnapshot("mainnet", "tip")).toBeUndefined();
+
+    store.addChainEvent({
+      network: "testnet",
+      source: "tip",
+      severity: "critical",
+      title: "Chain halted",
+      detail: "no block for 300 s",
+      createdAt: 30,
+    });
+    expect(store.recentChainEvents(5)).toMatchObject([{ id: 1, title: "Chain halted" }]);
+
+    const receipt = { batchIndex: 0, contract: "0xabc", txHash: "0x1", recordedAt: 40 };
+    store.saveReceipt("r1", receipt);
+    store.saveReceipt("r1", { ...receipt, txHash: "0x2" });
+    expect(store.receipts("r1")).toEqual([receipt]);
+
+    store.upsertBatch("r1", batch);
+    expect(store.verdicts("r1")).toEqual([]);
+  });
+
+  it("migrates a version 1 database forward without losing data", () => {
+    const dir = mkdtempSync(join(tmpdir(), "vigil-migrate-"));
+    try {
+      const path = join(dir, "vigil.sqlite");
+      const store = Store.open(path);
+      store.appendInboxEntries("r1", [entry(1)]);
+      store.close();
+      const reopened = Store.open(path);
+      expect(reopened.schemaVersion).toBe(2);
+      expect(reopened.lastInboxEntry("r1")?.sequence).toBe(1);
+      reopened.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("refuses a path it cannot open", () => {

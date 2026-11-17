@@ -26,3 +26,6 @@ All notable changes are recorded here. The format follows
   proof (`WATCHTOWER_CHALLENGE`), and a fraud drill script for live networks.
 - `@vigil/memo` and `vigil memo`: confidential memos sealed with ML-KEM-1024, bound to an L2
   transfer and carried through the rollup inbox.
+- `@vigil/monitor`: base-chain monitor for testnet and mainnet with change detection.
+- `@vigil/api` and the status page: read-only API, Prometheus metrics and a public dashboard.
+- `vigil-receipts sync`: records every anchored batch that is not on chain yet.

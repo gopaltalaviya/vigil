@@ -10,6 +10,7 @@ export default tseslint.config(
       "contracts/**",
       "**/test/fixtures/**",
       "eslint.config.js",
+      "apps/status/**",
       "packages/receipts/src/abi.ts",
     ],
   },

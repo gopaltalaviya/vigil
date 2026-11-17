@@ -7,12 +7,14 @@
  *   vigil-receipts deploy           deploy VigilReceipts (needs `forge build` output)
  *   vigil-receipts check <batch>    verify a batch's anchor through the contract, read-only
  *   vigil-receipts record <batch>   verify and record a batch's anchor on chain
+ *   vigil-receipts sync             record every anchored batch that is not on chain yet
  */
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { uqorToQor } from "@qorechain/rdk";
 import type { Abi, Hex } from "viem";
-import { VigilError, createChain, createLogger, loadConfig } from "@vigil/core";
+import { Store, VigilError, createChain, createLogger, loadConfig } from "@vigil/core";
 import {
   deployerAccount,
   deployerStatus,
@@ -34,6 +36,19 @@ async function main(argv: string[]): Promise<void> {
   const chain = createChain(config);
   const context = { config, rdk: chain.rdk, log };
   const contract = new ReceiptsContract(config);
+  const remember = (batchIndex: number, txHash: string): void => {
+    const store = Store.open(join(config.dataDir, "vigil.sqlite"));
+    try {
+      store.saveReceipt(config.rollupId, {
+        batchIndex,
+        contract: address(),
+        txHash,
+        recordedAt: Math.floor(Date.now() / 1_000),
+      });
+    } finally {
+      store.close();
+    }
+  };
 
   const address = (): Hex => {
     const value = process.env.VIGIL_RECEIPTS_ADDRESS?.trim();
@@ -112,9 +127,11 @@ async function main(argv: string[]): Promise<void> {
       break;
     }
     case "record": {
-      const call = await buildAnchorCall(chain.rdk, config.chainId, config.rollupId, batch());
+      const index = batch();
+      const call = await buildAnchorCall(chain.rdk, config.chainId, config.rollupId, index);
       if (await contract.isAnchorRecorded(address(), call)) {
-        print(`Batch ${String(batch())} is already recorded.`);
+        remember(index, "");
+        print(`Batch ${String(index)} is already recorded.`);
         break;
       }
       if (!(await contract.checkAnchor(address(), call))) {
@@ -124,15 +141,46 @@ async function main(argv: string[]): Promise<void> {
         );
       }
       await ensureWindow();
-      print(
-        `Recorded batch ${String(batch())}. Transaction ${await contract.recordAnchor(await key(), address(), call)}`,
-      );
+      const hash = await contract.recordAnchor(await key(), address(), call);
+      remember(index, hash);
+      print(`Recorded batch ${String(index)}. Transaction ${hash}`);
+      break;
+    }
+    case "sync": {
+      const batches = await chain.rdk.rest.listBatches(config.rollupId);
+      for (const item of batches) {
+        if (item.status === "rejected") continue;
+        const index = item.batchIndex;
+        let call;
+        try {
+          call = await buildAnchorCall(chain.rdk, config.chainId, config.rollupId, index);
+        } catch (error) {
+          if (error instanceof VigilError && error.code === "INTEGRITY") {
+            print(`Batch ${String(index)}: no anchor, skipped.`);
+            continue;
+          }
+          throw error;
+        }
+        if (await contract.isAnchorRecorded(address(), call)) {
+          remember(index, "");
+          print(`Batch ${String(index)}: already recorded.`);
+          continue;
+        }
+        if (!(await contract.checkAnchor(address(), call))) {
+          print(`Batch ${String(index)}: signature does not verify, skipped.`);
+          continue;
+        }
+        await ensureWindow();
+        const hash = await contract.recordAnchor(await key(), address(), call);
+        remember(index, hash);
+        print(`Batch ${String(index)}: recorded. Transaction ${hash}`);
+      }
       break;
     }
     default:
       throw new VigilError(
         "CONFIG_INVALID",
-        "usage: vigil-receipts <status|setup|deploy|check|record>",
+        "usage: vigil-receipts <status|setup|deploy|check|record|sync>",
       );
   }
 }
