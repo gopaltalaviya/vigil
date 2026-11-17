@@ -10,6 +10,7 @@ import {
   IntegrityError,
   Store,
   TxFailedError,
+  claimId,
   createLogger,
   toHex,
 } from "@vigil/core";
@@ -184,6 +185,26 @@ describe("Batcher", () => {
     expect(rollup.batches).toEqual([]);
     expect(await batcher.tick()).toMatchObject({ action: "submitted", batchIndex: 0 });
     expect(store.recentTxs(2).map((t) => t.status)).toEqual(["confirmed", "failed"]);
+  });
+
+  it("does not build on an open batch the watchtower judged invalid", async () => {
+    const { batcher, rollup, store } = setup();
+    rollup.deposit("qor1user", alice.accountId, 3n * QOR);
+    const bad = rollup.submitHonestBatch();
+    store.upsertBatch(FAKE_ROLLUP_ID, bad);
+    store.saveVerdict(FAKE_ROLLUP_ID, {
+      claimId: claimId(bad),
+      batchIndex: bad.batchIndex,
+      stateRoot: bad.stateRoot,
+      verdict: "invalid",
+      expectedStateRoot: "",
+      expectedWithdrawalsRoot: "",
+      reasons: ["withdrawals_root"],
+      checkedAt: 1,
+    });
+    rollup.post("qor1user", transfer(0, QOR));
+    expect(await batcher.tick()).toMatchObject({ action: "waiting" });
+    expect(rollup.batches).toHaveLength(1);
   });
 
   it("re-plans after another submitter batches the same entries first", async () => {

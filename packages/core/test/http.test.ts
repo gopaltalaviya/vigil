@@ -95,6 +95,41 @@ describe("HttpClient", () => {
     expect((error as Error).message).toContain("hooks.example");
   });
 
+  it("refuses an answer that declares an excessive size, without retrying", async () => {
+    let calls = 0;
+    const transport: Transport = () => {
+      calls += 1;
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        statusText: "",
+        headers: { get: (name) => (name === "content-length" ? String(64 * 1024 * 1024) : null) },
+        json: () => Promise.resolve({}),
+      });
+    };
+    const client = new HttpClient({ source: "test", transport, maxRetries: 3 });
+    const error: unknown = await client
+      .getJson("https://node.example/huge")
+      .catch((e: unknown) => e);
+    expect((error as HttpStatusError).status).toBe(413);
+    expect(calls).toBe(1);
+  });
+
+  it("asks the transport not to follow redirects", async () => {
+    let redirect: string | undefined;
+    const transport: Transport = (_url, init) => {
+      redirect = init?.redirect;
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        statusText: "",
+        json: () => Promise.resolve({}),
+      });
+    };
+    await new HttpClient({ source: "test", transport }).getJson("https://node.example/x");
+    expect(redirect).toBe("error");
+  });
+
   it("gives up after the retry budget and reports the source as unavailable", async () => {
     const { client, seen } = harness([response(500), response(500), response(500)], {
       maxRetries: 2,

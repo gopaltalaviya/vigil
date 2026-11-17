@@ -201,10 +201,12 @@ for the contract and one for the services.
   blocking the others, secrets handed to services that did not need them, receipts recorded for
   unfinalized batches, a stuck `claim`, and a start-up race on the shared database.
 
-Not changed, and stated here instead: the batcher builds on the latest batch even while that
-batch is still in its challenge window; a batch that stays undecidable is only alerted on near its
-deadline; the HTTP client follows redirects and does not cap response size; the keystore
-passphrase sits next to the seed phrase on a server.
+Also fixed afterwards: the HTTP client refuses redirects and oversized answers, and the batcher
+will not build on an open batch the watchtower judged invalid.
+
+Not changed, and stated here instead: the batcher still builds on a batch that is in its
+challenge window and not yet judged; a batch that stays undecidable is only alerted on near its
+deadline; the keystore passphrase sits next to the seed phrase on a server.
 
 ## Out of scope
 

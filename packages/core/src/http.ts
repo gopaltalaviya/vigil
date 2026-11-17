@@ -3,7 +3,13 @@ import { HttpStatusError, SourceUnavailableError, redactUrl } from "./errors.js"
 /** The subset of `fetch` Vigil relies on; the global `fetch` satisfies it. */
 export type Transport = (
   url: string,
-  init?: { method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal },
+  init?: {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+    signal?: AbortSignal;
+    redirect?: "error" | "follow" | "manual";
+  },
 ) => Promise<TransportResponse>;
 
 export interface TransportResponse {
@@ -34,6 +40,9 @@ export interface HttpClientOptions {
   sleep?: (ms: number) => Promise<void>;
   random?: () => number;
 }
+
+/** Largest answer accepted, by its declared length. Chain endpoints answer in kilobytes. */
+const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 
 const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524]);
 
@@ -118,7 +127,14 @@ export class HttpClient {
           ...init,
           headers: { accept: "application/json", "user-agent": USER_AGENT, ...init.headers },
           signal: AbortSignal.timeout(this.timeoutMs),
+          // An endpoint must answer itself; a redirect could point the client anywhere.
+          redirect: "error",
         });
+        const declared = Number(response.headers?.get("content-length") ?? "0");
+        if (declared > MAX_RESPONSE_BYTES) {
+          this.recordSuccess();
+          throw new HttpStatusError(url, 413, this.secretUrls);
+        }
         if (!RETRYABLE_STATUS.has(response.status)) {
           this.recordSuccess();
           return response;
@@ -128,6 +144,7 @@ export class HttpClient {
           await this.sleep(this.delayFor(attempt, response.headers?.get("retry-after") ?? null));
         }
       } catch (error) {
+        if (error instanceof HttpStatusError && error.status === 413) throw error;
         lastError = error;
         if (attempt < this.maxRetries) await this.sleep(this.delayFor(attempt, null));
       }

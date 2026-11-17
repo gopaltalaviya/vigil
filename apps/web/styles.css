@@ -7,7 +7,7 @@
   --line-strong: rgba(167, 243, 208, 0.28);
   --text: #f0fdf4;
   --muted: #9dbfb1;
-  --dim: #6f9485;
+  --dim: #86ab9c;
   --accent: #34d399;
   --accent-strong: #10b981;
   --accent-soft: #6ee7b7;
@@ -754,6 +754,24 @@ td a:hover {
   font-size: 15px;
 }
 
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 0;
+  color: var(--muted);
+}
+
+.loading::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--accent);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
 .empty {
   padding: 18px;
   border: 1px dashed var(--line-strong);
@@ -762,8 +780,9 @@ td a:hover {
 }
 
 .copy {
+  min-height: 32px;
   margin-left: 8px;
-  padding: 2px 8px;
+  padding: 4px 10px;
   border: 1px solid var(--line-strong);
   border-radius: 8px;
   background: transparent;

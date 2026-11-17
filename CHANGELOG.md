@@ -50,3 +50,8 @@ All notable changes are recorded here. The format follows
 - Receipts are recorded only for finalized batches the watchtower judged valid.
 - The seed phrase is given only to services that send transactions.
 - Opening the database from several processes at once no longer fails.
+- The HTTP client refuses redirects and answers that declare more than 8 MiB.
+- The batcher does not build on an open batch the watchtower judged invalid.
+- Web app: WCAG AA contrast for all text, larger tap targets, loading states, correct heading
+  order, focus kept at the top on first load, a shorter activity list. Verified with an automated
+  browser test of every page at desktop and phone width, including a real transfer.

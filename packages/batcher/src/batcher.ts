@@ -2,6 +2,7 @@ import type { QledgerBatchPlan, QledgerLedger } from "@qorechain/rdk";
 import {
   IntegrityError,
   VigilError,
+  claimId,
   ledgerAtSequence,
   toHex,
   verifyBatch,
@@ -68,6 +69,20 @@ export class Batcher {
     if (inbox.head <= inbox.consumed) return { action: "idle" };
     if (sync.head < inbox.consumed) {
       return { action: "waiting", reason: "the local inbox archive is still catching up" };
+    }
+
+    // A batch built on an invalid one is rejected with it, and costs our bond.
+    const suspect = this.options.store
+      .batches(rollupId)
+      .find(
+        (batch) =>
+          (batch.status === "submitted" || batch.status === "challenged") &&
+          this.options.store.verdict(rollupId, claimId(batch))?.verdict === "invalid",
+      );
+    if (suspect !== undefined) {
+      const reason = `batch ${String(suspect.batchIndex)} is invalid and still open; not building on it`;
+      log.warn({ batchIndex: suspect.batchIndex }, reason);
+      return { action: "waiting", reason };
     }
 
     const parent = ledgerAtSequence(this.options, inbox.consumed);

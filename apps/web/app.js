@@ -271,7 +271,7 @@ function networkCard(network) {
     ["Checked", ago(network.checkedAt)],
   ];
   return el("div", { className: "card" }, [
-    el("div", { className: "card-head" }, [el("h3", { text: network.network }), badge]),
+    el("div", { className: "card-head" }, [el("h2", { text: network.network }), badge]),
     el(
       "dl",
       { className: "facts" },
@@ -858,32 +858,7 @@ const views = {
         section(
           "Activity",
           el("p", { className: "muted", text: "Base-chain transactions sent from this console." }),
-          data.activity.length === 0
-            ? el("p", { className: "empty", text: "Nothing sent yet." })
-            : el(
-                "ul",
-                { className: "feed" },
-                data.activity.map((tx) =>
-                  el("li", {}, [
-                    el("div", { className: "row" }, [
-                      el("span", { className: "title" }, [
-                        pill(
-                          tx.status === "confirmed"
-                            ? "good"
-                            : tx.status === "failed"
-                              ? "bad"
-                              : "wait",
-                          tx.status,
-                        ),
-                        document.createTextNode(` ${ACTIVITY[tx.label] ?? tx.label}`),
-                      ]),
-                      el("time", { text: ago(tx.createdAt) }),
-                    ]),
-                    tx.hash ? el("p", {}, copyable(tx.hash)) : null,
-                    tx.error ? el("p", { className: "error", text: tx.error }) : null,
-                  ]),
-                ),
-              ),
+          activityList(data.activity),
         ),
       ]);
     },
@@ -903,6 +878,48 @@ const ACTIVITY = {
   "create-rollup": "Rollup created",
   "bond-submitter": "Submitter bonded",
 };
+
+let showAllActivity = false;
+
+function activityList(activity) {
+  if (activity.length === 0) return el("p", { className: "empty", text: "Nothing sent yet." });
+  const LIMIT = 6;
+  const shown = showAllActivity ? activity : activity.slice(0, LIMIT);
+  const list = el(
+    "ul",
+    { className: "feed" },
+    shown.map((tx) =>
+      el("li", {}, [
+        el("div", { className: "row" }, [
+          el("span", { className: "title" }, [
+            pill(
+              tx.status === "confirmed" ? "good" : tx.status === "failed" ? "bad" : "wait",
+              tx.status,
+            ),
+            document.createTextNode(` ${ACTIVITY[tx.label] ?? tx.label}`),
+          ]),
+          el("time", { text: ago(tx.createdAt) }),
+        ]),
+        tx.hash ? el("p", {}, copyable(tx.hash)) : null,
+        tx.error ? el("p", { className: "error", text: tx.error }) : null,
+      ]),
+    ),
+  );
+  if (activity.length <= LIMIT) return list;
+  const toggle = el("button", {
+    className: "button ghost small",
+    type: "button",
+    text: showAllActivity ? "Show fewer" : `Show all ${activity.length}`,
+    "aria-expanded": String(showAllActivity),
+    on: {
+      click: () => {
+        showAllActivity = !showAllActivity;
+        void show(true);
+      },
+    },
+  });
+  return el("div", { className: "stack" }, [list, el("div", {}, toggle)]);
+}
 
 // ---------- wallet pieces ----------
 
@@ -1203,6 +1220,7 @@ function signInCard() {
 // ---------- routing and refresh ----------
 
 let current = { route: "", param: undefined };
+let navigated = false;
 
 function parseRoute() {
   const [, route = "overview", param] = location.hash.split("/");
@@ -1251,20 +1269,37 @@ async function show(force = false) {
   }
   document.title = `${view.title} · Vigil`;
   const main = $("view");
+  // On a new page, say so if loading takes more than a moment.
+  const placeholder = changed
+    ? setTimeout(() => {
+        main.replaceChildren(
+          el("p", {
+            className: "loading",
+            role: "status",
+            text: `Loading ${view.title.toLowerCase()}…`,
+          }),
+        );
+      }, 250)
+    : undefined;
   try {
     if (state.overview === null) await refreshOverview();
     const data = await view.load(next.param);
+    clearTimeout(placeholder);
     if (data === null && next.route !== "wallet")
       throw new Error("No data yet. Is the watchtower running?");
     const scroll = window.scrollY;
     main.replaceChildren(view.render(data, next.param));
     if (changed) {
       window.scrollTo(0, 0);
-      main.focus({ preventScroll: true });
+      // Move focus to the new page only when the user navigated, not on the first load,
+      // so the first Tab still reaches "Skip to content" and the menu.
+      if (navigated) main.focus({ preventScroll: true });
+      navigated = true;
     } else {
       window.scrollTo(0, scroll);
     }
   } catch (error) {
+    clearTimeout(placeholder);
     main.replaceChildren(
       el("div", { className: "stack" }, [
         el("div", { className: "page-head" }, el("h1", { text: view.title })),
