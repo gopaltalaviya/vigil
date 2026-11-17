@@ -13,9 +13,10 @@ the batch wrong. If nobody does, the batch becomes final, including any withdraw
 So a rollup is only as honest as the people watching it. If no one checks, a dishonest submitter
 can claim balances that do not exist and withdraw them.
 
-> On the testnet, we submitted a deliberately forged batch to our own rollup. QoreChain accepted it
-> at once; a fraud proof rejected it ten blocks later. The system works only when a watcher is
-> online.
+> On the testnet, we submitted deliberately forged batches to our own rollup. QoreChain accepted
+> each one at once. The first was rejected only because another watcher happened to challenge it.
+> The second was caught by Vigil's watchtower, which challenged it 5 seconds after it landed; the
+> cheater lost a 1,000 QOR bond. The system works only when a watcher is online.
 
 Two more gaps made this worse on QoreChain:
 

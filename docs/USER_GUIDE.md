@@ -29,6 +29,12 @@ The dashboard answers "is the rollup healthy?" at a glance.
 - **Live inbox** lists the newest transactions.
 - **Services** shows when each background service last finished a round.
 
+## Proof
+
+Every claim Vigil makes, with the testnet transactions that show it happened: the forged batch
+the watchtower stopped, the earlier drill, every batch re-executed, receipts on chain, a paid
+withdrawal, a private memo and the chain monitor's findings. Each hash opens QoreChain's own record.
+
 ## Batches
 
 Every batch, newest first, with two independent opinions side by side:

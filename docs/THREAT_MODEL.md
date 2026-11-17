@@ -47,10 +47,12 @@ challenges. This was observed on the testnet: a batch with a flipped state root 
   (challenge `D5D739743AEBB1FCA1148D5775DD67CF39FF669D4F3AFBFE2945700CFB0ED9A4`, honest batch
   `7853216496A5E0BA69CC332165D532B4800B5734C1E391D2E21E16B5D1BF4D83`).
 
-**Limits.** That challenge was sent by an independent third party that reacted before Vigil's
-watchtower was started; Vigil's own challenge path is verified against an in-process model of the
-chain that uses the chain's execution and fraud-check code, not yet by a challenge of its own on
-the testnet. Fraud is only caught if at least one honest watcher is online within the challenge
+- In a second drill, Vigil's own watchtower judged forged batch 18 invalid 2 seconds after it was
+  submitted and challenged it; the chain upheld the fraud and slashed the bond, with Vigil as the
+  challenger (forged batch `E6993DBCAE77E735D138E03748A09321899525BAF24C464BEE360C2A9C02BDB4`,
+  challenge `349C8DF05F888E2AEB8826101F49FD8960EB3662A47530B37C71307206822330`).
+
+**Limits.** Fraud is only caught if at least one honest watcher is online within the challenge
 window (3,600 seconds on the testnet). A mismatch in the data hash alone is detected and alerted
 but cannot be proven by re-execution, so it is not challenged.
 

@@ -1,5 +1,6 @@
 import { docsView } from "./docs.js";
 import { homeView } from "./home.js";
+import { proofView } from "./proof.js";
 import { diagram, learnView } from "./learn.js";
 
 // Vigil web app. No dependencies and no build step. Every value that comes
@@ -1469,6 +1470,7 @@ views.learn = learnView({
   latestBatch: () => state.overview?.rollup.batches[0],
 });
 views.docs = docsView({ el });
+views.proof = proofView({ el, pill, overview: () => state.overview });
 views.home = homeView({
   el,
   pill,

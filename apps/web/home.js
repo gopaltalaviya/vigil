@@ -227,6 +227,14 @@ export function homeView({
               ]),
             ),
           ]),
+          el("div", { className: "proof-banner" }, [
+            el("span", { className: "pulse" }),
+            el("p", {}, [
+              el("strong", { text: "It happened on the testnet: " }),
+              "a forged batch was caught and challenged by Vigil's watchtower 5 seconds after it was submitted. The cheater lost a 1,000 QOR bond.",
+            ]),
+            el("a", { className: "button", href: "#/proof", text: "See the proof" }),
+          ]),
           el("a", {
             className: "more",
             href: "#/learn/before-after",

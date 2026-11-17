@@ -154,7 +154,7 @@ export function learnView({ el, pill, latestBatch }) {
       ),
       callout(
         "Seen on the testnet",
-        "We submitted a deliberately forged batch to our own rollup. QoreChain accepted it at once. A fraud proof rejected it ten blocks later: the system works only when a watcher is online.",
+        "We submitted deliberately forged batches to our own rollup. QoreChain accepted each one at once. The first was rejected only because another watcher happened to challenge it; the second was caught by Vigil's watchtower and challenged 5 seconds after it landed.",
         "warn",
       ),
       h2("What Vigil does"),
@@ -347,14 +347,17 @@ export function learnView({ el, pill, latestBatch }) {
           ]),
           timeline("with", "With Vigil", [
             ["0:00", "The same forged batch is submitted and accepted."],
-            ["0:15", "The watchtower re-executes it: the state root is wrong. Alert raised."],
-            ["0:20", "Fraud proof built, checked locally and sent as a challenge."],
-            ["about 0:35", "QoreChain re-executes, rejects the batch and slashes the bond."],
+            ["0:02", "The watchtower re-executes it: the state root is wrong. Alert raised."],
+            ["0:05", "Fraud proof built, checked locally and sent. Challenge confirmed."],
+            [
+              "0:05",
+              "QoreChain upholds the fraud, throws the batch out and slashes the 1,000 QOR bond.",
+            ],
           ]),
         ]),
         el("p", {
           className: "muted",
-          text: "The timings on the right are typical for a 15-second watchtower round. In our testnet drill the forged batch was rejected ten blocks after it was submitted.",
+          text: "The timings on the right were measured on the testnet on 17 November 2026, when Vigil's watchtower stopped forged batch 18 of vigil-1. See the Proof page for the transactions.",
         }),
         h2("Side by side"),
         el(

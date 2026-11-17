@@ -64,3 +64,5 @@ All notable changes are recorded here. The format follows
 - Home page that explains the product on its first screen, with a live watchtower card; the
   former overview is now the Dashboard.
 - Learn page comparing nine situations without Vigil and with it.
+- Proof page: every claim with the testnet transactions behind it, including a forged batch
+  stopped by the watchtower 5 seconds after it was submitted.
