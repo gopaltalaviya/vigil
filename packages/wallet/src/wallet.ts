@@ -47,6 +47,9 @@ export interface AccountState {
   inboxConsumed: number;
 }
 
+/** A posted L2 transaction: the base-chain outcome plus the exact bytes that were posted. */
+export type PostedTx = TxOutcome & { payload: Uint8Array };
+
 /** A withdrawal found in a batch, with what is needed to pay it out. */
 export interface Withdrawal {
   batchIndex: number;
@@ -98,7 +101,7 @@ export class Wallet {
     account: L2Account,
     to: string,
     amount: bigint,
-  ): Promise<TxOutcome> {
+  ): Promise<PostedTx> {
     const recipient = parseAccountId(to);
     if (toHex(recipient) === toHex(account.accountId)) {
       throw new InputError("the recipient is the sending account");
@@ -112,7 +115,7 @@ export class Wallet {
     account: L2Account,
     recipient: string,
     amount: bigint,
-  ): Promise<TxOutcome> {
+  ): Promise<PostedTx> {
     if (!isCanonicalQorAddress(recipient)) {
       throw new InputError("the recipient is not a valid qor1 address");
     }
@@ -184,7 +187,7 @@ export class Wallet {
     amount: bigint,
     label: string,
     target: { to: Uint8Array } | { recipient: string },
-  ): Promise<TxOutcome> {
+  ): Promise<PostedTx> {
     const { chainId, rollupId } = this.options;
     const state = await this.state(account.accountId);
     if (amount > state.pending.balance) {
@@ -203,7 +206,17 @@ export class Wallet {
     if (data.length > QLEDGER_MAX_POST_BYTES) {
       throw new InputError("the signed transaction is larger than the inbox accepts");
     }
-    return sender.send(label, (tx) => tx.postRollupData({ rollupId, data }));
+    const outcome = await sender.send(label, (tx) => tx.postRollupData({ rollupId, data }));
+    return { ...outcome, payload: data };
+  }
+
+  /** Posts an opaque payload (for example a sealed memo) to the rollup inbox. */
+  async postNote(sender: TxSender, data: Uint8Array): Promise<TxOutcome> {
+    if (data.length === 0 || data.length > QLEDGER_MAX_POST_BYTES) {
+      throw new InputError("the payload does not fit the inbox");
+    }
+    const { rollupId } = this.options;
+    return sender.send("note", (tx) => tx.postRollupData({ rollupId, data }));
   }
 }
 

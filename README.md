@@ -28,7 +28,7 @@ fills that gap, and adds the pieces an operator needs around it.
 | `packages/wallet`         | `vigil` command line: encrypted L2 keys, deposit, transfer, withdraw, claim                                      | Working |
 | `contracts/VigilReceipts` | Verifies a settlement receipt's ML-DSA-87 signature on chain through the `pqcVerify` precompile                  | Working |
 | `packages/receipts`       | Reads a batch's settlement anchor from the base chain and records it through the contract                        | Working |
-| `packages/memo`           | Confidential memos sealed with ML-KEM-1024 to the recipient's registered key                                     | Planned |
+| `packages/memo`           | Confidential memos sealed with ML-KEM-1024 to the recipient's registered key and bound to an L2 transfer         | Working |
 | `packages/monitor`        | Base-chain monitor: halts, block-time drift, upgrades, parameter and feature-flag changes                        | Planned |
 | `apps/status`             | Public status page                                                                                               | Planned |
 
@@ -109,6 +109,23 @@ pnpm rollup:bootstrap --execute  # creates the rollup named by ROLLUP_ID and bon
 pnpm batcher                     # submit batches as entries arrive
 ```
 
+## Confidential memos
+
+A transfer can carry a note that only its recipient can read.
+
+```sh
+pnpm vigil memo register                                  # publish your ML-KEM-1024 key (once)
+pnpm vigil memo send <qor1...> <account-id> 0.25 "text"   # transfer plus a sealed memo
+pnpm vigil memo inbox                                     # decrypt memos addressed to you
+```
+
+The memo is encrypted with ML-KEM-1024 to the key the recipient registered on the base chain,
+posted through the rollup inbox, and bound to the hash of its transfer, so it cannot be attached
+to another payment or replayed on another rollup. The ledger ignores memo payloads.
+
+What stays public: who posted the memo, when, its size, and the transfer it points to, including
+the amount. Only the text is hidden.
+
 ## Recording receipts on chain
 
 ```sh
@@ -177,6 +194,9 @@ verification code on a live node with `eth_call`.
 
 Vigil builds on open-source work, used under their licences:
 
+- [`@qorechain/qoreseal`](https://github.com/qorechain/qoreseal): ML-KEM-1024 envelopes for memos.
+- [`@qorechain/sdk`](https://github.com/qorechain/qorechain-sdk) and `@qorechain/evm`: EVM account,
+  key registration and authorisation windows.
 - [`@qorechain/rdk`](https://github.com/qorechain/qorechain-rdk) (Apache-2.0): chain client,
   `qledger-v1` execution, inbox hashing, receipt and envelope helpers.
 - [forge-std](https://github.com/foundry-rs/forge-std) and [viem](https://github.com/wevm/viem).

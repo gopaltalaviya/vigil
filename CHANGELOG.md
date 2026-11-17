@@ -24,3 +24,5 @@ All notable changes are recorded here. The format follows
   contract is live on the testnet and holds the receipt of the first batch.
 - Watchtower: automatic challenge of invalid batches with a locally checked re-execution fraud
   proof (`WATCHTOWER_CHALLENGE`), and a fraud drill script for live networks.
+- `@vigil/memo` and `vigil memo`: confidential memos sealed with ML-KEM-1024, bound to an L2
+  transfer and carried through the rollup inbox.

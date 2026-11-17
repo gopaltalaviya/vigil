@@ -10,6 +10,10 @@
  *   vigil withdraw <qor> [qor1...]    L2 -> base chain (paid out by `claim` after finality)
  *   vigil claim                       pay out finalized withdrawals
  *   vigil status                      rollup, inbox and batch overview
+ *   vigil memo register               publish this account's ML-KEM-1024 key
+ *   vigil memo send <qor1...> <account-id> <qor> <text>
+ *                                     transfer with a memo only the qor1 owner can read
+ *   vigil memo inbox                  read memos addressed to this account
  */
 import { join } from "node:path";
 import {
@@ -25,6 +29,7 @@ import {
   type TxSender,
   type VigilConfig,
 } from "@vigil/core";
+import { memoKeys, readMemos, sealMemo, transferHash } from "@vigil/memo";
 import { InputError, formatQor, parseQor } from "./amount.js";
 import { createKeystore, keystoreAccountId, openKeystore, type L2Account } from "./keystore.js";
 import { Wallet, parseAccountId } from "./wallet.js";
@@ -140,9 +145,70 @@ async function main(argv: string[]): Promise<void> {
         }
         break;
       }
+      case "memo": {
+        const mnemonic = config.secrets.mnemonic;
+        if (mnemonic === undefined) throw new InputError("set QORE_MNEMONIC to use memos");
+        const keys = memoKeys(mnemonic);
+        const action = arg(0, "memo action (register, send or inbox)");
+        if (action === "register") {
+          const from = await sender();
+          const existing = await chain.rdk.rest.getKemKey(from.address);
+          if (existing !== undefined) {
+            print("This account already has an ML-KEM-1024 key on chain.");
+            break;
+          }
+          const outcome = await from.send("register-kem-key", (tx) =>
+            tx.registerKemKey({ publicKey: keys.mlkemPublicKey }),
+          );
+          print(`Published the ML-KEM-1024 key. Transaction ${outcome.hash}`);
+        } else if (action === "send") {
+          const recipient = arg(1, "recipient qor1 address");
+          const to = arg(2, "recipient L2 account id");
+          const amount = parseQor(arg(3, "amount in QOR"));
+          const text = args.slice(4).join(" ");
+          const published = await chain.rdk.rest.getKemKey(recipient);
+          if (published === undefined) {
+            throw new InputError("the recipient has not published an ML-KEM-1024 key");
+          }
+          const from = await sender();
+          const transfer = await wallet.transfer(from, account(), to, amount);
+          const memo = sealMemo({
+            chainId: config.chainId,
+            rollupId: config.rollupId,
+            recipientKey: Buffer.from(published.publicKey, "hex"),
+            boundTo: transferHash(transfer.payload),
+            text,
+          });
+          const note = await wallet.postNote(from, memo);
+          print(`Transfer of ${formatQor(amount)} QOR posted. Transaction ${transfer.hash}`);
+          print(`Sealed memo (${String(memo.length)} bytes) posted. Transaction ${note.hash}`);
+        } else if (action === "inbox") {
+          const id = parseAccountId(keystoreAccountId(keystorePath));
+          const state = await wallet.state(id);
+          const memos = readMemos({
+            chainId: config.chainId,
+            rollupId: config.rollupId,
+            store,
+            keys,
+            inboxHead: state.inboxHead,
+          });
+          if (memos.length === 0) print("No memos for this account.");
+          for (const memo of memos) {
+            const bound =
+              memo.transfer === undefined
+                ? "not bound to a transfer in the inbox"
+                : `with a transfer of ${formatQor(memo.transfer.amount)} QOR (entry ${String(memo.transfer.sequence)})`;
+            print(`Entry ${String(memo.sequence)} from ${memo.poster}, ${bound}:`);
+            print(`  ${memo.text}`);
+          }
+        } else {
+          throw new InputError("usage: vigil memo <register|send|inbox>");
+        }
+        break;
+      }
       default:
         throw new InputError(
-          "usage: vigil <keygen|address|balance|deposit|transfer|withdraw|claim|status>",
+          "usage: vigil <keygen|address|balance|deposit|transfer|withdraw|claim|status|memo>",
         );
     }
   } finally {
