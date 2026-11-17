@@ -24,13 +24,15 @@
     "batcher": "tsx packages/batcher/src/main.ts",
     "rollup:bootstrap": "tsx scripts/bootstrap-rollup.ts",
     "receipts": "tsx packages/receipts/src/main.ts",
-    "gen:abi": "tsx scripts/gen-abi.ts"
+    "gen:abi": "tsx scripts/gen-abi.ts",
+    "fraud:drill": "tsx scripts/fraud-drill.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@qorechain/rdk": "0.9.0",
     "@types/node": "24.19.2",
     "@vigil/core": "workspace:*",
+    "@vigil/receipts": "workspace:*",
     "@vitest/coverage-v8": "5.1.0",
     "eslint": "10.15.0",
     "fast-check": "4.10.2",

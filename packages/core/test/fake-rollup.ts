@@ -1,6 +1,7 @@
 import {
   EMPTY_INBOX_ACC,
   QledgerLedger,
+  checkQledgerFraud,
   encodeQledgerDeposit,
   executeQledger,
   inboxRangeHash,
@@ -35,6 +36,10 @@ export class FakeRollup {
   readonly payouts: { withdrawalIndex: bigint; recipient: string; amount: bigint }[] = [];
   height = 1_000;
   time = 1_700_000_000;
+  /** Batch indices that were challenged, in order. */
+  readonly challenges: number[] = [];
+  /** `rejected` if an upheld challenge settles at once, `challenged` if it needs resolving. */
+  statusAfterUpheldChallenge: "rejected" | "challenged" = "rejected";
   /** The `anchor` option of every submitted batch, in order. */
   readonly anchorModes: string[] = [];
   /** Set to make the next transaction fail with this result code. */
@@ -238,6 +243,34 @@ export class FakeRollup {
     const client = {
       address,
       simulate: () => Promise.resolve(200_000),
+      challengeBatch: (input: { batchIndex: number; proof: Uint8Array }) =>
+        guarded(() => {
+          this.challenges.push(input.batchIndex);
+          const batch = this.batches.find(
+            (b) => b.batchIndex === input.batchIndex && b.status === "submitted",
+          );
+          if (batch === undefined) return;
+          const fraud = checkQledgerFraud(
+            { chainId: FAKE_CHAIN_ID, rollupId: FAKE_ROLLUP_ID },
+            {
+              inboxStart: batch.inboxStart,
+              inboxEnd: batch.inboxEnd,
+              dataHash: batch.dataHash,
+              prevStateRoot: batch.prevStateRoot,
+              stateRoot: batch.stateRoot,
+              withdrawalsRoot: batch.withdrawalsRoot,
+            },
+            input.proof,
+          );
+          batch.status = fraud ? this.statusAfterUpheldChallenge : "submitted";
+        }),
+      resolveChallenge: (input: { batchIndex: number }) =>
+        guarded(() => {
+          const batch = this.batches.find(
+            (b) => b.batchIndex === input.batchIndex && b.status === "challenged",
+          );
+          if (batch !== undefined) batch.status = "rejected";
+        }),
       submitBatch: (
         input: { batchIndex: bigint; stateRoot: Uint8Array; inboxEnd: bigint },
         options?: { anchor?: string },

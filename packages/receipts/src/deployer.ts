@@ -69,6 +69,16 @@ export async function deployerStatus(context: DeployerContext): Promise<Deployer
 
 /** Sends uqor from the main (native) account to the deployer account, signed hybrid. */
 export async function fundDeployer(context: DeployerContext, amountUqor: bigint): Promise<string> {
+  const deployer = await deployerAccount(context.config);
+  return sendFromMainAccount(context, deployer.cosmos, amountUqor);
+}
+
+/** Sends uqor from the main (native) account to any `qor1` address, signed hybrid. */
+export async function sendFromMainAccount(
+  context: DeployerContext,
+  toAddress: string,
+  amountUqor: bigint,
+): Promise<string> {
   const { config, rdk, log } = context;
   const env = {
     QORE_MNEMONIC: config.secrets.mnemonic,
@@ -82,7 +92,6 @@ export async function fundDeployer(context: DeployerContext, amountUqor: bigint)
   if (from === undefined) throw new ConfigError("the signer holds no account");
   const pqc = await pqcKeypairFromEnv(rdk, from.address, env);
   if (pqc === undefined) throw new ConfigError("could not derive the ML-DSA-87 key");
-  const deployer = await deployerAccount(config);
 
   const transport = await StargateClient.connect(config.rpcUrl);
   try {
@@ -103,14 +112,14 @@ export async function fundDeployer(context: DeployerContext, amountUqor: bigint)
           typeUrl: "/cosmos.bank.v1beta1.MsgSend",
           value: {
             fromAddress: from.address,
-            toAddress: deployer.cosmos,
+            toAddress,
             amount: [{ denom: "uqor", amount: amountUqor.toString() }],
           },
         },
       ],
     });
-    assertAccepted("fund-deployer", result);
-    log.info({ hash: result.transactionHash }, "deployer funded");
+    assertAccepted("send", result);
+    log.info({ hash: result.transactionHash, to: toAddress }, "transfer confirmed");
     return result.transactionHash;
   } finally {
     transport.disconnect();

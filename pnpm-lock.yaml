@@ -23,6 +23,9 @@ importers:
       '@vigil/core':
         specifier: workspace:*
         version: link:packages/core
+      '@vigil/receipts':
+        specifier: workspace:*
+        version: link:packages/receipts
       '@vitest/coverage-v8':
         specifier: 5.1.0
         version: 5.1.0(vitest@5.1.0)

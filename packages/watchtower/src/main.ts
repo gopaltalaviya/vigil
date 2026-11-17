@@ -4,6 +4,10 @@
  * rollup, and exposes `/healthz` for the container runtime.
  *
  * Usage: vigil-watchtower [--once]
+ *
+ * WATCHTOWER_CHALLENGE controls what happens when a batch is found invalid:
+ * `off` (default) only alerts, `dry-run` also builds and checks the fraud
+ * proof, `on` submits the challenge and needs the account's seed phrase.
  */
 import { createServer } from "node:http";
 import { join } from "node:path";
@@ -11,12 +15,15 @@ import {
   HttpClient,
   InboxArchive,
   Store,
+  ConfigError,
   chainInboxSource,
+  connectTxSender,
   createChain,
   createLogger,
   loadConfig,
 } from "@vigil/core";
 import { AlertDispatcher, telegramSink, webhookSink, type AlertSink } from "./alerts.js";
+import { Challenger } from "./challenger.js";
 import { runLoop } from "./loop.js";
 import { Watchtower, chainRollupView } from "./watchtower.js";
 
@@ -38,23 +45,36 @@ if (config.alerts.webhookUrl !== undefined) {
   sinks.push(webhookSink(alertHttp, config.alerts.webhookUrl));
 }
 
-const watchtower = new Watchtower({
+const archive = new InboxArchive({
   chainId: config.chainId,
   rollupId: config.rollupId,
   store,
-  archive: new InboxArchive({
-    chainId: config.chainId,
-    rollupId: config.rollupId,
-    store,
-    source: chainInboxSource(chain, config.chainId, config.rollupId),
-  }),
-  view: chainRollupView(chain, config.rollupId),
-  alerts: new AlertDispatcher({ store, sinks, log }),
-  log,
+  source: chainInboxSource(chain, config.chainId, config.rollupId),
 });
+const alerts = new AlertDispatcher({ store, sinks, log });
+const shared = { chainId: config.chainId, rollupId: config.rollupId, store, archive, alerts, log };
+const watchtower = new Watchtower({ ...shared, view: chainRollupView(chain, config.rollupId) });
+
+const challengeMode = process.env.WATCHTOWER_CHALLENGE ?? "off";
+if (!["off", "dry-run", "on"].includes(challengeMode)) {
+  throw new ConfigError("WATCHTOWER_CHALLENGE must be off, dry-run or on");
+}
+const challenger =
+  challengeMode === "off"
+    ? undefined
+    : new Challenger({
+        ...shared,
+        sender: await connectTxSender(config, chain.rdk, { store, log }),
+        dryRun: challengeMode === "dry-run",
+      });
 
 const tick = async (): Promise<void> => {
   const report = await watchtower.tick();
+  if (challenger !== undefined && report.challengeable.length > 0) {
+    const outcomes = await challenger.challengeAll(report.challengeable);
+    log.warn({ outcomes }, "challenge outcomes");
+    await alerts.flush();
+  }
   log.info(
     {
       inboxHead: report.inboxHead,
@@ -68,7 +88,13 @@ const tick = async (): Promise<void> => {
 };
 
 log.info(
-  { rollup: config.rollupId, network: config.network, sinks: sinks.map((s) => s.name), once },
+  {
+    rollup: config.rollupId,
+    network: config.network,
+    sinks: sinks.map((s) => s.name),
+    challenge: challengeMode,
+    once,
+  },
   "watchtower starting",
 );
 

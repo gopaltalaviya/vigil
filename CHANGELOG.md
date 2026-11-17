@@ -22,3 +22,5 @@ All notable changes are recorded here. The format follows
 - Rollup `vigil-1` created on the QoreChain testnet; first anchored batch submitted.
 - `@vigil/receipts`: deploys `VigilReceipts` and records settlement anchors through it; the
   contract is live on the testnet and holds the receipt of the first batch.
+- Watchtower: automatic challenge of invalid batches with a locally checked re-execution fraud
+  proof (`WATCHTOWER_CHALLENGE`), and a fraud drill script for live networks.

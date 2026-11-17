@@ -20,17 +20,17 @@ fills that gap, and adds the pieces an operator needs around it.
 
 ## Components
 
-| Component                 | What it does                                                                                                              | Status                      |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| `packages/core`           | Resilient chain access, verified inbox archive, ledger replay and snapshots, storage                                      | Working                     |
-| `packages/watchtower`     | Re-executes each batch, compares every commitment, raises alerts to Telegram or a webhook. Automatic challenge is planned | Working (observe and alert) |
-| `packages/batcher`        | Bonded submitter: plans a batch, re-checks it against its own archive, signs and submits it                               | Working                     |
-| `packages/wallet`         | `vigil` command line: encrypted L2 keys, deposit, transfer, withdraw, claim                                               | Working                     |
-| `contracts/VigilReceipts` | Verifies a settlement receipt's ML-DSA-87 signature on chain through the `pqcVerify` precompile                           | Working                     |
-| `packages/receipts`       | Reads a batch's settlement anchor from the base chain and records it through the contract                                 | Working                     |
-| `packages/memo`           | Confidential memos sealed with ML-KEM-1024 to the recipient's registered key                                              | Planned                     |
-| `packages/monitor`        | Base-chain monitor: halts, block-time drift, upgrades, parameter and feature-flag changes                                 | Planned                     |
-| `apps/status`             | Public status page                                                                                                        | Planned                     |
+| Component                 | What it does                                                                                                     | Status  |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------- |
+| `packages/core`           | Resilient chain access, verified inbox archive, ledger replay and snapshots, storage                             | Working |
+| `packages/watchtower`     | Re-executes each batch, compares every commitment, raises alerts, and challenges fraud with a re-execution proof | Working |
+| `packages/batcher`        | Bonded submitter: plans a batch, re-checks it against its own archive, signs and submits it                      | Working |
+| `packages/wallet`         | `vigil` command line: encrypted L2 keys, deposit, transfer, withdraw, claim                                      | Working |
+| `contracts/VigilReceipts` | Verifies a settlement receipt's ML-DSA-87 signature on chain through the `pqcVerify` precompile                  | Working |
+| `packages/receipts`       | Reads a batch's settlement anchor from the base chain and records it through the contract                        | Working |
+| `packages/memo`           | Confidential memos sealed with ML-KEM-1024 to the recipient's registered key                                     | Planned |
+| `packages/monitor`        | Base-chain monitor: halts, block-time drift, upgrades, parameter and feature-flag changes                        | Planned |
+| `apps/status`             | Public status page                                                                                               | Planned |
 
 ## How the watchtower decides
 
@@ -144,6 +144,17 @@ Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`, or `ALERT_WEBHOOK_URL`, to rece
 | Invalid batch was rejected by the chain | Info     | A challenge succeeded                                                 |
 
 Each condition is reported once, stored before delivery, and retried until delivered.
+
+### Challenging fraud
+
+`WATCHTOWER_CHALLENGE` decides what the watchtower does about an invalid batch: `off` (default)
+only alerts, `dry-run` also builds the fraud proof and checks it locally, `on` submits the
+challenge with the configured account. A proof is sent only after the same check the chain runs
+has confirmed it locally.
+
+`pnpm fraud:drill` rehearses this on a live network: a throwaway account bonds and submits a batch
+with a wrong state root. It is a dry run unless `--execute` is given, because the drill bond is
+slashed. Start the watchtower first: on the public testnet other challengers react within seconds.
 
 ## Verified settlement receipts
 
