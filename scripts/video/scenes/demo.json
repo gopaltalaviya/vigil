@@ -118,7 +118,16 @@
         {
           "action": "click",
           "selector": "#wallet-panel button[type=submit]",
-          "ms": 6000
+          "ms": 1500
+        },
+        {
+          "action": "waitFor",
+          "js": "!document.querySelector('#wallet-panel button[aria-busy]')",
+          "timeoutMs": 120000
+        },
+        {
+          "action": "wait",
+          "ms": 2500
         }
       ]
     },
@@ -140,7 +149,16 @@
         {
           "action": "click",
           "selector": "#wallet-panel button[type=submit]",
-          "ms": 6000
+          "ms": 1500
+        },
+        {
+          "action": "waitFor",
+          "js": "!document.querySelector('#wallet-panel button[aria-busy]')",
+          "timeoutMs": 120000
+        },
+        {
+          "action": "wait",
+          "ms": 2500
         },
         {
           "action": "hidePointer"
