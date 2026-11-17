@@ -25,6 +25,8 @@ export interface ServerOptions {
   api: Api;
   /** Directory with the web app's static files. */
   staticDir: string;
+  /** Directory with the Markdown docs, served at /docs/NAME.md. */
+  docsDir?: string;
   log: Logger;
   /**
    * Extra routes with side effects. Without it the server is read-only and
@@ -210,6 +212,22 @@ export function createApiServer(options: ServerOptions): Server {
       // Only known, successful answers are cached, so arbitrary paths cannot grow the cache.
       if (answer.status === 200 && CACHEABLE.has(path)) cache.set(path, { at: now(), ...answer });
       send(response, head, answer, "no-store");
+      return;
+    }
+
+    const doc = /^\/docs\/([A-Z][A-Z_]{1,40})\.md$/.exec(path);
+    if (doc?.[1] !== undefined && options.docsDir !== undefined) {
+      try {
+        const file = await readFile(join(options.docsDir, `${doc[1]}.md`));
+        send(
+          response,
+          head,
+          { status: 200, contentType: "text/markdown; charset=utf-8", body: file },
+          "no-cache",
+        );
+      } catch {
+        send(response, head, failure(404, "not found"), "no-store");
+      }
       return;
     }
 

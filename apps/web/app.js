@@ -1,3 +1,6 @@
+import { docsView } from "./docs.js";
+import { learnView } from "./learn.js";
+
 // Vigil web app. No dependencies and no build step. Every value that comes
 // from the network is written with textContent, so nothing read from the chain
 // can inject markup.
@@ -1461,6 +1464,13 @@ function signInCard() {
 
 let current = { route: "", param: undefined };
 let navigated = false;
+
+views.learn = learnView({
+  el,
+  pill,
+  latestBatch: () => state.overview?.rollup.batches[0],
+});
+views.docs = docsView({ el });
 
 function parseRoute() {
   const [, route = "overview", param] = location.hash.split("/");

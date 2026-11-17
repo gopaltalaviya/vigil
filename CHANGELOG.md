@@ -55,3 +55,7 @@ All notable changes are recorded here. The format follows
 - Web app: WCAG AA contrast for all text, larger tap targets, loading states, correct heading
   order, focus kept at the top on first load, a shorter activity list. Verified with an automated
   browser test of every page at desktop and phone width, including a real transfer.
+- Learn section in the web app: concept, animated settlement diagram, security, post-quantum,
+  glossary and FAQ.
+- Docs in the web app, rendered from `docs/` with a safe Markdown reader; new concept, user guide,
+  command line, HTTP API, configuration, contract and judges documents.

@@ -113,6 +113,7 @@ const sessions = new Sessions({
 const server = createApiServer({
   api,
   staticDir,
+  docsDir: process.env.DOCS_DIR ?? fileURLToPath(new URL("../../../docs", import.meta.url)),
   log,
   routes: createConsoleRoutes({ operator, sessions, log }),
   trustProxy: process.env.TRUST_PROXY === "1",

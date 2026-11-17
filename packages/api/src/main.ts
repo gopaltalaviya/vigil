@@ -29,6 +29,7 @@ const api = new Api({
 const server = createApiServer({
   api,
   staticDir,
+  docsDir: process.env.DOCS_DIR ?? fileURLToPath(new URL("../../../docs", import.meta.url)),
   log,
   trustProxy: process.env.TRUST_PROXY === "1",
 }).listen(port, () => {

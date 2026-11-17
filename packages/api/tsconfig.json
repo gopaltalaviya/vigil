@@ -7,7 +7,8 @@
       "@vigil/core": ["../core/src/index.ts"],
       "@vigil/watchtower": ["../watchtower/src/index.ts"],
       "@vigil/memo": ["../memo/src/index.ts"]
-    }
+    },
+    "allowJs": true
   },
-  "include": ["src", "test"]
+  "include": ["src", "test", "../../apps/web/markdown.js", "../../apps/web/markdown.d.ts"]
 }

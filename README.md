@@ -11,6 +11,21 @@ Built for _Build Before Q-Day: The QoreChain Developer Fest_, Protocol Builders 
 > **Status:** every component below runs on the QoreChain testnet and has tests in this
 > repository. Vigil is testnet software and has not been audited.
 
+## Start here
+
+| If you want to                   | Read                                                                       |
+| -------------------------------- | -------------------------------------------------------------------------- |
+| Understand the idea              | [Concept](docs/CONCEPT.md)                                                 |
+| Judge the entry                  | [For judges](docs/JUDGES.md)                                               |
+| Use the web app and wallet       | [Using the web app](docs/USER_GUIDE.md)                                    |
+| Use the command line             | [Command line](docs/CLI.md)                                                |
+| Build on the API or the contract | [HTTP API](docs/API.md), [Receipts contract](docs/CONTRACT.md)             |
+| Run it                           | [Configuration](docs/CONFIGURATION.md), [Runbook](docs/RUNBOOK.md)         |
+| Know the limits                  | [Threat model](docs/THREAT_MODEL.md), [Architecture](docs/ARCHITECTURE.md) |
+
+The same documents are built into the web app under **Docs**, and the **Learn** tab explains the
+concept with an animated diagram.
+
 ## Why
 
 A rollup is only as trustworthy as the people checking it. On QoreChain an optimistic rollup

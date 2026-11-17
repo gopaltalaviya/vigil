@@ -35,6 +35,7 @@ COPY --from=build --chown=node:node /app/node_modules node_modules
 COPY --from=build --chown=node:node /app/packages packages
 COPY --chown=node:node package.json LICENSE NOTICE ./
 COPY --chown=node:node apps/web apps/web
+COPY --chown=node:node docs docs
 RUN mkdir /data && chown node:node /data
 USER node
 VOLUME ["/data"]
