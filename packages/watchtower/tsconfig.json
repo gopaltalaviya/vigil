@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "noEmit": true,
+    "baseUrl": "../..",
+    "paths": { "@vigil/core": ["packages/core/src/index.ts"] }
+  },
+  "include": ["src", "test"]
+}
