@@ -8,8 +8,8 @@ that independently re-executes every batch and monitors the base chain underneat
 
 Built for _Build Before Q-Day: The QoreChain Developer Fest_, Protocol Builders category.
 
-> **Status: in active development.** The table below is kept honest: a component is marked
-> "working" only when it has tests in this repository.
+> **Status:** every component below runs on the QoreChain testnet and has tests in this
+> repository. Vigil is testnet software and has not been audited.
 
 ## Why
 
@@ -203,6 +203,25 @@ supplies the public key, so only the registered key holder can produce a valid r
 Local EVMs do not implement QoreChain's precompiles, so the contract is tested two ways: unit and
 fuzz tests against stand-in precompiles, and `pnpm live:probe`, which simulates the same
 verification code on a live node with `eth_call`.
+
+## Deployment
+
+```sh
+docker compose -f deploy/compose.yaml up -d --build
+```
+
+One image, one process per container: watchtower, batcher, receipts, monitor and the API. They
+run as a non-root user with a read-only file system and share a SQLite database on a volume. Add
+`--profile public` and set `VIGIL_DOMAIN` to put the status page behind Caddy with automatic TLS.
+See [docs/RUNBOOK.md](docs/RUNBOOK.md).
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md): components, how a transaction settles, design decisions.
+- [Threat model](docs/THREAT_MODEL.md): what is protected, against whom, and the limits, with a
+  test or a testnet transaction for every claim.
+- [Runbook](docs/RUNBOOK.md): deployment, alerts and incidents.
+- [Demo walkthrough](docs/DEMO.md).
 
 ## Security
 

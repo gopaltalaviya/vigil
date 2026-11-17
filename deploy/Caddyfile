@@ -1,0 +1,11 @@
+# Public entry point: TLS certificates are obtained automatically for VIGIL_DOMAIN.
+{$VIGIL_DOMAIN} {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+	# Metrics are for the operator, not the public.
+	@metrics path /metrics
+	respond @metrics 404
+
+	reverse_proxy api:8080
+}

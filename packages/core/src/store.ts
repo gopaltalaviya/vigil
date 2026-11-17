@@ -300,6 +300,11 @@ export class Store {
 
   // --- inbox archive -------------------------------------------------------
 
+  /**
+   * Appends entries in sequence order. Several services share one database and
+   * may archive the same entries at the same moment, so an entry that is
+   * already stored is accepted when it is identical and refused when it differs.
+   */
   appendInboxEntries(rollupId: string, entries: readonly StoredInboxEntry[]): void {
     const insert = this.db.prepare(
       "INSERT INTO inbox_entries (rollup_id, sequence, height, poster, payload, acc) VALUES (?, ?, ?, ?, ?, ?)",
@@ -307,6 +312,14 @@ export class Store {
     this.transaction(() => {
       let expected = (this.lastInboxEntry(rollupId)?.sequence ?? 0) + 1;
       for (const entry of entries) {
+        if (entry.sequence < expected) {
+          if (this.inboxEntry(rollupId, entry.sequence)?.acc !== entry.acc) {
+            throw new StoreError("an inbox entry differs from the one already archived", {
+              sequence: entry.sequence,
+            });
+          }
+          continue;
+        }
         if (entry.sequence !== expected) {
           throw new StoreError("inbox entries must be appended in sequence order", {
             expected,

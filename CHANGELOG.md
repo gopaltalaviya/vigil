@@ -29,3 +29,9 @@ All notable changes are recorded here. The format follows
 - `@vigil/monitor`: base-chain monitor for testnet and mainnet with change detection.
 - `@vigil/api` and the status page: read-only API, Prometheus metrics and a public dashboard.
 - `vigil-receipts sync`: records every anchored batch that is not on chain yet.
+- Docker image, Compose file, Caddy configuration and a backup script.
+- Architecture, threat model, runbook and demo documents.
+
+### Fixed
+
+- Archiving the same inbox entries from two services at once no longer fails.

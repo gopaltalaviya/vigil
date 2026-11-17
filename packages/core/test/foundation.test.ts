@@ -168,6 +168,18 @@ describe("store", () => {
     expect(store.lastInboxEntry("r1")).toBeUndefined();
   });
 
+  it("accepts an identical entry twice and refuses a conflicting one", () => {
+    const store = Store.open(":memory:");
+    store.appendInboxEntries("r1", [entry(1), entry(2)]);
+    store.appendInboxEntries("r1", [entry(1), entry(2), entry(3)]);
+    expect(store.lastInboxEntry("r1")?.sequence).toBe(3);
+
+    expect(() => {
+      store.appendInboxEntries("r1", [{ ...entry(2), acc: "bb".repeat(32) }, entry(4)]);
+    }).toThrow(/differs from the one already archived/);
+    expect(store.lastInboxEntry("r1")?.sequence).toBe(3);
+  });
+
   it("keeps inboxes of different rollups apart", () => {
     const store = Store.open(":memory:");
     store.appendInboxEntries("r1", [entry(1)]);

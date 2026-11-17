@@ -1,0 +1,16 @@
+# Never send secrets, local state or build output to the Docker daemon
+.env
+.env.*
+!.env.example
+.git
+node_modules
+**/node_modules
+**/dist
+data
+data-*
+coverage
+contracts/out
+contracts/cache
+*.sqlite
+*.sqlite-*
+keystore.json
