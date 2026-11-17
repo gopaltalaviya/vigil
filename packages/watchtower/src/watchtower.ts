@@ -216,7 +216,12 @@ export class Watchtower {
     store.heartbeat(
       "watchtower",
       this.now(),
-      JSON.stringify({ rollupId, inboxHead: sync.head, batches: batches.length }),
+      JSON.stringify({
+        rollupId,
+        inboxHead: sync.head,
+        batches: batches.length,
+        challengeWindowSecs: windowSecs,
+      }),
     );
     if (options.flush !== false) await alerts.flush();
     return { inboxHead: sync.head, entriesAdded: sync.added, judged, challengeable, alertsRaised };

@@ -144,6 +144,8 @@ export class Api {
       })),
       rollup: {
         id: rollupId,
+        // The rollup's own window, as last read from the chain by the watchtower.
+        challengeWindowSecs: this.challengeWindowSecs(),
         chainId,
         receiptsContract: receiptsContract ?? null,
         inboxEntriesArchived: store.lastInboxEntry(rollupId)?.sequence ?? 0,
@@ -222,6 +224,17 @@ export class Api {
           changedAt: s.changedAt,
         })),
     };
+  }
+
+  private challengeWindowSecs(): number {
+    const beat = this.options.store.heartbeats().find((b) => b.service === "watchtower");
+    try {
+      const value = (JSON.parse(beat?.detail ?? "{}") as { challengeWindowSecs?: unknown })
+        .challengeWindowSecs;
+      return typeof value === "number" && value > 0 ? value : 3_600;
+    } catch {
+      return 3_600;
+    }
   }
 
   /** Prometheus text exposition. */

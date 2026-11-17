@@ -73,7 +73,13 @@ function toast(title, detail, bad = false) {
     detail ? el("span", { text: detail }) : null,
   ]);
   $("toasts").append(node);
-  setTimeout(() => node.remove(), bad ? 12_000 : 8_000);
+  setTimeout(
+    () => {
+      node.classList.add("leaving");
+      setTimeout(() => node.remove(), 250);
+    },
+    bad ? 12_000 : 8_000,
+  );
 }
 
 async function api(path, body) {
@@ -144,33 +150,114 @@ function section(title, aside, body) {
   ]);
 }
 
-function batchTable(batches, caption) {
+// ---------- motion and progress helpers ----------
+
+const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+let animateNumbers = false;
+
+/** A number that counts up from zero when a page is first shown. */
+function countValue(target, className = "value") {
+  const node = el("div", { className, text: animateNumbers && !reducedMotion() ? "0" : target });
+  if (animateNumbers && !reducedMotion() && Number(target) > 0) {
+    const end = Number(target);
+    const start = performance.now();
+    const step = (now) => {
+      const t = Math.min(1, (now - start) / 700);
+      node.textContent = String(Math.round(end * (1 - Math.pow(1 - t, 3))));
+      if (t < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  return node;
+}
+
+const challengeWindow = () => state.overview?.rollup.challengeWindowSecs ?? 3600;
+
+function windowState(batch) {
+  const total = challengeWindow();
+  const elapsed = Math.max(0, Date.now() / 1000 - batch.submittedTime);
+  return { fraction: Math.min(1, elapsed / total), left: Math.max(0, total - elapsed) };
+}
+
+function duration(seconds) {
+  if (seconds < 60) return `${Math.max(1, Math.ceil(seconds))} s`;
+  if (seconds < 3600) return `${Math.ceil(seconds / 60)} min`;
+  const minutes = Math.round((seconds % 3600) / 60);
+  return `${Math.floor(seconds / 3600)} h${minutes ? ` ${minutes} min` : ""}`;
+}
+
+/** An accessible progress bar; the fill is set through CSSOM, which the CSP allows. */
+function progressBar(fraction, label, kind = "") {
+  const fill = el("span");
+  fill.style.setProperty("--p", String(fraction));
+  return el(
+    "div",
+    {
+      className: `progress ${kind}`,
+      role: "progressbar",
+      "aria-label": label,
+      "aria-valuemin": "0",
+      "aria-valuemax": "100",
+      "aria-valuenow": String(Math.round(fraction * 100)),
+    },
+    fill,
+  );
+}
+
+function statusCell(batch) {
+  const [kind, text] = lookup(STATUS, batch.status);
+  if (batch.status !== "submitted") return pill(kind, text);
+  const { fraction, left } = windowState(batch);
+  return el("div", { className: "status-cell" }, [
+    progressBar(fraction, `Challenge window ${Math.round(fraction * 100)}% elapsed`, "window"),
+    el("span", {
+      className: "meta",
+      text: left > 0 ? `${duration(left)} left to challenge` : "finalizing",
+    }),
+  ]);
+}
+
+/** `compact` keeps only batch, verdict, status and time, for narrow places. */
+function batchTable(batches, caption, compact = false) {
   if (batches.length === 0) return el("p", { className: "empty", text: "No batches yet." });
   const rows = batches.map((batch) => {
     const [vk, vt] = lookup(VERDICT, batch.verdict);
-    const [sk, st] = lookup(STATUS, batch.status);
     const verdict = el("div", {}, [pill(vk, vt)]);
     if (batch.reasons.length > 0) {
       verdict.append(
         el("span", { className: "reasons", text: `Mismatch: ${batch.reasons.join(", ")}` }),
       );
     }
-    return el("tr", { className: "link" }, [
+    const cells = [
       el("td", {}, el("a", { href: `#/batches/${batch.index}`, text: `Batch ${batch.index}` })),
       el("td", {}, verdict),
-      el("td", {}, pill(sk, st)),
+      el("td", {}, statusCell(batch)),
       el("td", { text: `${batch.entries.from}–${batch.entries.to}` }),
       el("td", { className: "mono", text: short(batch.stateRoot), title: batch.stateRoot }),
       el(
         "td",
         {},
         batch.receipt
-          ? pill("good", "Recorded")
+          ? pill("info", "Recorded")
           : pill("plain", batch.status === "rejected" ? "None" : "Not yet"),
       ),
       el("td", { className: "muted", text: ago(batch.submittedTime) }),
-    ]);
+    ];
+    return el(
+      "tr",
+      { className: "link" },
+      compact ? [cells[0], cells[1], cells[2], cells[6]] : cells,
+    );
   });
+  const headings = [
+    "Batch",
+    "Watchtower verdict",
+    "Chain status",
+    "Inbox entries",
+    "State root",
+    "Receipt",
+    "Submitted",
+  ];
   return el(
     "div",
     { className: "table-wrap", role: "region", "aria-label": caption, tabindex: "0" },
@@ -183,15 +270,9 @@ function batchTable(batches, caption) {
           el(
             "tr",
             {},
-            [
-              "Batch",
-              "Watchtower verdict",
-              "Chain status",
-              "Inbox entries",
-              "State root",
-              "Receipt",
-              "Submitted",
-            ].map((h) => el("th", { scope: "col", text: h })),
+            (compact ? [headings[0], headings[1], headings[2], headings[6]] : headings).map((h) =>
+              el("th", { scope: "col", text: h }),
+            ),
           ),
         ),
         el("tbody", {}, rows),
@@ -200,10 +281,46 @@ function batchTable(batches, caption) {
   );
 }
 
+const ENTRY_KINDS = {
+  deposit: ["info", "Deposit"],
+  transfer: ["violet", "Transfer"],
+  withdrawal: ["wait", "Withdrawal"],
+  memo: ["pink", "Sealed memo"],
+  data: ["plain", "Data"],
+};
+
+function entryFeed(entries) {
+  if (entries.length === 0)
+    return el("p", { className: "empty", text: "Nothing has been posted yet." });
+  return el(
+    "ul",
+    { className: "feed compact" },
+    entries.map((entry) => {
+      const [kind, word] = lookup(ENTRY_KINDS, entry.kind);
+      return el(
+        "li",
+        {},
+        el("div", { className: "row" }, [
+          el("span", { className: "title" }, [
+            pill(kind, word),
+            document.createTextNode(entry.amount === undefined ? "" : ` ${qor(entry.amount)} QOR`),
+            entry.signatureValid === false
+              ? el("span", { className: "reasons", text: "invalid signature: ignored" })
+              : null,
+          ]),
+          el("span", { className: "meta", text: `entry ${entry.sequence}` }),
+        ]),
+      );
+    }),
+  );
+}
+
+const DOCUMENTED_BLOCK_TIME = { testnet: 1.3, mainnet: 3.1 };
+
 const SEVERITY = {
   critical: ["bad", "Critical"],
   warning: ["wait", "Warning"],
-  info: ["plain", "Info"],
+  info: ["info", "Info"],
 };
 const openEntries = new Set();
 
@@ -260,23 +377,47 @@ function networkCard(network) {
       ? pill("plain", "No data")
       : tip.halted
         ? pill("bad", "Halted")
-        : pill("good", "Producing blocks");
+        : el("span", { className: "pill good live" }, [
+            el("span", { className: "pulse" }),
+            "Producing blocks",
+          ]);
+  const measured = tip?.measuredBlockTimeSecs ?? null;
+  const documented = DOCUMENTED_BLOCK_TIME[network.network];
   const facts = [
     ["Height", tip ? tip.height.toLocaleString("en-US") : "—"],
     ["Last block", tip ? ago(tip.tipTime) : "—"],
-    [
-      "Measured block time",
-      tip && tip.measuredBlockTimeSecs !== null ? `${tip.measuredBlockTimeSecs} s` : "—",
-    ],
     ["Checked", ago(network.checkedAt)],
   ];
-  return el("div", { className: "card" }, [
+  let timing = null;
+  if (measured !== null && documented !== undefined) {
+    const max = Math.max(measured, documented) * 1.1;
+    const drift = Math.round((measured / documented - 1) * 100);
+    timing = el("div", { className: "timing" }, [
+      el("div", { className: "row" }, [
+        el("span", { className: "title", text: "Block time" }),
+        el("span", {
+          className: Math.abs(drift) > 50 ? "meta drift-high" : "meta",
+          text: `${drift > 0 ? "+" : ""}${drift}% vs documented`,
+        }),
+      ]),
+      el("div", { className: "bars" }, [
+        el("span", { className: "bar-label", text: "Measured" }),
+        progressBar(measured / max, `Measured block time ${measured} seconds`),
+        el("span", { className: "bar-value", text: `${measured} s` }),
+        el("span", { className: "bar-label", text: "Documented" }),
+        progressBar(documented / max, `Documented block time ${documented} seconds`, "neutral"),
+        el("span", { className: "bar-value", text: `${documented} s` }),
+      ]),
+    ]);
+  }
+  return el("div", { className: "card lift" }, [
     el("div", { className: "card-head" }, [el("h2", { text: network.network }), badge]),
     el(
       "dl",
       { className: "facts" },
       facts.flatMap(([term, value]) => [el("dt", { text: term }), el("dd", { text: value })]),
     ),
+    timing,
     el(
       "div",
       { className: "chips" },
@@ -300,20 +441,29 @@ const views = {
   overview: {
     title: "Overview",
     async load() {
-      return state.overview;
+      const entries = await api("/api/entries").catch(() => ({ entries: [] }));
+      return { ...state.overview, entries: entries.entries };
     },
     render(data) {
       const s = data.rollup.summary;
-      const tiles = [
-        ["Batches checked", s.valid + s.invalid, `of ${s.batches} seen`],
-        ["Judged valid", s.valid, "re-executed from the inbox"],
-        ["Judged invalid", s.invalid, s.invalid === 0 ? "none so far" : "see alerts"],
+      const flow = [
+        ["Inbox entries", data.rollup.inboxEntriesArchived, "posted by users"],
+        ["Batches", s.batches, "submitted to QoreChain"],
+        [
+          "Re-executed",
+          s.valid + s.invalid,
+          s.invalid === 0 ? "all valid" : `${s.invalid} invalid`,
+        ],
         ["Final", s.finalized, "past the challenge window"],
-        ["Receipts on chain", s.receiptsRecorded, "verified by the contract"],
-        ["Inbox entries", data.rollup.inboxEntriesArchived, "in the verified archive"],
+        ["Receipts", s.receiptsRecorded, "verified on chain"],
       ];
+      const openBatches = data.rollup.batches.filter((b) => b.status === "submitted");
       return el("div", { className: "stack" }, [
         el("section", { className: "hero" }, [
+          el("span", { className: "eyebrow" }, [
+            el("span", { className: "pulse" }),
+            `Live on QoreChain testnet · rollup ${data.rollup.id}`,
+          ]),
           el("h1", {}, [
             document.createTextNode("The rollup that "),
             el("em", { text: "never looks away." }),
@@ -326,26 +476,76 @@ const views = {
             el("a", { className: "button ghost", href: "#/batches", text: "Browse batches" }),
           ]),
         ]),
-        el(
-          "section",
-          { "aria-label": "Summary" },
+        s.invalid > 0
+          ? el("p", {
+              className: "notice warn",
+              text: `The watchtower found ${s.invalid} invalid batch${s.invalid === 1 ? "" : "es"}. See Alerts.`,
+            })
+          : null,
+        el("section", { "aria-label": "How a transaction settles" }, [
           el(
-            "div",
-            { className: "grid tiles" },
-            tiles.map(([label, value, hint]) =>
-              el("div", { className: "tile" }, [
+            "ol",
+            { className: "flow" },
+            flow.map(([label, value, hint], index) =>
+              el("li", { className: "flow-step" }, [
+                el("span", { className: "flow-index", text: index + 1 }),
                 el("div", { className: "label", text: label }),
-                el("div", { className: "value", text: value }),
+                countValue(value),
                 el("div", { className: "hint", text: hint }),
               ]),
             ),
           ),
-        ),
-        section(
-          "Latest batches",
-          el("a", { href: "#/batches", text: "All batches" }),
-          batchTable(data.rollup.batches.slice(0, 5), "Latest batches"),
-        ),
+        ]),
+        openBatches.length > 0
+          ? section(
+              "In the challenge window",
+              el("p", { className: "muted", text: "Anyone can still prove these batches wrong." }),
+              el(
+                "div",
+                { className: "grid cards" },
+                openBatches.map((batch) => {
+                  const { fraction, left } = windowState(batch);
+                  return el(
+                    "a",
+                    { className: "card lift window-card", href: `#/batches/${batch.index}` },
+                    [
+                      el("div", { className: "row" }, [
+                        el("span", { className: "title", text: `Batch ${batch.index}` }),
+                        pill(...lookup(VERDICT, batch.verdict)),
+                      ]),
+                      progressBar(
+                        fraction,
+                        `Challenge window ${Math.round(fraction * 100)}% elapsed`,
+                        "window",
+                      ),
+                      el("div", { className: "row" }, [
+                        el("span", {
+                          className: "meta",
+                          text: `entries ${batch.entries.from}–${batch.entries.to}`,
+                        }),
+                        el("span", {
+                          className: "meta",
+                          text: left > 0 ? `${duration(left)} left` : "finalizing",
+                        }),
+                      ]),
+                    ],
+                  );
+                }),
+              ),
+            )
+          : null,
+        el("div", { className: "split wide-left" }, [
+          section(
+            "Latest batches",
+            el("a", { href: "#/batches", text: "All batches" }),
+            batchTable(data.rollup.batches.slice(0, 6), "Latest batches", true),
+          ),
+          section(
+            "Live inbox",
+            el("a", { href: "#/accounts", text: "Accounts" }),
+            entryFeed(data.entries.slice(0, 6)),
+          ),
+        ]),
         section(
           "How it works",
           null,
@@ -374,24 +574,23 @@ const views = {
           "Services",
           el("p", { className: "muted", text: "Last time each service finished a round." }),
           el(
-            "div",
-            { className: "grid tiles" },
+            "ul",
+            { className: "services" },
             data.services.length === 0
-              ? [el("p", { className: "empty", text: "No service has reported yet." })]
-              : data.services.map((service) =>
-                  el("div", { className: "tile" }, [
-                    el("div", { className: "label", text: service.service }),
-                    el(
-                      "div",
-                      { className: "value" },
-                      pill(
-                        service.ageSecs > 180 ? "wait" : "good",
-                        service.ageSecs > 180 ? "Silent" : "Running",
-                      ),
-                    ),
-                    el("div", { className: "hint", text: `last seen ${ago(service.lastSeen)}` }),
-                  ]),
-                ),
+              ? [el("li", { className: "empty", text: "No service has reported yet." })]
+              : data.services.map((service) => {
+                  const running = service.ageSecs <= 180;
+                  return el("li", { className: running ? "service up" : "service down" }, [
+                    el("span", { className: running ? "pulse" : "dot-off" }),
+                    el("span", { className: "title", text: service.service }),
+                    el("span", {
+                      className: "meta",
+                      text: running
+                        ? `active ${ago(service.lastSeen)}`
+                        : `silent since ${ago(service.lastSeen)}`,
+                    }),
+                  ]);
+                }),
           ),
         ),
       ]);
@@ -411,7 +610,7 @@ const views = {
           el("div", { className: "page-head" }, [
             el("h1", { text: "Batches" }),
             el("p", {
-              text: `Every batch submitted for rollup ${data.rollup.id}, with the watchtower's own verdict next to the chain's status.`,
+              text: `Every batch submitted for rollup ${data.rollup.id}, with the watchtower's own verdict next to the chain's status. A batch can be challenged for ${duration(challengeWindow())} after it is submitted.`,
             }),
           ]),
           batchTable(data.rollup.batches, "All batches"),
@@ -432,13 +631,52 @@ const views = {
             : null,
         ]),
       ];
-      const kinds = {
-        deposit: ["good", "Deposit"],
-        transfer: ["plain", "Transfer"],
-        withdrawal: ["wait", "Withdrawal"],
-        memo: ["plain", "Sealed memo"],
-        data: ["plain", "Data"],
-      };
+
+      const judged = b.verdict === "valid" || b.verdict === "invalid";
+      const window = windowState(b);
+      const steps = [
+        {
+          title: "Submitted to QoreChain",
+          detail: `${ago(b.submittedTime)} at height ${b.submittedAtHeight.toLocaleString("en-US")}`,
+          state: "done",
+        },
+        {
+          title: "Re-executed by the watchtower",
+          detail: judged
+            ? b.verdict === "valid"
+              ? `every commitment matches · ${ago(b.checkedAt)}`
+              : `mismatch: ${b.reasons.join(", ")}`
+            : "waiting for the inbox data",
+          state: b.verdict === "valid" ? "done" : b.verdict === "invalid" ? "bad" : "current",
+        },
+        {
+          title: "Challenge window",
+          detail:
+            b.status === "rejected"
+              ? "a fraud proof was upheld; the batch was rejected"
+              : b.status === "finalized"
+                ? "closed without a successful challenge"
+                : `${duration(window.left)} left`,
+          state: b.status === "rejected" ? "bad" : b.status === "finalized" ? "done" : "current",
+          progress: b.status === "submitted" ? window.fraction : null,
+        },
+        {
+          title: "Final",
+          detail: b.finalizedAtHeight
+            ? `at height ${b.finalizedAtHeight.toLocaleString("en-US")}`
+            : "after the window closes",
+          state: b.status === "finalized" ? "done" : "pending",
+        },
+        {
+          title: "Receipt recorded on chain",
+          detail: b.receipt
+            ? "ML-DSA-87 anchor verified by VigilReceipts"
+            : "recorded once the batch is final",
+          state: b.receipt ? "done" : "pending",
+          hash: b.receipt?.txHash,
+        },
+      ];
+
       return el("div", { className: "stack" }, [
         el("div", { className: "page-head" }, [
           el("p", {}, el("a", { href: "#/batches", text: "← All batches" })),
@@ -446,7 +684,7 @@ const views = {
           el("div", { className: "actions" }, [
             pill(vk, `Watchtower: ${vt}`),
             pill(sk, `Chain: ${st}`),
-            b.receipt ? pill("good", "Receipt recorded") : pill("plain", "No receipt yet"),
+            b.receipt ? pill("info", "Receipt recorded") : pill("plain", "No receipt yet"),
           ]),
         ]),
         b.reasons.length > 0
@@ -457,37 +695,39 @@ const views = {
           : null,
         el("div", { className: "split" }, [
           el("div", { className: "card" }, [
+            el("h2", { text: "Settlement" }),
+            el(
+              "ol",
+              { className: "stepper" },
+              steps.map((step) =>
+                el("li", { className: step.state }, [
+                  el("span", { className: "step-dot", "aria-hidden": "true" }),
+                  el("div", { className: "step-body" }, [
+                    el("div", { className: "title", text: step.title }),
+                    el("div", { className: "meta", text: step.detail }),
+                    step.progress !== null && step.progress !== undefined
+                      ? progressBar(
+                          step.progress,
+                          `Challenge window ${Math.round(step.progress * 100)}% elapsed`,
+                          "window",
+                        )
+                      : null,
+                    step.hash ? el("div", {}, copyable(step.hash)) : null,
+                  ]),
+                  el("span", { className: "visually-hidden", text: `(${step.state})` }),
+                ]),
+              ),
+            ),
+          ]),
+          el("div", { className: "card" }, [
             el("h2", { text: "What the submitter claimed" }),
             el("dl", { className: "facts" }, [
               ...rootRow("State root", b.stateRoot, b.expectedStateRoot),
               ...rootRow("Withdrawals root", b.withdrawalsRoot, b.expectedWithdrawalsRoot),
               ...rootRow("Previous state root", b.prevStateRoot, null),
               ...rootRow("Data hash", b.dataHash, null),
-            ]),
-          ]),
-          el("div", { className: "card" }, [
-            el("h2", { text: "Timeline" }),
-            el("dl", { className: "facts" }, [
               el("dt", { text: "Inbox entries" }),
               el("dd", { text: `${b.entries.from}–${b.entries.to}` }),
-              el("dt", { text: "Submitted" }),
-              el("dd", {
-                text: `${ago(b.submittedTime)} (height ${b.submittedAtHeight.toLocaleString("en-US")})`,
-              }),
-              el("dt", { text: "Final at height" }),
-              el("dd", {
-                text: b.finalizedAtHeight ? b.finalizedAtHeight.toLocaleString("en-US") : "not yet",
-              }),
-              el("dt", { text: "Re-executed" }),
-              el("dd", { text: b.checkedAt ? ago(b.checkedAt) : "not yet" }),
-              el("dt", { text: "Receipt transaction" }),
-              el(
-                "dd",
-                {},
-                b.receipt?.txHash
-                  ? copyable(b.receipt.txHash)
-                  : document.createTextNode(b.receipt ? "recorded" : "none"),
-              ),
             ]),
           ]),
         ]),
@@ -523,7 +763,7 @@ const views = {
                     "tbody",
                     {},
                     data.entries.map((entry) => {
-                      const [kind, word] = lookup(kinds, entry.kind);
+                      const [kind, word] = lookup(ENTRY_KINDS, entry.kind);
                       const target = entry.to ?? entry.recipient;
                       return el("tr", {}, [
                         el("td", { className: "mono", text: `#${entry.sequence}` }),
@@ -1273,11 +1513,23 @@ async function show(force = false) {
   const placeholder = changed
     ? setTimeout(() => {
         main.replaceChildren(
-          el("p", {
-            className: "loading",
-            role: "status",
-            text: `Loading ${view.title.toLowerCase()}…`,
-          }),
+          el(
+            "div",
+            {
+              className: "skeleton",
+              role: "status",
+              "aria-label": `Loading ${view.title.toLowerCase()}`,
+            },
+            [
+              el("span", { className: "sk sk-title" }),
+              el("span", { className: "sk sk-line" }),
+              el(
+                "div",
+                { className: "sk-grid" },
+                [1, 2, 3].map(() => el("span", { className: "sk sk-card" })),
+              ),
+            ],
+          ),
         );
       }, 250)
     : undefined;
@@ -1288,7 +1540,14 @@ async function show(force = false) {
     if (data === null && next.route !== "wallet")
       throw new Error("No data yet. Is the watchtower running?");
     const scroll = window.scrollY;
+    animateNumbers = changed;
     main.replaceChildren(view.render(data, next.param));
+    animateNumbers = false;
+    if (changed && !reducedMotion()) {
+      main.classList.remove("enter");
+      void main.offsetWidth;
+      main.classList.add("enter");
+    }
     if (changed) {
       window.scrollTo(0, 0);
       // Move focus to the new page only when the user navigated, not on the first load,
@@ -1311,6 +1570,57 @@ async function show(force = false) {
     );
   }
 }
+
+// ---------- theme ----------
+
+const THEMES = ["system", "light", "dark"];
+const THEME_ICONS = {
+  system: "M3 5h18v11H3zM8 20h8M12 16v4",
+  light:
+    "M12 4V2M12 22v-2M4 12H2M22 12h-2M5.6 5.6 4.2 4.2M19.8 19.8l-1.4-1.4M5.6 18.4l-1.4 1.4M19.8 4.2l-1.4 1.4M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10z",
+  dark: "M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z",
+};
+
+function currentTheme() {
+  try {
+    const stored = localStorage.getItem("vigil-theme");
+    return THEMES.includes(stored) ? stored : "system";
+  } catch {
+    return "system";
+  }
+}
+
+function applyTheme(theme) {
+  if (theme === "system") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  try {
+    localStorage.setItem("vigil-theme", theme);
+  } catch {
+    /* the choice still applies for this visit */
+  }
+  const next = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+  const button = $("theme");
+  button.setAttribute("aria-label", `Theme: ${theme}. Switch to ${next}.`);
+  button.title = `Theme: ${theme}`;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "1.8");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", THEME_ICONS[theme]);
+  svg.append(path);
+  button.replaceChildren(svg);
+}
+
+$("theme").addEventListener("click", () => {
+  const theme = currentTheme();
+  applyTheme(THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]);
+});
+applyTheme(currentTheme());
 
 $("sign-out").addEventListener("click", async () => {
   try {

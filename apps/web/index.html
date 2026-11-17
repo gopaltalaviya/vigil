@@ -3,8 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#05130e" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f7f7f8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)" />
+    <script src="theme.js"></script>
     <title>Vigil</title>
     <meta
       name="description"
@@ -37,6 +39,7 @@
             <span class="dot"></span>
             <span id="state-text">Loading</span>
           </div>
+          <button class="icon-button" id="theme" type="button"></button>
           <button class="button ghost small" id="sign-out" type="button" hidden>Sign out</button>
         </div>
       </div>
