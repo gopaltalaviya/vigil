@@ -1,0 +1,42 @@
+# secrets: never commit
+.env
+.env.*
+!.env.example
+*.key
+*.seed
+
+# dependencies and build output
+node_modules/
+dist/
+out/
+cache/
+broadcast/
+.solc-cache/
+
+# local state
+*.sqlite
+*.sqlite-journal
+archive/
+.DS_Store
+Thumbs.db
+
+# local tooling
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+GEMINI.md
+.claude/
+.cursor/
+.cursorrules
+.windsurfrules
+.aider*
+.codex/
+.superset/
+.mcp.json
+.github/copilot-instructions.md
+.vscode/
+.idea/
+
+# runtime data
+data/
+coverage/

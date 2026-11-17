@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-label="Vigil cover: The rollup that never looks away.">
+  <title>Vigil: the rollup that never looks away.</title>
+  <defs>
+    <linearGradient id="page" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0E1530"/>
+      <stop offset="1" stop-color="#060914"/>
+    </linearGradient>
+    <radialGradient id="glowAmber" cx="1010" cy="120" r="520" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFB020" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#FFB020" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowTeal" cx="150" cy="700" r="560" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2DD4BF" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#FFFFFF" stroke-opacity="0.035" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="1"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="gridMask"><rect width="1280" height="720" fill="url(#fade)"/></mask>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#18213F"/>
+      <stop offset="1" stop-color="#0F162C"/>
+    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1A2446"/>
+      <stop offset="1" stop-color="#090D1C"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="256" cy="132" r="190" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFB020" stop-opacity="0.42"/>
+      <stop offset="0.55" stop-color="#FFB020" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#FFB020" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="beacon" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFD071"/>
+      <stop offset="1" stop-color="#FF9A0A"/>
+    </linearGradient>
+    <linearGradient id="tier1" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5EEAD4"/>
+      <stop offset="1" stop-color="#2DD4BF"/>
+    </linearGradient>
+    <linearGradient id="tier2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2DD4BF"/>
+      <stop offset="1" stop-color="#14B8A6"/>
+    </linearGradient>
+    <linearGradient id="tier3" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#14B8A6"/>
+      <stop offset="1" stop-color="#0F8F84"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#page)"/>
+  <rect width="1280" height="720" fill="url(#grid)" mask="url(#gridMask)"/>
+  <rect width="1280" height="720" fill="url(#glowAmber)"/>
+  <rect width="1280" height="720" fill="url(#glowTeal)"/>
+
+  <g font-family="Inter, 'Segoe UI Variable Display', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+    <!-- Brand lockup -->
+    <g transform="translate(80,72) scale(0.125)">
+      <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+      <rect x="2" y="2" width="508" height="508" rx="114" fill="none" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="4"/>
+      <rect width="512" height="512" rx="116" fill="url(#halo)"/>
+      <g fill="none" stroke="url(#beacon)" stroke-linecap="round">
+        <path d="M186 78 A78 78 0 0 0 186 186" stroke-width="20"/>
+        <path d="M326 78 A78 78 0 0 1 326 186" stroke-width="20"/>
+        <path d="M142 46 A128 128 0 0 0 142 218" stroke-width="14" stroke-opacity="0.45"/>
+        <path d="M370 46 A128 128 0 0 1 370 218" stroke-width="14" stroke-opacity="0.45"/>
+      </g>
+      <circle cx="256" cy="132" r="36" fill="url(#beacon)"/>
+      <rect x="188" y="232" width="136" height="54" rx="18" fill="url(#tier1)"/>
+      <rect x="146" y="310" width="220" height="54" rx="18" fill="url(#tier2)"/>
+      <rect x="104" y="388" width="304" height="54" rx="18" fill="url(#tier3)"/>
+    </g>
+    <text x="160" y="116" font-size="34" font-weight="700" letter-spacing="-0.5" fill="#F3F5FA">Vigil</text>
+
+    <!-- Headline -->
+    <g transform="translate(80,236)">
+      <rect width="234" height="36" rx="18" fill="#2DD4BF" fill-opacity="0.1" stroke="#2DD4BF" stroke-opacity="0.35"/>
+      <circle cx="20" cy="18" r="4" fill="#2DD4BF"/>
+      <text x="34" y="24" font-size="15" font-weight="600" letter-spacing="0.4" fill="#5EEAD4">Post-quantum rollup stack</text>
+    </g>
+    <text x="80" y="356" font-size="68" font-weight="700" letter-spacing="-2.4" fill="#F3F5FA">The rollup that</text>
+    <text x="80" y="432" font-size="68" font-weight="700" letter-spacing="-2.4" fill="#FFB020">never looks away.</text>
+    <text x="80" y="492" font-size="22" font-weight="400" fill="#A9B2C8">ML-DSA-signed batches, verified settlement,</text>
+    <text x="80" y="524" font-size="22" font-weight="400" fill="#A9B2C8">and a watchtower that re-checks every batch.</text>
+
+    <g transform="translate(80,584)" font-size="15" font-weight="600" fill="#C9D0E0">
+      <rect width="170" height="40" rx="20" fill="#FFFFFF" fill-opacity="0.05" stroke="#FFFFFF" stroke-opacity="0.12"/>
+      <text x="85" y="26" text-anchor="middle">Protocol Builders</text>
+      <rect x="182" width="174" height="40" rx="20" fill="#FFFFFF" fill-opacity="0.05" stroke="#FFFFFF" stroke-opacity="0.12"/>
+      <text x="269" y="26" text-anchor="middle">QoreChain testnet</text>
+    </g>
+
+    <!-- Watchtower panel -->
+    <g transform="translate(724,150)" filter="url(#shadow)">
+      <rect width="476" height="420" rx="24" fill="url(#card)"/>
+      <rect x="0.5" y="0.5" width="475" height="419" rx="23.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.1"/>
+    </g>
+    <g transform="translate(724,150)">
+      <text x="32" y="50" font-size="18" font-weight="600" fill="#F3F5FA">Watchtower</text>
+      <g transform="translate(346,28)">
+        <rect width="98" height="30" rx="15" fill="#2DD4BF" fill-opacity="0.12"/>
+        <circle cx="18" cy="15" r="4" fill="#2DD4BF"/>
+        <text x="30" y="20" font-size="13" font-weight="600" fill="#5EEAD4">On duty</text>
+      </g>
+      <line x1="32" y1="78" x2="444" y2="78" stroke="#FFFFFF" stroke-opacity="0.08"/>
+
+      <g font-family="'JetBrains Mono', 'Cascadia Mono', Consolas, monospace" font-size="15">
+        <g transform="translate(32,98)">
+          <rect width="412" height="56" rx="14" fill="#FFFFFF" fill-opacity="0.03"/>
+          <circle cx="28" cy="28" r="12" fill="#2DD4BF" fill-opacity="0.16"/>
+          <path d="M22.5 28.5l4 4 7-8" fill="none" stroke="#2DD4BF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <text x="54" y="33" fill="#E6EAF2">batch 41</text>
+          <text x="396" y="33" text-anchor="end" fill="#5EEAD4">re-executed</text>
+        </g>
+        <g transform="translate(32,164)">
+          <rect width="412" height="56" rx="14" fill="#FFFFFF" fill-opacity="0.03"/>
+          <circle cx="28" cy="28" r="12" fill="#2DD4BF" fill-opacity="0.16"/>
+          <path d="M22.5 28.5l4 4 7-8" fill="none" stroke="#2DD4BF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <text x="54" y="33" fill="#E6EAF2">batch 42</text>
+          <text x="396" y="33" text-anchor="end" fill="#5EEAD4">re-executed</text>
+        </g>
+        <g transform="translate(32,230)">
+          <rect width="412" height="56" rx="14" fill="#F0524F" fill-opacity="0.08" stroke="#F0524F" stroke-opacity="0.4"/>
+          <circle cx="28" cy="28" r="12" fill="#F0524F" fill-opacity="0.18"/>
+          <path d="M23 23l10 10M33 23l-10 10" fill="none" stroke="#F0524F" stroke-width="2.4" stroke-linecap="round"/>
+          <text x="54" y="33" fill="#E6EAF2">batch 43</text>
+          <text x="396" y="33" text-anchor="end" fill="#FF8A87">challenged</text>
+        </g>
+      </g>
+
+      <line x1="32" y1="312" x2="444" y2="312" stroke="#FFFFFF" stroke-opacity="0.08"/>
+      <g font-size="13" fill="#8F99B3">
+        <text x="32" y="344">Signature</text>
+        <text x="186" y="344">Encryption</text>
+        <text x="340" y="344">Settlement</text>
+      </g>
+      <g font-size="18" font-weight="600" fill="#F3F5FA">
+        <text x="32" y="374">ML-DSA-87</text>
+        <text x="186" y="374">ML-KEM-1024</text>
+        <text x="340" y="374">Verified</text>
+      </g>
+    </g>
+  </g>
+</svg>

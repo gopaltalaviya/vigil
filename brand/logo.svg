@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 200" role="img" aria-label="Vigil">
+  <title>Vigil</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#141C36"/>
+      <stop offset="1" stop-color="#070B17"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="256" cy="132" r="190" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFB020" stop-opacity="0.42"/>
+      <stop offset="0.55" stop-color="#FFB020" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#FFB020" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="beacon" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFD071"/>
+      <stop offset="1" stop-color="#FF9A0A"/>
+    </linearGradient>
+    <linearGradient id="tier1" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5EEAD4"/>
+      <stop offset="1" stop-color="#2DD4BF"/>
+    </linearGradient>
+    <linearGradient id="tier2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2DD4BF"/>
+      <stop offset="1" stop-color="#14B8A6"/>
+    </linearGradient>
+    <linearGradient id="tier3" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#14B8A6"/>
+      <stop offset="1" stop-color="#0F8F84"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="200" rx="40" fill="#0B1020"/>
+  <g transform="translate(36,28) scale(0.28125)">
+    <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+    <rect x="1.5" y="1.5" width="509" height="509" rx="114.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.1" stroke-width="3"/>
+    <rect width="512" height="512" rx="116" fill="url(#halo)"/>
+    <g fill="none" stroke="url(#beacon)" stroke-linecap="round">
+      <path d="M186 78 A78 78 0 0 0 186 186" stroke-width="20"/>
+      <path d="M326 78 A78 78 0 0 1 326 186" stroke-width="20"/>
+      <path d="M142 46 A128 128 0 0 0 142 218" stroke-width="14" stroke-opacity="0.45"/>
+      <path d="M370 46 A128 128 0 0 1 370 218" stroke-width="14" stroke-opacity="0.45"/>
+    </g>
+    <circle cx="256" cy="132" r="36" fill="url(#beacon)"/>
+    <rect x="188" y="232" width="136" height="54" rx="18" fill="url(#tier1)"/>
+    <rect x="146" y="310" width="220" height="54" rx="18" fill="url(#tier2)"/>
+    <rect x="104" y="388" width="304" height="54" rx="18" fill="url(#tier3)"/>
+  </g>
+  <text x="222" y="134" font-family="Inter, 'Segoe UI Variable Display', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="104" font-weight="700" letter-spacing="-3" fill="#F3F5FA">Vigil</text>
+</svg>

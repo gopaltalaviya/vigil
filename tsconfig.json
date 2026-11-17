@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@vigil/core": ["packages/core/src/index.ts"],
+      "@vigil/watchtower": ["packages/watchtower/src/index.ts"]
+    }
+  },
+  "include": ["scripts", "vitest.config.ts", "eslint.config.js"]
+}

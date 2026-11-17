@@ -1,0 +1,8 @@
+Vigil
+Copyright 2026 The Vigil authors
+
+This product includes software developed by the QoreChain project
+(https://github.com/qorechain/qorechain-rdk), licensed under the Apache License 2.0.
+
+Test fixtures in packages/core/test/fixtures contain public data recorded from the
+QoreChain testnet.
