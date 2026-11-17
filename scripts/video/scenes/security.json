@@ -1,0 +1,98 @@
+{
+  "output": "vigil-security.mp4",
+  "scenes": [
+    {
+      "card": "brand/cover.png",
+      "name": "title",
+      "narration": "How Vigil catches a forged batch.",
+      "minSeconds": 3
+    },
+    {
+      "name": "threat",
+      "before": [
+        {
+          "action": "theme",
+          "theme": "dark"
+        },
+        {
+          "action": "load",
+          "hash": "#/learn/concept"
+        }
+      ],
+      "caption": "A forged batch was accepted at once",
+      "narration": "On the testnet we submitted a deliberately forged batch to our own rollup. QoreChain accepted it immediately. Ten blocks later, a fraud proof rejected it, and the forger's bond was slashed.",
+      "steps": [
+        {
+          "action": "scrollTo",
+          "selector": ".callout.warn",
+          "block": "center",
+          "ms": 3000
+        }
+      ]
+    },
+    {
+      "name": "check",
+      "before": [
+        {
+          "action": "goto",
+          "hash": "#/learn/how-it-works"
+        }
+      ],
+      "caption": "Re-execute, compare, prove",
+      "narration": "The watchtower keeps a verified copy of the inbox, re-executes every batch, and compares every root. When they differ, it builds the fraud proof, checks it the way the chain will, and submits the challenge before the window closes.",
+      "steps": [
+        {
+          "action": "scrollTo",
+          "selector": ".steps-list",
+          "block": "start",
+          "ms": 5000
+        }
+      ]
+    },
+    {
+      "name": "threats",
+      "before": [
+        {
+          "action": "goto",
+          "hash": "#/learn/security"
+        }
+      ],
+      "caption": "Every threat, with its status",
+      "narration": "Every threat is listed with what Vigil does about it, and the limits are stated plainly.",
+      "steps": [
+        {
+          "action": "wait",
+          "ms": 2000
+        },
+        {
+          "action": "scroll",
+          "y": 600,
+          "ms": 2500
+        }
+      ]
+    },
+    {
+      "name": "alerts",
+      "before": [
+        {
+          "action": "goto",
+          "hash": "#/alerts"
+        }
+      ],
+      "caption": "Alerts reach the operator",
+      "narration": "Invalid batches, closing windows and a stalled rollup raise alerts to the operator.",
+      "steps": [
+        {
+          "action": "wait",
+          "ms": 2000
+        }
+      ]
+    },
+    {
+      "card": "brand/cover.png",
+      "name": "end",
+      "narration": "Vigil. Someone is always watching.",
+      "minSeconds": 3
+    }
+  ]
+}

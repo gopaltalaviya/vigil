@@ -1,0 +1,254 @@
+{
+  "output": "vigil-demo.mp4",
+  "scenes": [
+    {
+      "card": "brand/cover.png",
+      "name": "title",
+      "narration": "Vigil: a post-quantum rollup with a watchtower, on the QoreChain testnet. Here is the demo.",
+      "minSeconds": 4
+    },
+    {
+      "name": "overview",
+      "before": [
+        {
+          "action": "theme",
+          "theme": "dark"
+        },
+        {
+          "action": "load",
+          "hash": "#/overview"
+        }
+      ],
+      "caption": "The rollup vigil-1, live",
+      "narration": "This is the operator console for the rollup vigil one. The header shows the watchtower on duty. The flow counts inbox entries, batches, re-executed batches, final batches and on-chain receipts.",
+      "steps": [
+        {
+          "action": "wait",
+          "ms": 3000
+        },
+        {
+          "action": "scroll",
+          "y": 650,
+          "ms": 3000
+        }
+      ]
+    },
+    {
+      "name": "signin",
+      "before": [
+        {
+          "action": "goto",
+          "hash": "#/wallet"
+        },
+        {
+          "action": "waitFor",
+          "js": "fetch('/api/overview').then(r=>r.json()).then(d=>{window.__recStart=d.rollup.inboxEntriesArchived+2;return true})"
+        }
+      ],
+      "caption": "Sign in to the operator wallet",
+      "narration": "The wallet signs server side, behind a password. The password is typed from the environment and never shown.",
+      "steps": [
+        {
+          "action": "waitForSelector",
+          "selector": "#password"
+        },
+        {
+          "action": "type",
+          "selector": "#password",
+          "env": "VIGIL_CONSOLE_PASSWORD"
+        },
+        {
+          "action": "click",
+          "selector": "form button[type=submit]",
+          "ms": 3000
+        },
+        {
+          "action": "waitForSelector",
+          "selector": "button[data-tab='send']",
+          "timeoutMs": 45000
+        }
+      ]
+    },
+    {
+      "name": "transfer",
+      "caption": "A rollup transfer, signed with ML-DSA-44",
+      "narration": "Now a transfer to another rollup account. It is signed with M L D S A 44 and posted to the rollup's inbox on QoreChain.",
+      "steps": [
+        {
+          "action": "click",
+          "selector": "button[data-tab='send']",
+          "ms": 600
+        },
+        {
+          "action": "type",
+          "selector": "#send-to",
+          "text": "9621a556ab9a2b7af4e37dace1d79482171e47360ab36c1501a5ec785823b5f7",
+          "delay": 8
+        },
+        {
+          "action": "type",
+          "selector": "#send-amount",
+          "text": "0.01"
+        },
+        {
+          "action": "click",
+          "selector": "#wallet-panel button[type=submit]",
+          "ms": 6000
+        }
+      ]
+    },
+    {
+      "name": "withdraw",
+      "caption": "Withdraw back to the base chain",
+      "narration": "A withdrawal goes through the same inbox. It can be claimed with a Merkle proof once its batch is final.",
+      "steps": [
+        {
+          "action": "click",
+          "selector": "button[data-tab='withdraw']",
+          "ms": 600
+        },
+        {
+          "action": "type",
+          "selector": "#withdraw-amount",
+          "text": "0.01"
+        },
+        {
+          "action": "click",
+          "selector": "#wallet-panel button[type=submit]",
+          "ms": 6000
+        },
+        {
+          "action": "hidePointer"
+        }
+      ]
+    },
+    {
+      "name": "batched",
+      "before": [
+        {
+          "action": "waitFor",
+          "js": "fetch('/api/overview').then(r=>r.json()).then(d=>{const b=d.rollup.batches[0];return Boolean(b && b.verdict==='valid' && b.entries.to>=d.rollup.inboxEntriesArchived && d.rollup.inboxEntriesArchived>=window.__recStart)})",
+          "timeoutMs": 900000
+        },
+        {
+          "action": "goto",
+          "hash": "#/batches"
+        }
+      ],
+      "caption": "Batched, and re-executed by the watchtower",
+      "narration": "Seconds later the batcher submits a batch with an M L D S A 87 anchor. The watchtower re-executes it independently and marks it valid. The chain gives it one hour before it is final.",
+      "steps": [
+        {
+          "action": "wait",
+          "ms": 2500
+        },
+        {
+          "action": "click",
+          "selector": "main a[href^='#/batches/']",
+          "ms": 3000
+        },
+        {
+          "action": "hidePointer"
+        },
+        {
+          "action": "scroll",
+          "y": 600,
+          "ms": 3000
+        }
+      ]
+    },
+    {
+      "name": "receipt",
+      "before": [
+        {
+          "action": "goto",
+          "hash": "#/batches/0"
+        }
+      ],
+      "caption": "Settlement recorded on chain",
+      "narration": "Once final, the batch's post-quantum anchor is verified by the Vigil Receipts contract, which reads the signer's key from QoreChain's registry, and records it permanently.",
+      "steps": [
+        {
+          "action": "wait",
+          "ms": 2500
+        },
+        {
+          "action": "scroll",
+          "y": 400,
+          "ms": 2500
+        }
+      ]
+    },
+    {
+      "name": "memo",
+      "before": [
+        {
+          "action": "goto",
+          "hash": "#/wallet"
+        }
+      ],
+      "caption": "Private memos, sealed with ML-KEM-1024",
+      "narration": "Payments can carry a private memo, encrypted with M L KEM 1024 to the recipient's registered key, and bound to a signed transfer.",
+      "steps": [
+        {
+          "action": "scrollTo",
+          "selector": ".memo-text",
+          "block": "center",
+          "ms": 3500
+        }
+      ]
+    },
+    {
+      "name": "chain",
+      "before": [
+        {
+          "action": "goto",
+          "hash": "#/chain"
+        }
+      ],
+      "caption": "Watching QoreChain itself",
+      "narration": "Vigil also watches QoreChain itself: block production, block time against the documented value, and silent changes to its settings.",
+      "steps": [
+        {
+          "action": "wait",
+          "ms": 2500
+        },
+        {
+          "action": "scroll",
+          "y": 600,
+          "ms": 2500
+        }
+      ]
+    },
+    {
+      "name": "learn",
+      "before": [
+        {
+          "action": "goto",
+          "hash": "#/learn/how-it-works"
+        }
+      ],
+      "caption": "Learn and Docs, built in",
+      "narration": "Learn and Docs are built into the app: the concept, the threat model, the API and the contract.",
+      "steps": [
+        {
+          "action": "scrollTo",
+          "selector": ".diagram-wrap",
+          "block": "center",
+          "ms": 3000
+        },
+        {
+          "action": "goto",
+          "hash": "#/docs/JUDGES",
+          "ms": 2500
+        }
+      ]
+    },
+    {
+      "card": "brand/cover.png",
+      "name": "end",
+      "narration": "Vigil. Post-quantum settlement, always watched. Open source under Apache 2.",
+      "minSeconds": 4
+    }
+  ]
+}

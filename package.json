@@ -28,7 +28,8 @@
     "fraud:drill": "tsx scripts/fraud-drill.ts",
     "monitor": "tsx packages/monitor/src/main.ts",
     "api": "tsx packages/api/src/main.ts",
-    "console": "tsx packages/console/src/main.ts"
+    "console": "tsx packages/console/src/main.ts",
+    "video": "node scripts/video/record.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

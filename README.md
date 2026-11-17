@@ -26,6 +26,11 @@ Built for _Build Before Q-Day: The QoreChain Developer Fest_, Protocol Builders 
 The same documents are built into the web app under **Docs**, and the **Learn** tab explains the
 concept with an animated diagram.
 
+## Videos
+
+Three narrated videos are recorded from the live app with `scripts/video`: an overview of the
+concept, the full demo with real testnet transactions, and how a forged batch is caught.
+
 ## Why
 
 A rollup is only as trustworthy as the people checking it. On QoreChain an optimistic rollup

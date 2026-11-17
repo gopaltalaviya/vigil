@@ -11,6 +11,7 @@ export default tseslint.config(
       "**/test/fixtures/**",
       "eslint.config.js",
       "apps/web/**",
+      "scripts/video/**",
       "packages/receipts/src/abi.ts",
     ],
   },

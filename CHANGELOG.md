@@ -59,3 +59,5 @@ All notable changes are recorded here. The format follows
   glossary and FAQ.
 - Docs in the web app, rendered from `docs/` with a safe Markdown reader; new concept, user guide,
   command line, HTTP API, configuration, contract and judges documents.
+- Video tooling under `scripts/video`: narrated overview, demo and security videos recorded from
+  the live app.
