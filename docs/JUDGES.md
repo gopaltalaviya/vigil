@@ -47,13 +47,13 @@ encodings. Vigil adds:
 
 - 159 TypeScript tests and 19 contract tests, including a golden test that replays a live rollup's
   public data and reproduces the state roots the chain finalized.
-- A 115-check browser test of the web app in light and dark themes and at phone width, including a
+- A 134-check browser test of the web app in light and dark themes and at phone width, including a
   real transfer.
 - Two independent reviews (contract and services). Their findings are fixed or documented in the
   [threat model](THREAT_MODEL.md).
 
 ## Videos
 
-- `media/vigil-demo.mp4`: the demo, just under two minutes, with real testnet transactions.
+- `media/vigil-demo.mp4`: the demo, 2.5 minutes, with real testnet transactions and the fraud catch.
 - `media/vigil-overview.mp4`: the concept in one minute.
-- `media/vigil-security.mp4`: how a forged batch is caught.
+- `media/vigil-security.mp4`: the forged batch 18 stopped by the watchtower, step by step.

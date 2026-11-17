@@ -548,6 +548,12 @@ main:focus {
   color: var(--text);
 }
 
+.notice.good {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--text);
+}
+
 .notice.warn {
   border-color: var(--danger);
   background: var(--danger-soft);

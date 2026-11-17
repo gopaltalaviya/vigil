@@ -8,7 +8,7 @@
       "minSeconds": 4
     },
     {
-      "name": "overview",
+      "name": "home",
       "before": [
         {
           "action": "theme",
@@ -16,11 +16,36 @@
         },
         {
           "action": "load",
+          "hash": "#/home"
+        }
+      ],
+      "caption": "Vigil: a rollup that checks itself",
+      "narration": "Vigil is a post-quantum rollup on QoreChain with its own watchtower. Every batch is re-executed the moment it lands, and a wrong one is challenged before it can settle. On the right, the watchtower's live view of the latest batches.",
+      "steps": [
+        {
+          "action": "wait",
+          "ms": 4000
+        },
+        {
+          "action": "click",
+          "selector": ".live-card .pill",
+          "ms": 1500
+        },
+        {
+          "action": "hidePointer"
+        }
+      ]
+    },
+    {
+      "name": "overview",
+      "before": [
+        {
+          "action": "goto",
           "hash": "#/overview"
         }
       ],
-      "caption": "The rollup vigil-1, live",
-      "narration": "This is the operator console for the rollup vigil one. The header shows the watchtower on duty. The flow counts inbox entries, batches, re-executed batches, final batches and on-chain receipts.",
+      "caption": "The dashboard, live",
+      "narration": "The dashboard shows the rollup right now: inbox entries, batches, re-executed batches, final batches and on-chain receipts.",
       "steps": [
         {
           "action": "wait",
@@ -199,6 +224,35 @@
       ]
     },
     {
+      "name": "proof",
+      "before": [
+        {
+          "action": "goto",
+          "hash": "#/proof"
+        }
+      ],
+      "caption": "A forged batch, stopped in 5 seconds",
+      "narration": "This really happened on the testnet. An attacker bonded a thousand Q O R and posted a forged batch. Two seconds later the watchtower found the wrong state root. Three seconds after that, its fraud proof was confirmed. The chain threw the batch out, and the attacker's bond was slashed.",
+      "steps": [
+        {
+          "action": "wait",
+          "ms": 3000
+        },
+        {
+          "action": "scrollTo",
+          "selector": ".proof-steps",
+          "block": "center",
+          "ms": 4000
+        },
+        {
+          "action": "scrollTo",
+          "selector": ".proof-txs",
+          "block": "center",
+          "ms": 3000
+        }
+      ]
+    },
+    {
       "name": "chain",
       "before": [
         {
@@ -225,21 +279,14 @@
       "before": [
         {
           "action": "goto",
-          "hash": "#/learn/how-it-works"
+          "hash": "#/docs/JUDGES"
         }
       ],
-      "caption": "Learn and Docs, built in",
-      "narration": "Learn and Docs are built into the app: the concept, the threat model, the API and the contract.",
+      "caption": "Learn, Docs and Proof, built in",
+      "narration": "Learn, Docs and Proof are built in: the concept, the threat model, and every claim with its transactions.",
       "steps": [
         {
-          "action": "scrollTo",
-          "selector": ".diagram-wrap",
-          "block": "center",
-          "ms": 3000
-        },
-        {
-          "action": "goto",
-          "hash": "#/docs/JUDGES",
+          "action": "wait",
           "ms": 2500
         }
       ]

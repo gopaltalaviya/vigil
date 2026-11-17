@@ -463,6 +463,12 @@ const views = {
         ["Receipts", s.receiptsRecorded, "verified on chain"],
       ];
       const openBatches = data.rollup.batches.filter((b) => b.status === "submitted");
+      const stopped = data.rollup.batches.filter(
+        (b) => b.verdict === "invalid" && b.status === "rejected",
+      ).length;
+      const openInvalid = data.rollup.batches.filter(
+        (b) => b.verdict === "invalid" && b.status !== "rejected",
+      ).length;
       return el("div", { className: "stack" }, [
         el("div", { className: "page-head" }, [
           el("span", { className: "eyebrow" }, [
@@ -478,11 +484,17 @@ const views = {
             el("a", { className: "button ghost", href: "#/batches", text: "Browse batches" }),
           ]),
         ]),
-        s.invalid > 0
+        openInvalid > 0
           ? el("p", {
               className: "notice warn",
-              text: `The watchtower found ${s.invalid} invalid batch${s.invalid === 1 ? "" : "es"}. See Alerts.`,
+              text: `The watchtower found ${openInvalid} invalid batch${openInvalid === 1 ? "" : "es"} the chain has not rejected. See Alerts.`,
             })
+          : null,
+        stopped > 0
+          ? el("p", { className: "notice good" }, [
+              `The watchtower caught ${stopped} forged batch${stopped === 1 ? "" : "es"}; the chain threw ${stopped === 1 ? "it" : "them"} out and slashed the bond. `,
+              el("a", { href: "#/proof", text: "See the proof" }),
+            ])
           : null,
         el("section", { "aria-label": "How a transaction settles" }, [
           el(

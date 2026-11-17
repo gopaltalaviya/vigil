@@ -16,8 +16,8 @@ It drives a headless Chrome over the DevTools protocol at 1440×810, captures th
 each scene's narration with a built-in Windows voice (`narrate.ps1`), and joins the scenes into an
 H.264 MP4 at 1920×1080 with ffmpeg. Title and end cards use `brand/cover.png`.
 
-Requirements: Google Chrome (`CHROME_PATH`), ffmpeg and ffprobe (`FFMPEG_DIR` or on `PATH`) and
-Windows PowerShell.
+Requirements: Google Chrome (`CHROME_PATH`), ffmpeg and ffprobe (on `PATH`, or the folder that
+holds them in `FFMPEG_DIR`) and Windows PowerShell.
 
 A `type` step with `env` reads its value from the named environment variable and types it into
 the field; the value is never written to disk or to the log. `media/` is ignored by git.

@@ -8,7 +8,7 @@
       "minSeconds": 4
     },
     {
-      "name": "problem",
+      "name": "home",
       "before": [
         {
           "action": "theme",
@@ -16,20 +16,41 @@
         },
         {
           "action": "load",
-          "hash": "#/learn/concept"
+          "hash": "#/home"
         }
       ],
-      "caption": "A rollup is only as honest as the people watching it",
-      "narration": "A rollup posts summaries of its transactions to the base chain. The chain accepts each summary and waits an hour for anyone to prove it wrong. If nobody is watching, a dishonest batch becomes final.",
+      "caption": "Vigil: a rollup that checks itself",
+      "narration": "Vigil is a post-quantum rollup on QoreChain with its own watchtower. Every batch is re-executed the moment it lands, and a wrong one is challenged before it can settle. On the right, the watchtower's live view of the latest batches.",
       "steps": [
         {
           "action": "wait",
-          "ms": 2500
+          "ms": 4000
         },
         {
+          "action": "click",
+          "selector": ".live-card .pill",
+          "ms": 1500
+        },
+        {
+          "action": "hidePointer"
+        }
+      ]
+    },
+    {
+      "name": "why",
+      "before": [
+        {
           "action": "scrollTo",
-          "selector": ".callout.warn",
+          "selector": ".compare",
           "block": "center",
+          "ms": 600
+        }
+      ],
+      "caption": "Without a watcher, a forged batch becomes final",
+      "narration": "QoreChain accepts every batch at once and gives the world an hour to prove it wrong. Without a watcher, a forged batch becomes final and its fake balances are withdrawn. With Vigil, it is caught in seconds.",
+      "steps": [
+        {
+          "action": "wait",
           "ms": 3000
         }
       ]
@@ -38,23 +59,52 @@
       "name": "diagram",
       "before": [
         {
-          "action": "goto",
-          "hash": "#/learn/how-it-works"
-        }
-      ],
-      "caption": "Sign, batch, check, settle, record",
-      "narration": "With Vigil, users sign with M L D S A. A bonded batcher submits each batch with a post-quantum anchor. The watchtower re-executes every batch from its own verified copy of the inbox, and challenges a wrong one with a fraud proof.",
-      "steps": [
-        {
           "action": "scrollTo",
           "selector": ".diagram-wrap",
           "block": "center",
-          "ms": 6000
+          "ms": 800
+        }
+      ],
+      "caption": "Sign, batch, check, settle, record",
+      "narration": "Users sign with M L D S A. A bonded batcher submits each batch with a post-quantum anchor. The watchtower re-executes it, and final batches are recorded on chain by a contract that checks the signature itself.",
+      "steps": [
+        {
+          "action": "wait",
+          "ms": 5000
         }
       ]
     },
     {
-      "name": "overview",
+      "name": "catch",
+      "before": [
+        {
+          "action": "goto",
+          "hash": "#/proof"
+        }
+      ],
+      "caption": "A forged batch, stopped in 5 seconds",
+      "narration": "This really happened on the testnet. An attacker bonded a thousand Q O R and posted a forged batch. Two seconds later the watchtower found the wrong state root. Three seconds after that, its fraud proof was confirmed. The chain threw the batch out, and the attacker's bond was slashed.",
+      "steps": [
+        {
+          "action": "wait",
+          "ms": 3000
+        },
+        {
+          "action": "scrollTo",
+          "selector": ".proof-steps",
+          "block": "center",
+          "ms": 4000
+        },
+        {
+          "action": "scrollTo",
+          "selector": ".proof-txs",
+          "block": "center",
+          "ms": 3000
+        }
+      ]
+    },
+    {
+      "name": "live",
       "before": [
         {
           "action": "goto",
@@ -62,7 +112,7 @@
         }
       ],
       "caption": "Live on the QoreChain testnet",
-      "narration": "Everything here is live on the QoreChain testnet: the settlement flow, the batches still in their challenge window, and every service's heartbeat.",
+      "narration": "Everything is live: every batch, its verdict, its challenge window, and every service's heartbeat.",
       "steps": [
         {
           "action": "wait",
@@ -72,49 +122,6 @@
           "action": "scroll",
           "y": 700,
           "ms": 2500
-        }
-      ]
-    },
-    {
-      "name": "batches",
-      "before": [
-        {
-          "action": "goto",
-          "hash": "#/batches"
-        }
-      ],
-      "caption": "Two opinions on every batch: ours and the chain's",
-      "narration": "Each batch shows two independent opinions: the watchtower's re-execution, and the chain's own status.",
-      "steps": [
-        {
-          "action": "click",
-          "selector": "main a[href^='#/batches/']",
-          "ms": 2500
-        },
-        {
-          "action": "hidePointer"
-        },
-        {
-          "action": "scroll",
-          "y": 500,
-          "ms": 2000
-        }
-      ]
-    },
-    {
-      "name": "pq",
-      "before": [
-        {
-          "action": "goto",
-          "hash": "#/learn/post-quantum"
-        }
-      ],
-      "caption": "ML-DSA-87, ML-DSA-44 and ML-KEM-1024",
-      "narration": "Final batches are recorded on chain by a contract that checks the M L D S A 87 signature itself. Private memos are sealed with M L KEM.",
-      "steps": [
-        {
-          "action": "wait",
-          "ms": 2000
         }
       ]
     },

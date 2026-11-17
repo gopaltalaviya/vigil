@@ -4,11 +4,11 @@
     {
       "card": "brand/cover.png",
       "name": "title",
-      "narration": "How Vigil catches a forged batch.",
-      "minSeconds": 3
+      "narration": "How Vigil stopped a forged batch on the QoreChain testnet.",
+      "minSeconds": 3.5
     },
     {
-      "name": "threat",
+      "name": "race",
       "before": [
         {
           "action": "theme",
@@ -16,15 +16,44 @@
         },
         {
           "action": "load",
-          "hash": "#/learn/concept"
+          "hash": "#/learn/before-after"
         }
       ],
-      "caption": "A forged batch was accepted at once",
-      "narration": "On the testnet we submitted a deliberately forged batch to our own rollup. QoreChain accepted it immediately. Ten blocks later, a fraud proof rejected it, and the forger's bond was slashed.",
+      "caption": "Without Vigil: final in an hour. With Vigil: stopped in seconds",
+      "narration": "Without a watcher, a forged batch is accepted, and an hour later it is final and its fake balances are paid out. With Vigil, the same batch is re-executed, proven wrong, and thrown out within seconds.",
       "steps": [
         {
           "action": "scrollTo",
-          "selector": ".callout.warn",
+          "selector": ".ba-race",
+          "block": "center",
+          "ms": 5000
+        }
+      ]
+    },
+    {
+      "name": "catch",
+      "before": [
+        {
+          "action": "goto",
+          "hash": "#/proof"
+        }
+      ],
+      "caption": "A forged batch, stopped in 5 seconds",
+      "narration": "This really happened on the testnet. An attacker bonded a thousand Q O R and posted a forged batch. Two seconds later the watchtower found the wrong state root. Three seconds after that, its fraud proof was confirmed. The chain threw the batch out, and the attacker's bond was slashed.",
+      "steps": [
+        {
+          "action": "wait",
+          "ms": 3000
+        },
+        {
+          "action": "scrollTo",
+          "selector": ".proof-steps",
+          "block": "center",
+          "ms": 4000
+        },
+        {
+          "action": "scrollTo",
+          "selector": ".proof-txs",
           "block": "center",
           "ms": 3000
         }
@@ -39,35 +68,13 @@
         }
       ],
       "caption": "Re-execute, compare, prove",
-      "narration": "The watchtower keeps a verified copy of the inbox, re-executes every batch, and compares every root. When they differ, it builds the fraud proof, checks it the way the chain will, and submits the challenge before the window closes.",
+      "narration": "The watchtower keeps its own verified copy of the inbox, re-executes every batch, and only sends a challenge after the same check the chain runs confirms the fraud.",
       "steps": [
         {
           "action": "scrollTo",
           "selector": ".steps-list",
           "block": "start",
-          "ms": 5000
-        }
-      ]
-    },
-    {
-      "name": "threats",
-      "before": [
-        {
-          "action": "goto",
-          "hash": "#/learn/security"
-        }
-      ],
-      "caption": "Every threat, with its status",
-      "narration": "Every threat is listed with what Vigil does about it, and the limits are stated plainly.",
-      "steps": [
-        {
-          "action": "wait",
-          "ms": 2000
-        },
-        {
-          "action": "scroll",
-          "y": 600,
-          "ms": 2500
+          "ms": 4500
         }
       ]
     },
@@ -79,12 +86,12 @@
           "hash": "#/alerts"
         }
       ],
-      "caption": "Alerts reach the operator",
-      "narration": "Invalid batches, closing windows and a stalled rollup raise alerts to the operator.",
+      "caption": "The operator is told at once",
+      "narration": "The invalid batch and the challenge were raised as critical alerts, to the console and to Telegram.",
       "steps": [
         {
           "action": "wait",
-          "ms": 2000
+          "ms": 2500
         }
       ]
     },
