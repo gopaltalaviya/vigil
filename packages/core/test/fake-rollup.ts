@@ -5,6 +5,7 @@ import {
   executeQledger,
   inboxRangeHash,
   qledgerAccumulate,
+  type QledgerBatchPlan,
   type QledgerEntry,
   type RdkTxClient,
 } from "@qorechain/rdk";
@@ -34,6 +35,8 @@ export class FakeRollup {
   readonly payouts: { withdrawalIndex: bigint; recipient: string; amount: bigint }[] = [];
   height = 1_000;
   time = 1_700_000_000;
+  /** The `anchor` option of every submitted batch, in order. */
+  readonly anchorModes: string[] = [];
   /** Set to make the next transaction fail with this result code. */
   failNextWith: number | undefined;
 
@@ -115,6 +118,71 @@ export class FakeRollup {
     return batch;
   }
 
+  /** Records a batch exactly as claimed by a submitter, honest or not. */
+  acceptBatch(input: {
+    batchIndex: bigint;
+    stateRoot: Uint8Array;
+    inboxEnd: bigint;
+    prevStateRoot?: Uint8Array;
+    dataHash?: Uint8Array;
+    withdrawalsRoot?: Uint8Array;
+  }): StoredBatch {
+    const inboxStart = this.consumed;
+    this.height += 1;
+    this.time += 5;
+    const batch: StoredBatch = {
+      batchIndex: Number(input.batchIndex),
+      stateRoot: toHex(input.stateRoot),
+      prevStateRoot: toHex(input.prevStateRoot ?? new Uint8Array()),
+      dataHash: toHex(input.dataHash ?? new Uint8Array()),
+      withdrawalsRoot: toHex(input.withdrawalsRoot ?? new Uint8Array()),
+      inboxStart,
+      inboxEnd: Number(input.inboxEnd),
+      txCount: Number(input.inboxEnd) - inboxStart,
+      status: "submitted",
+      submittedAt: this.height,
+      submittedTime: this.time,
+      finalizedAt: 0,
+    };
+    this.batches.push(batch);
+    return batch;
+  }
+
+  /** What an honest submitter would plan on top of `ledger` for every unbatched entry. */
+  plan(ledger: QledgerLedger, inboxEnd = this.head): QledgerBatchPlan {
+    const inboxStart = this.consumed;
+    if (inboxEnd <= inboxStart) throw new Error("nothing to batch");
+    const entries = this.entries.slice(inboxStart, inboxEnd);
+    const prevStateRoot = ledger.root();
+    const result = executeQledger(
+      { chainId: FAKE_CHAIN_ID, rollupId: FAKE_ROLLUP_ID },
+      ledger,
+      entries,
+    );
+    return {
+      input: {
+        rollupId: FAKE_ROLLUP_ID,
+        batchIndex: BigInt(this.batches.filter((b) => b.status !== "rejected").length),
+        prevStateRoot,
+        stateRoot: result.stateRoot,
+        txCount: BigInt(entries.length),
+        dataHash: inboxRangeHash({
+          chainId: FAKE_CHAIN_ID,
+          rollupId: FAKE_ROLLUP_ID,
+          from: inboxStart,
+          to: inboxEnd,
+          accFrom: this.accs[inboxStart] ?? EMPTY_INBOX_ACC,
+          accTo: this.accs[inboxEnd] ?? EMPTY_INBOX_ACC,
+        }),
+        withdrawalsRoot: result.withdrawalsRoot,
+        inboxEnd: BigInt(inboxEnd),
+      },
+      entries,
+      result,
+      ledger,
+    };
+  }
+
   finalizeAll(): void {
     for (const batch of this.batches) {
       if (batch.status === "submitted") {
@@ -169,6 +237,15 @@ export class FakeRollup {
     };
     const client = {
       address,
+      simulate: () => Promise.resolve(200_000),
+      submitBatch: (
+        input: { batchIndex: bigint; stateRoot: Uint8Array; inboxEnd: bigint },
+        options?: { anchor?: string },
+      ) =>
+        guarded(() => {
+          this.anchorModes.push(options?.anchor ?? "auto");
+          this.acceptBatch(input);
+        }),
       depositToRollup: (input: { account: Uint8Array | string; amount: bigint }) =>
         guarded(() => this.deposit(address, input.account as Uint8Array, input.amount)),
       postRollupData: (input: { data: Uint8Array | string }) =>

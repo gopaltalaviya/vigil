@@ -5,6 +5,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@vigil/core": fileURLToPath(new URL("./packages/core/src/index.ts", import.meta.url)),
+      "@vigil/batcher": fileURLToPath(new URL("./packages/batcher/src/index.ts", import.meta.url)),
       "@vigil/wallet": fileURLToPath(new URL("./packages/wallet/src/index.ts", import.meta.url)),
       "@vigil/watchtower": fileURLToPath(
         new URL("./packages/watchtower/src/index.ts", import.meta.url),

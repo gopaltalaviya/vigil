@@ -40,3 +40,4 @@ GEMINI.md
 # runtime data
 data/
 coverage/
+data-*/

@@ -24,8 +24,8 @@ fills that gap, and adds the pieces an operator needs around it.
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
 | `packages/core`           | Resilient chain access, verified inbox archive, ledger replay and snapshots, storage                                      | Working                     |
 | `packages/watchtower`     | Re-executes each batch, compares every commitment, raises alerts to Telegram or a webhook. Automatic challenge is planned | Working (observe and alert) |
-| `packages/batcher`        | Bonded submitter: plans, signs and submits batches                                                                        | Planned                     |
-| `packages/wallet`         | `vigil` command line: L2 keys, deposit, transfer, withdraw, claim                                                         | Planned                     |
+| `packages/batcher`        | Bonded submitter: plans a batch, re-checks it against its own archive, signs and submits it                               | Working                     |
+| `packages/wallet`         | `vigil` command line: encrypted L2 keys, deposit, transfer, withdraw, claim                                               | Working                     |
 | `contracts/VigilReceipts` | Verifies a settlement receipt's ML-DSA-87 signature on chain through the `pqcVerify` precompile                           | Working                     |
 | `packages/memo`           | Confidential memos sealed with ML-KEM-1024 to the recipient's registered key                                              | Planned                     |
 | `packages/monitor`        | Base-chain monitor: halts, block-time drift, upgrades, parameter and feature-flag changes                                 | Planned                     |
@@ -67,6 +67,39 @@ Two read-only checks run against the live testnet and need no key:
 ```sh
 pnpm golden:refresh   # re-record the rollup data the golden test replays
 pnpm live:probe       # run the receipt check against the chain's real precompiles, without deploying
+```
+
+## Live on testnet
+
+Vigil runs its own rollup, `vigil-1`, on the QoreChain testnet (`qorechain-diana`): based
+sequencing, `qledger-v1` execution, one-hour challenge window. Its batches are submitted by the
+batcher in this repository and carry the creator's ML-DSA-87 anchor signature.
+
+```sh
+ROLLUP_ID=vigil-1 pnpm watchtower --once   # re-execute and judge every batch yourself
+pnpm live:probe vigil-1                    # check an anchor signature with the chain's precompiles
+```
+
+## Using the rollup
+
+Set `QORE_MNEMONIC` (a funded testnet account) and `VIGIL_KEYSTORE_PASSPHRASE` in `.env`, then:
+
+```sh
+pnpm vigil keygen                      # create an encrypted L2 account (ML-DSA-44)
+pnpm vigil deposit 5                   # base chain -> L2
+pnpm vigil transfer <account-id> 1     # L2 -> L2
+pnpm vigil withdraw 0.5                # L2 -> base chain
+pnpm vigil balance
+pnpm vigil claim                       # pay out withdrawals once their batch is final
+```
+
+The commands read the environment only (for example `pnpm exec tsx --env-file=.env ...`).
+To operate a rollup of your own:
+
+```sh
+pnpm rollup:bootstrap            # dry run: simulates creation and the bond, sends nothing
+pnpm rollup:bootstrap --execute  # creates the rollup named by ROLLUP_ID and bonds the submitter
+pnpm batcher                     # submit batches as entries arrive
 ```
 
 ## Running the watchtower

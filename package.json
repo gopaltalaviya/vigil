@@ -20,7 +20,9 @@
     "golden:refresh": "tsx scripts/refresh-golden.ts",
     "live:probe": "tsx scripts/live-probe.ts",
     "watchtower": "tsx packages/watchtower/src/main.ts",
-    "vigil": "tsx packages/wallet/src/main.ts"
+    "vigil": "tsx packages/wallet/src/main.ts",
+    "batcher": "tsx packages/batcher/src/main.ts",
+    "rollup:bootstrap": "tsx scripts/bootstrap-rollup.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

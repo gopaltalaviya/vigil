@@ -16,3 +16,7 @@ All notable changes are recorded here. The format follows
   no-deploy check against a live node.
 - `@vigil/watchtower`: judges every batch by re-execution, raises de-duplicated alerts to
   Telegram or a webhook, detects a stalled inbox, and runs as a service with a health check.
+- `@vigil/wallet`: the `vigil` command line with an encrypted L2 keystore.
+- `@vigil/batcher`: bonded submitter that never sends a batch failing its own re-execution.
+- `scripts/bootstrap-rollup.ts`: idempotent rollup creation and bonding, dry run by default.
+- Rollup `vigil-1` created on the QoreChain testnet; first anchored batch submitted.

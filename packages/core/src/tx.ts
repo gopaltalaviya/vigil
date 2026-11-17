@@ -37,6 +37,11 @@ export interface TxSender {
    * `TxUnconfirmedError`. Every attempt is written to the transaction log.
    */
   send(label: string, run: (tx: RdkTxClient) => Promise<RawTxResult>): Promise<TxOutcome>;
+  /**
+   * Asks a node to execute messages without broadcasting them. Resolves with
+   * the estimated gas, or rejects with the chain's reason for refusing them.
+   */
+  simulate(messages: Parameters<RdkTxClient["simulate"]>[0]): Promise<number>;
 }
 
 export interface TxSenderOptions {
@@ -109,6 +114,7 @@ export function createTxSender(options: TxSenderOptions): TxSender {
 
   return {
     address: options.address,
+    simulate: (messages) => options.client.simulate(messages),
     send(label, run) {
       // Chain transactions from one account must not overlap: each needs the next sequence number.
       const next = queue.then(
