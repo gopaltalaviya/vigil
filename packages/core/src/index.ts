@@ -8,3 +8,4 @@ export * from "./ledger.js";
 export * from "./log.js";
 export * from "./replay.js";
 export * from "./store.js";
+export * from "./tx.js";

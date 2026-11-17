@@ -19,7 +19,8 @@
     "test:coverage": "vitest run --coverage",
     "golden:refresh": "tsx scripts/refresh-golden.ts",
     "live:probe": "tsx scripts/live-probe.ts",
-    "watchtower": "tsx packages/watchtower/src/main.ts"
+    "watchtower": "tsx packages/watchtower/src/main.ts",
+    "vigil": "tsx packages/wallet/src/main.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

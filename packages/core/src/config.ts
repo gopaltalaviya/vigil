@@ -24,6 +24,12 @@ const schema = z.object({
   HTTP_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(15_000),
   HTTP_MAX_RETRIES: z.coerce.number().int().min(0).max(10).default(4),
   HTTP_REQUESTS_PER_MINUTE: z.coerce.number().int().min(1).max(1_000).default(300),
+  QORE_GAS_PRICE: z
+    .string()
+    .trim()
+    .regex(/^\d+(\.\d+)?uqor$/, "must look like 0.15uqor")
+    .default("0.15uqor"),
+  VIGIL_KEYSTORE_PASSPHRASE: optionalText,
   QORE_MNEMONIC: optionalText,
   QORE_PQC_SEED_HEX: optionalText.refine((v) => v === undefined || /^[0-9a-fA-F]{64}$/.test(v), {
     message: "must be 32 bytes of hex",
@@ -45,7 +51,12 @@ export type VigilConfig = Readonly<{
   dataDir: string;
   logLevel: "fatal" | "error" | "warn" | "info" | "debug" | "trace";
   http: Readonly<{ timeoutMs: number; maxRetries: number; requestsPerMinute: number }>;
-  secrets: Readonly<{ mnemonic: string | undefined; pqcSeedHex: string | undefined }>;
+  gasPrice: string;
+  secrets: Readonly<{
+    mnemonic: string | undefined;
+    pqcSeedHex: string | undefined;
+    keystorePassphrase: string | undefined;
+  }>;
   alerts: Readonly<{
     webhookUrl: string | undefined;
     telegramBotToken: string | undefined;
@@ -83,7 +94,12 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       maxRetries: v.HTTP_MAX_RETRIES,
       requestsPerMinute: v.HTTP_REQUESTS_PER_MINUTE,
     }),
-    secrets: Object.freeze({ mnemonic: v.QORE_MNEMONIC, pqcSeedHex: v.QORE_PQC_SEED_HEX }),
+    gasPrice: v.QORE_GAS_PRICE,
+    secrets: Object.freeze({
+      mnemonic: v.QORE_MNEMONIC,
+      pqcSeedHex: v.QORE_PQC_SEED_HEX,
+      keystorePassphrase: v.VIGIL_KEYSTORE_PASSPHRASE,
+    }),
     alerts: Object.freeze({
       webhookUrl: v.ALERT_WEBHOOK_URL,
       telegramBotToken: v.TELEGRAM_BOT_TOKEN,

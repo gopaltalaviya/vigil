@@ -1,6 +1,12 @@
 /** Stable machine-readable codes for every error Vigil raises on purpose. */
 export type VigilErrorCode =
-  "CONFIG_INVALID" | "HTTP_STATUS" | "SOURCE_UNAVAILABLE" | "INTEGRITY" | "TX_FAILED" | "STORE";
+  | "CONFIG_INVALID"
+  | "HTTP_STATUS"
+  | "SOURCE_UNAVAILABLE"
+  | "INTEGRITY"
+  | "TX_FAILED"
+  | "TX_UNCONFIRMED"
+  | "STORE";
 
 /** Base class: carries a code and optional structured details, never secrets. */
 export class VigilError extends Error {
@@ -55,6 +61,13 @@ export class IntegrityError extends VigilError {
 export class TxFailedError extends VigilError {
   constructor(message: string, details: Record<string, unknown> = {}) {
     super("TX_FAILED", message, details);
+  }
+}
+
+/** A transaction was broadcast (or attempted) but its outcome could not be confirmed. */
+export class TxUnconfirmedError extends VigilError {
+  constructor(message: string, details: Record<string, unknown> = {}, options?: ErrorOptions) {
+    super("TX_UNCONFIRMED", message, details, options);
   }
 }
 

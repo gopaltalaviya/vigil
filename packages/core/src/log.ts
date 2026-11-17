@@ -9,6 +9,8 @@ const SECRET_FIELDS = [
   "secretKey",
   "privateKey",
   "pqcSeedHex",
+  "keystorePassphrase",
+  "passphrase",
   "telegramBotToken",
   "webhookUrl",
 ];

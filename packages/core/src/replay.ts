@@ -1,9 +1,14 @@
-import { executeQledger, inboxRangeHash, QledgerLedger, type QledgerEntry } from "@qorechain/rdk";
+import {
+  executeQledger,
+  inboxRangeHash,
+  QledgerLedger,
+  type QledgerEntry,
+  type QledgerWithdrawal,
+} from "@qorechain/rdk";
 import type { InboxArchive } from "./archive.js";
 import { normalizeHex, toHex } from "./hex.js";
 import { restoreLedger } from "./ledger.js";
-import type { Store } from "./store.js";
-import type { VerdictKind } from "./store.js";
+import type { Store, VerdictKind } from "./store.js";
 
 /** What a submitter claimed for one batch, as recorded on the base chain. */
 export interface BatchClaim {
@@ -26,6 +31,8 @@ export interface BatchVerdict {
   expectedStateRoot: string;
   expectedWithdrawalsRoot: string;
   expectedDataHash: string;
+  /** Withdrawals the entries produce, in order; needed to build payout proofs. */
+  withdrawals: QledgerWithdrawal[];
   /** Ledger after honest execution; the parent for the next batch. */
   ledger: QledgerLedger;
 }
@@ -91,6 +98,7 @@ export function verifyBatch(claim: BatchClaim, context: BatchContext): BatchVerd
     expectedStateRoot,
     expectedWithdrawalsRoot,
     expectedDataHash,
+    withdrawals: result.withdrawals,
     ledger,
   };
 }

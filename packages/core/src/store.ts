@@ -43,6 +43,25 @@ export interface StoredAlert {
   deliveredAt: number | undefined;
 }
 
+/** One attempt to send a base-chain transaction. */
+export interface StoredTx {
+  id: number;
+  label: string;
+  status: "confirmed" | "failed" | "unconfirmed";
+  hash: string | undefined;
+  height: number | undefined;
+  code: number | undefined;
+  error: string | undefined;
+  createdAt: number;
+}
+
+/** A withdrawal that has been paid out on the base chain. */
+export interface StoredClaim {
+  withdrawalIndex: number;
+  batchIndex: number;
+  txHash: string;
+}
+
 export type VerdictKind = "valid" | "invalid" | "undecidable";
 
 /** The watchtower's judgement of one batch. */
@@ -123,6 +142,25 @@ const MIGRATIONS: readonly string[] = [
     body         TEXT NOT NULL,
     created_at   INTEGER NOT NULL,
     delivered_at INTEGER
+  ) STRICT;
+
+  CREATE TABLE tx_log (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    label      TEXT NOT NULL,
+    status     TEXT NOT NULL CHECK (status IN ('confirmed', 'failed', 'unconfirmed')),
+    hash       TEXT,
+    height     INTEGER,
+    code       INTEGER,
+    error      TEXT,
+    created_at INTEGER NOT NULL
+  ) STRICT;
+
+  CREATE TABLE claims (
+    rollup_id        TEXT NOT NULL,
+    withdrawal_index INTEGER NOT NULL,
+    batch_index      INTEGER NOT NULL,
+    tx_hash          TEXT NOT NULL,
+    PRIMARY KEY (rollup_id, withdrawal_index)
   ) STRICT;
   `,
 ];
@@ -398,6 +436,83 @@ export class Store {
     return this.all("SELECT * FROM alerts ORDER BY id DESC LIMIT ?", limit).map((row) =>
       Store.toAlert(row),
     );
+  }
+
+  // --- transaction log and claims -----------------------------------------
+
+  logTx(tx: {
+    label: string;
+    status: StoredTx["status"];
+    hash?: string;
+    height?: number;
+    code?: number;
+    error?: string;
+    createdAt: number;
+  }): void {
+    this.db
+      .prepare(
+        "INSERT INTO tx_log (label, status, hash, height, code, error, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(
+        tx.label,
+        tx.status,
+        tx.hash ?? null,
+        tx.height ?? null,
+        tx.code ?? null,
+        tx.error ?? null,
+        tx.createdAt,
+      );
+  }
+
+  /** Most recent transaction attempts, newest first. */
+  recentTxs(limit: number): StoredTx[] {
+    return this.all("SELECT * FROM tx_log ORDER BY id DESC LIMIT ?", limit).map((row) => {
+      const status = text(row, "status");
+      if (status !== "confirmed" && status !== "failed" && status !== "unconfirmed") {
+        throw new StoreError("unknown transaction status in the database");
+      }
+      const optionalText = (key: string): string | undefined => {
+        const value = row[key];
+        return typeof value === "string" ? value : undefined;
+      };
+      const optionalInt = (key: string): number | undefined => {
+        const value = row[key];
+        return typeof value === "number" ? value : undefined;
+      };
+      return {
+        id: int(row, "id"),
+        label: text(row, "label"),
+        status,
+        hash: optionalText("hash"),
+        height: optionalInt("height"),
+        code: optionalInt("code"),
+        error: optionalText("error"),
+        createdAt: int(row, "created_at"),
+      };
+    });
+  }
+
+  saveClaim(rollupId: string, claim: StoredClaim): void {
+    this.db
+      .prepare(
+        `INSERT INTO claims (rollup_id, withdrawal_index, batch_index, tx_hash) VALUES (?, ?, ?, ?)
+         ON CONFLICT (rollup_id, withdrawal_index) DO NOTHING`,
+      )
+      .run(rollupId, claim.withdrawalIndex, claim.batchIndex, claim.txHash);
+  }
+
+  claim(rollupId: string, withdrawalIndex: number): StoredClaim | undefined {
+    const row = this.get(
+      "SELECT * FROM claims WHERE rollup_id = ? AND withdrawal_index = ?",
+      rollupId,
+      withdrawalIndex,
+    );
+    if (row === undefined) return undefined;
+    return {
+      withdrawalIndex: int(row, "withdrawal_index"),
+      batchIndex: int(row, "batch_index"),
+      txHash: text(row, "tx_hash"),
+    };
   }
 
   // --- internals -----------------------------------------------------------
