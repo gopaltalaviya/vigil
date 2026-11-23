@@ -143,13 +143,35 @@ export async function registerDeployerKey(context: DeployerContext): Promise<str
   return broadcastFromDeployer(context, account, "classical", "register-deployer-key", message);
 }
 
+/** Gas a `recordAnchor` or `recordAttestation` call is sent with. */
+export const RECORD_GAS = 1_500_000n;
+
+/**
+ * Opens a window that can only call the receipts contract, with a budget sized
+ * for record calls. If this key leaked during the window, it still could not
+ * deploy a contract or move funds through the EVM lane to anywhere else.
+ */
+export function openScopedWindow(context: DeployerContext, contract: string): Promise<string> {
+  return openDeployerWindow(context, {
+    gasPerTx: RECORD_GAS,
+    maxTxs: 5n,
+    allowedTargets: [contract],
+  });
+}
+
 /**
  * Opens an EVM authorisation window sized for `maxTxs` transactions of up to
  * `gasPerTx` gas. Without a live window the chain refuses every EVM transaction.
  */
 export async function openDeployerWindow(
   context: DeployerContext,
-  options: { blocks?: bigint; maxTxs?: bigint; gasPerTx?: bigint } = {},
+  options: {
+    blocks?: bigint;
+    maxTxs?: bigint;
+    gasPerTx?: bigint;
+    /** Limits the window to calls to these contracts. A scoped window cannot deploy. */
+    allowedTargets?: readonly string[];
+  } = {},
 ): Promise<string> {
   const account = await deployerAccount(context.config);
   const maxTxs = options.maxTxs ?? 5n;
@@ -162,6 +184,7 @@ export async function openDeployerWindow(
     blocks: options.blocks ?? 600n,
     maxTxs,
     maxValue: perTx * maxTxs,
+    ...(options.allowedTargets === undefined ? {} : { allowedTargets: options.allowedTargets }),
   });
   return broadcastFromDeployer(context, account, "hybrid", "open-evm-window", message);
 }

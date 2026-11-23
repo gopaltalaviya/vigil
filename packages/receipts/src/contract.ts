@@ -13,6 +13,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { IntegrityError, type VigilConfig } from "@vigil/core";
 import { vigilReceiptsAbi } from "./abi.js";
 import type { AnchorLog, AnchorLogSource } from "./recover.js";
+import type { AttestationContract, BatchAttestation } from "./attest.js";
 import type { AnchorCall } from "./receipts.js";
 
 /** Thin client for the `VigilReceipts` contract. */
@@ -110,6 +111,55 @@ export class ReceiptsContract {
         });
       },
     };
+  }
+
+  /** The read-only attestation calls of the contract at `address`. */
+  attestations(address: Hex): AttestationContract {
+    return {
+      attestationMessage: (attestation) =>
+        this.publicClient.readContract({
+          address,
+          abi: vigilReceiptsAbi,
+          functionName: "attestationMessage",
+          args: [attestation],
+        }),
+      checkAttestation: (signer, attestation, signature) =>
+        this.publicClient.readContract({
+          address,
+          abi: vigilReceiptsAbi,
+          functionName: "checkAttestation",
+          args: [signer, attestation, signature],
+        }),
+      isAttestationRecorded: (signer, attestation) =>
+        this.publicClient.readContract({
+          address,
+          abi: vigilReceiptsAbi,
+          functionName: "isAttestationRecorded",
+          args: [signer, attestation],
+        }),
+    };
+  }
+
+  /** Records a signed attestation. Resolves with the transaction hash. */
+  async recordAttestation(
+    privateKey: Hex,
+    address: Hex,
+    signer: Hex,
+    attestation: BatchAttestation,
+    signature: Hex,
+  ): Promise<Hex> {
+    const hash = await this.wallet(privateKey).writeContract({
+      address,
+      abi: vigilReceiptsAbi,
+      functionName: "recordAttestation",
+      args: [signer, attestation, signature],
+      gas: 1_500_000n,
+    });
+    const receipt = await this.publicClient.waitForTransactionReceipt({ hash, timeout: 120_000 });
+    if (receipt.status !== "success") {
+      throw new IntegrityError("the contract rejected the attestation", { hash });
+    }
+    return hash;
   }
 
   /** Verifies and records the anchor on chain. Resolves with the transaction hash. */

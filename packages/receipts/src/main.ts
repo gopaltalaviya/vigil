@@ -7,6 +7,7 @@
  *   vigil-receipts deploy           deploy VigilReceipts (needs `forge build` output)
  *   vigil-receipts check <batch>    verify a batch's anchor through the contract, read-only
  *   vigil-receipts record <batch>   verify and record a batch's anchor on chain
+ *   vigil-receipts attest <batch>   sign and record this watchtower's attestation of a batch
  *   vigil-receipts sync             record every finalized batch the watchtower judged valid
  *   vigil-receipts recover          restore missing receipt hashes from the contract's events
  *   vigil-receipts watch            run sync every two minutes until stopped
@@ -15,7 +16,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchPqKeyStatus } from "@qorechain/qoresign/network";
-import { uqorToQor } from "@qorechain/rdk";
+import { bech32ToHex, pqcKeypairFromEnv, signerFromEnv, uqorToQor } from "@qorechain/rdk";
 import type { Abi, Hex } from "viem";
 import {
   Store,
@@ -31,8 +32,10 @@ import {
   deployerStatus,
   fundDeployer,
   openDeployerWindow,
+  openScopedWindow,
   registerDeployerKey,
 } from "./deployer.js";
+import { attestationFor, signAttestation } from "./attest.js";
 import { ReceiptsContract } from "./contract.js";
 import { buildAnchorCall, verifyAnchorSignature, type AnchorCall } from "./receipts.js";
 import { recoverReceiptHashes } from "./recover.js";
@@ -83,6 +86,14 @@ async function main(argv: string[]): Promise<void> {
       print(`Opened an EVM window: ${await openDeployerWindow(context)}`);
     }
   };
+  /** Record calls only ever need a window limited to the receipts contract. */
+  const ensureScopedWindow = async (): Promise<void> => {
+    const status = await deployerStatus(context);
+    if (!status.window.live || status.window.remainingTxs < 1n) {
+      print(`Opened a scoped EVM window: ${await openScopedWindow(context, address())}`);
+    }
+  };
+
   /** Verifies an anchor off chain once, and keeps the result: the signer's key may rotate. */
   const checkAnchorOffChain = async (index: number, call: AnchorCall): Promise<void> => {
     const stateRoot = call.receipt.stateRoot.replace(/^0x/, "").toLowerCase();
@@ -123,7 +134,7 @@ async function main(argv: string[]): Promise<void> {
     if (!(await contract.checkAnchor(address(), call))) {
       return `Batch ${String(index)}: signature does not verify; nothing was sent.`;
     }
-    await ensureWindow();
+    await ensureScopedWindow();
     try {
       const hash = await contract.recordAnchor(await key(), address(), call);
       remember(index, call.receipt.stateRoot, hash);
@@ -267,6 +278,51 @@ async function main(argv: string[]): Promise<void> {
       print(await recordOne(index, call));
       break;
     }
+    case "attest": {
+      const index = batch();
+      const store = Store.open(join(config.dataDir, "vigil.sqlite"));
+      let attestation;
+      try {
+        const claim = store
+          .batches(config.rollupId)
+          .findLast((b) => b.batchIndex === index && b.status !== "rejected");
+        if (claim === undefined) throw new VigilError("CONFIG_INVALID", "no such batch");
+        attestation = attestationFor(
+          config.chainId,
+          config.rollupId,
+          claim,
+          store.verdict(config.rollupId, claimId(claim)),
+        );
+      } finally {
+        store.close();
+      }
+      const env = {
+        QORE_MNEMONIC: config.secrets.mnemonic,
+        QORE_PQC_SEED_HEX: config.secrets.pqcSeedHex,
+      };
+      const nativeSigner = await signerFromEnv(env);
+      const [account] = (await nativeSigner?.getAccounts()) ?? [];
+      if (account === undefined) throw new VigilError("CONFIG_INVALID", "no signing account");
+      const pqc = await pqcKeypairFromEnv(chain.rdk, account.address, env);
+      if (pqc === undefined) throw new VigilError("CONFIG_INVALID", "no ML-DSA-87 key");
+      const signer: Hex = `0x${bech32ToHex(account.address).replace(/^0x/, "")}`;
+      const reader = contract.attestations(address());
+      if (await reader.isAttestationRecorded(signer, attestation)) {
+        print(`Batch ${String(index)}: attestation already recorded.`);
+        break;
+      }
+      const signed = await signAttestation(reader, signer, pqc.keypair, attestation);
+      await ensureScopedWindow();
+      const hash = await contract.recordAttestation(
+        await key(),
+        address(),
+        signer,
+        signed.attestation,
+        signed.signature,
+      );
+      print(`Batch ${String(index)}: attestation recorded. Transaction ${hash}`);
+      break;
+    }
     case "sync": {
       await syncOnce();
       break;
@@ -309,7 +365,7 @@ async function main(argv: string[]): Promise<void> {
     default:
       throw new VigilError(
         "CONFIG_INVALID",
-        "usage: vigil-receipts <status|setup|deploy|check|record|sync|recover|watch>",
+        "usage: vigil-receipts <status|setup|deploy|check|record|attest|sync|recover|watch>",
       );
   }
 }
