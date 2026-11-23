@@ -94,6 +94,55 @@ export function proofView({ el, pill, overview }) {
         },
         {
           tone: "warn",
+          status: ["wait", "Missed, then fixed"],
+          title: "A real attacker forged our batch 29 while our watchtower was offline",
+          story:
+            "On 18 November an outside account posted two forged versions of vigil-1 batch 29. Each carried the correct state root and a forged withdrawals root. Our watchtower's host was asleep, so it saw neither. Two other teams' watchers challenged them.",
+          steps: [
+            ["21:41:56", "First forgery lands (height 10,338,740)."],
+            ["21:42:06", "Another watcher's fraud proof is upheld (height 10,338,747)."],
+            ["22:01:42", "Second forgery lands (height 10,339,572)."],
+            ["22:01:56", "A different watcher's fraud proof is upheld (height 10,339,582)."],
+          ],
+          outcome:
+            "The attacker lost 2,000 QOR in bonds. We did not catch this one live. The watchtower now rebuilds this history from chain events on every start, re-executes each rejected claim, names the challenger and raises a missed-while-offline alert.",
+          txs: [
+            tx("First forgery", "9C99378232BDEAF92ED44D109236D39DA2B693CAD5122572F577E6A734C44DDE"),
+            tx(
+              "First fraud proof (another team)",
+              "07E8CBDCBC4642C5B3752CAECF229620D11C5184246B81BEC76860F29DE8B080",
+            ),
+            tx(
+              "Second forgery",
+              "3DB238B4F64AE89A0A8200781FE72D1D671E9D96902EC6698275A166D0B6A2E0",
+            ),
+            tx(
+              "Second fraud proof (another team)",
+              "A4D6ADC6086DE183B70DE4C4F404D8ABF61D284D581D241AA9FAC9F17581BF72",
+            ),
+            tx(
+              "Honest batch 29",
+              "C84025D3BFD559F6DB4C7F567C5BE00082ADBDA741A0C5A1B2710BD423ED9FE2",
+            ),
+          ],
+        },
+        {
+          tone: "warn",
+          status: ["bad", "Found by audit"],
+          title: "Our audit found a fraud on another rollup that nobody challenged",
+          story:
+            "Vigil re-executes every qledger-v1 rollup on the testnet from its first batch. Batch 12 of wicketgate-pay kept a correct state root but published a withdrawals root that re-execution does not produce. The chain's own fraud check, run locally on that batch, confirms it. The challenge window passed without a challenge and the batch became final.",
+          outcome:
+            "A 13 QOR withdrawal was paid out under that root. Vigil reports this and does nothing else: it has no code path that challenges a rollup it does not operate. See the Rollups page for the live audit of every rollup.",
+          txs: [
+            tx(
+              "13 QOR payout from batch 12",
+              "876EACEBC074CFF1363F82A59DF02DFB779C93CA335CCF5E03C29492CF65A65E",
+            ),
+          ],
+        },
+        {
+          tone: "warn",
           status: ["wait", "Why it matters"],
           title: "The chain alone does not stop fraud: someone has to prove it",
           story:
@@ -204,7 +253,7 @@ export function proofView({ el, pill, overview }) {
         el("div", { className: "proof-grid" }, cases.map(card)),
         el("p", {
           className: "muted",
-          text: "Hashes starting with 0x are EVM transactions on chain 9800; the others open QoreChain's public REST API. Times are UTC on 17 November 2026.",
+          text: "Hashes starting with 0x are EVM transactions on chain 9800; the others open QoreChain's public REST API. Times are UTC, November 2026.",
         }),
       ]);
     },

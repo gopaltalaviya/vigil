@@ -88,6 +88,11 @@ export class Api {
       case "/api/session":
         // The read-only server has no console. The operator console answers this itself.
         return json(200, { console: false, signedIn: false });
+      case "/api/rollups":
+        return json(200, {
+          ownRollup: this.options.rollupId,
+          audits: this.options.store.rollupAudits(),
+        });
       case "/api/entries":
         return json(200, { entries: this.explorer.recentEntries(50) });
       default:

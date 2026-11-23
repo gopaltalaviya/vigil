@@ -130,6 +130,33 @@ export interface StoredFraudEvent {
   seenLive: boolean;
 }
 
+/** One batch of another rollup whose claim does not match re-execution. */
+export interface StoredAuditFinding {
+  batchIndex: number;
+  status: string;
+  reasons: string[];
+  /** Whether the chain's own fraud check, run locally, confirms it. */
+  proven: boolean;
+  claimedStateRoot: string;
+  expectedStateRoot: string;
+  claimedWithdrawalsRoot: string;
+  expectedWithdrawalsRoot: string;
+}
+
+/** The latest independent audit of another team's rollup. Alert-only. */
+export interface StoredRollupAudit {
+  rollupId: string;
+  status: "clean" | "fraud_found" | "not_judgeable" | "error";
+  reason: string;
+  vm: string;
+  settlement: string;
+  chainStatus: string;
+  batches: number;
+  matched: number;
+  findings: StoredAuditFinding[];
+  checkedAt: number;
+}
+
 /** Last sign of life of one service. */
 export interface StoredHeartbeat {
   service: string;
@@ -339,6 +366,20 @@ const MIGRATIONS: readonly string[] = [
     burned_uqor  TEXT NOT NULL,
     seen_live    INTEGER NOT NULL,
     PRIMARY KEY (rollup_id, tx_hash, batch_index)
+  ) STRICT;
+  `,
+  `
+  CREATE TABLE rollup_audits (
+    rollup_id    TEXT PRIMARY KEY,
+    status       TEXT NOT NULL CHECK (status IN ('clean', 'fraud_found', 'not_judgeable', 'error')),
+    reason       TEXT NOT NULL,
+    vm           TEXT NOT NULL,
+    settlement   TEXT NOT NULL,
+    chain_status TEXT NOT NULL,
+    batches      INTEGER NOT NULL,
+    matched      INTEGER NOT NULL,
+    findings     TEXT NOT NULL,
+    checked_at   INTEGER NOT NULL
   ) STRICT;
   `,
 ];
@@ -812,6 +853,60 @@ export class Store {
       batchIndex: int(row, "batch_index"),
       txHash: text(row, "tx_hash"),
     };
+  }
+
+  // --- audits of other rollups ---------------------------------------------
+
+  saveRollupAudit(audit: StoredRollupAudit): void {
+    this.db
+      .prepare(
+        `INSERT INTO rollup_audits (rollup_id, status, reason, vm, settlement, chain_status,
+           batches, matched, findings, checked_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (rollup_id) DO UPDATE SET status = excluded.status, reason = excluded.reason,
+           vm = excluded.vm, settlement = excluded.settlement,
+           chain_status = excluded.chain_status, batches = excluded.batches,
+           matched = excluded.matched, findings = excluded.findings,
+           checked_at = excluded.checked_at`,
+      )
+      .run(
+        audit.rollupId,
+        audit.status,
+        audit.reason,
+        audit.vm,
+        audit.settlement,
+        audit.chainStatus,
+        audit.batches,
+        audit.matched,
+        JSON.stringify(audit.findings),
+        audit.checkedAt,
+      );
+  }
+
+  rollupAudits(): StoredRollupAudit[] {
+    return this.all("SELECT * FROM rollup_audits ORDER BY rollup_id").map((row) => {
+      const status = text(row, "status");
+      if (
+        status !== "clean" &&
+        status !== "fraud_found" &&
+        status !== "not_judgeable" &&
+        status !== "error"
+      ) {
+        throw new StoreError("unknown audit status in the database");
+      }
+      return {
+        rollupId: text(row, "rollup_id"),
+        status,
+        reason: text(row, "reason"),
+        vm: text(row, "vm"),
+        settlement: text(row, "settlement"),
+        chainStatus: text(row, "chain_status"),
+        batches: int(row, "batches"),
+        matched: int(row, "matched"),
+        findings: JSON.parse(text(row, "findings")) as StoredAuditFinding[],
+        checkedAt: int(row, "checked_at"),
+      };
+    });
   }
 
   // --- base-chain monitor ---------------------------------------------------

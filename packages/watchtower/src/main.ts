@@ -26,6 +26,7 @@ import {
   toStoredBatch,
 } from "@vigil/core";
 import { AlertDispatcher, telegramSink, webhookSink, type AlertSink } from "./alerts.js";
+import { RollupAuditor } from "./audit.js";
 import { Challenger } from "./challenger.js";
 import { runLoop } from "./loop.js";
 import { Watchtower, chainRollupView } from "./watchtower.js";
@@ -137,6 +138,29 @@ log.info(
   "watchtower starting",
 );
 
+// Other teams' rollups: read-only and alert-only. It runs beside the main loop on its own
+// clients, so a slow or failing foreign read can never delay a check of our own rollup.
+const auditEveryMs = envInt("WATCHTOWER_AUDIT_INTERVAL_MS", 30 * 60_000, {
+  min: 60_000,
+  max: 86_400_000,
+});
+const auditor = new RollupAuditor({
+  chain: createChain(config),
+  chainId: config.chainId,
+  ownRollupId: config.rollupId,
+  store,
+  alerts,
+  log,
+});
+const auditRollups = async (): Promise<void> => {
+  try {
+    const audits = await auditor.runOnce();
+    log.info({ rollups: audits.length }, "rollup audit complete");
+  } catch (error) {
+    log.warn({ err: error }, "rollup audit failed; will retry");
+  }
+};
+
 if (once) {
   await tick();
   store.close();
@@ -159,6 +183,17 @@ if (once) {
     });
   }
 
+  let auditing = false;
+  const runAudit = (): void => {
+    if (auditing) return;
+    auditing = true;
+    void auditRollups().finally(() => {
+      auditing = false;
+    });
+  };
+  const auditTimer = setInterval(runAudit, auditEveryMs);
+  runAudit();
+
   await runLoop({
     tick,
     intervalMs,
@@ -179,6 +214,7 @@ if (once) {
       void alerts.flush();
     },
   });
+  clearInterval(auditTimer);
   server.close();
   store.close();
   log.info("watchtower stopped");

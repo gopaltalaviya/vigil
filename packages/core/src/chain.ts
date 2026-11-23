@@ -9,6 +9,7 @@ import type { InboxSource } from "./archive.js";
 import type { VigilConfig } from "./config.js";
 import { HttpClient, type Transport } from "./http.js";
 import { normalizeHex } from "./hex.js";
+import { flattenMessages } from "./history.js";
 import type { BatchClaim } from "./replay.js";
 import type { StoredBatch } from "./store.js";
 
@@ -36,7 +37,19 @@ export function createChain(config: VigilConfig, transport?: Transport): Chain {
     endpoints: { rest: config.restUrl, rpc: config.rpcUrl, evmRpc: config.evmRpcUrl },
     fetch: rest.asFetch(),
   });
+  // The kit matches inbox posts among top-level messages only, so a post relayed through an
+  // authz MsgExec would look missing. Open those up before it sees them.
+  const searchTxs = rdk.rest.searchTxs.bind(rdk.rest);
+  rdk.rest.searchTxs = async (query, options) => (await searchTxs(query, options)).map(unwrapAuthz);
   return { rdk, rest, rpc: make("rpc"), evm: make("evm") };
+}
+
+/** A copy of a raw transaction with any authz `MsgExec` replaced by its inner messages. */
+export function unwrapAuthz<T extends Record<string, unknown>>(record: T): T {
+  const tx = record.tx as { body?: { messages?: Record<string, unknown>[] } } | undefined;
+  const messages = tx?.body?.messages;
+  if (tx === undefined || messages === undefined) return record;
+  return { ...record, tx: { ...tx, body: { ...tx.body, messages: flattenMessages(messages) } } };
 }
 
 /** Inbox reader backed by the base chain's REST API and transaction index. */

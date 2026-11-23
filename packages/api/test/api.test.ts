@@ -125,6 +125,42 @@ function seeded() {
   return { store, api };
 }
 
+describe("rollup audits route", () => {
+  it("serves stored audits of other rollups", () => {
+    const store = Store.open(":memory:");
+    store.saveRollupAudit({
+      rollupId: "other-1",
+      status: "fraud_found",
+      reason: "",
+      vm: "qledger-v1",
+      settlement: "optimistic",
+      chainStatus: "active",
+      batches: 2,
+      matched: 1,
+      findings: [
+        {
+          batchIndex: 1,
+          status: "finalized",
+          reasons: ["withdrawals_root"],
+          proven: true,
+          claimedStateRoot: "aa",
+          expectedStateRoot: "aa",
+          claimedWithdrawalsRoot: "bb",
+          expectedWithdrawalsRoot: "cc",
+        },
+      ],
+      checkedAt: 5,
+    });
+    const api = new Api({ store, rollupId: "vigil-1", chainId: "c", networks: [] });
+    const body = JSON.parse(api.handle("/api/rollups").body) as {
+      ownRollup: string;
+      audits: { rollupId: string; findings: { proven: boolean }[] }[];
+    };
+    expect(body.ownRollup).toBe("vigil-1");
+    expect(body.audits[0]?.findings[0]?.proven).toBe(true);
+  });
+});
+
 describe("Api", () => {
   it("summarises the rollup with verdicts and receipts, newest batch first", () => {
     const { api, store } = seeded();
