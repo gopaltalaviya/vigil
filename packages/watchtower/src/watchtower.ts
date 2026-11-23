@@ -7,6 +7,7 @@ import {
   toStoredBatch,
   verifyBatch,
   type Chain,
+  type ChainHistory,
   type InboxArchive,
   type Logger,
   type Store,
@@ -80,6 +81,26 @@ export interface TickReport {
   judged: JudgedBatch[];
   challengeable: ChallengeCandidate[];
   alertsRaised: number;
+}
+
+export interface BackfillOptions {
+  /** This watchtower's own address: a challenge it won is not a miss. */
+  self?: string;
+  /** The last heartbeat from before this process started, Unix seconds. */
+  previousHeartbeat?: number;
+  /** A silence longer than this counts as being offline. */
+  offlineAfterSecs?: number;
+}
+
+export interface BackfillReport {
+  /** Rejected claims newly restored from chain events. */
+  recovered: number;
+  /** Of those, how many this watchtower never saw and did not challenge. */
+  missed: number;
+  /** Payouts confirmed from chain events. */
+  withdrawals: number;
+  /** Fraud proofs whose claim could not be found; retried on the next run. */
+  unmatched: string[];
 }
 
 const FINAL = new Set(["finalized", "rejected"]);
@@ -225,6 +246,87 @@ export class Watchtower {
     );
     if (options.flush !== false) await alerts.flush();
     return { inboxHead: sync.head, entriesAdded: sync.added, judged, challengeable, alertsRaised };
+  }
+
+  /**
+   * Recovers what happened while this watchtower was not looking: an offline
+   * gap, claims the chain rejected, and withdrawals it paid. Everything comes
+   * from chain events, so it is safe to repeat and works on an empty database.
+   * Call it after a tick, so the ledger snapshots it replays from exist.
+   */
+  async backfill(history: ChainHistory, options: BackfillOptions = {}): Promise<BackfillReport> {
+    const { store, archive, rollupId } = this.options;
+    const offlineAfterSecs = options.offlineAfterSecs ?? 300;
+    const report: BackfillReport = { recovered: 0, missed: 0, withdrawals: 0, unmatched: [] };
+
+    const previous = options.previousHeartbeat;
+    if (previous !== undefined && this.now() - previous > offlineAfterSecs) {
+      this.raise({
+        key: `offline:${rollupId}:${String(previous)}`,
+        severity: "warning",
+        title: `Watchtower for ${rollupId} was offline`,
+        body:
+          `No check ran for ${formatDuration(this.now() - previous)}. ` +
+          `History for that period was re-read from the chain.`,
+      });
+    }
+
+    const [frauds, withdrawals, sync] = await Promise.all([
+      history.fraud(),
+      history.withdrawals(),
+      archive.sync(),
+    ]);
+
+    const known = new Set(
+      store.fraudEvents(rollupId).map((e) => `${e.txHash}:${String(e.batchIndex)}`),
+    );
+    const stored = new Set(store.batches(rollupId).map((batch) => claimId(batch)));
+    const submissions = new Map<number, StoredBatch[]>();
+    for (const fraud of frauds) {
+      if (known.has(`${fraud.txHash}:${String(fraud.batchIndex)}`)) continue;
+      let candidates = submissions.get(fraud.batchIndex);
+      if (candidates === undefined) {
+        candidates = await history.submissions(fraud.batchIndex);
+        submissions.set(fraud.batchIndex, candidates);
+      }
+      // The rejected claim is the newest submission at that index before the fraud proof.
+      const claim = candidates.findLast((batch) => batch.submittedAt < fraud.height);
+      if (claim === undefined) {
+        report.unmatched.push(fraud.txHash);
+        continue;
+      }
+      const id = claimId(claim);
+      const seenLive = stored.has(id);
+      store.upsertBatch(rollupId, { ...claim, status: "rejected" });
+      stored.add(id);
+      if (store.verdict(rollupId, id) === undefined) {
+        store.saveVerdict(rollupId, this.judge(claim, sync.head));
+      }
+      store.saveFraudEvent(rollupId, { ...fraud, claimId: id, seenLive });
+      report.recovered += 1;
+      if (!seenLive && fraud.challenger !== options.self) {
+        report.missed += 1;
+        this.raise({
+          key: `missed:${rollupId}:${fraud.txHash}:${String(fraud.batchIndex)}`,
+          severity: "warning",
+          title: `Forged batch ${String(fraud.batchIndex)} of ${rollupId} was rejected while this watchtower was not watching`,
+          body:
+            `Challenger: ${fraud.challenger}\nSubmitter: ${fraud.submitter}\n` +
+            `Fraud proof: ${fraud.txHash} at height ${String(fraud.height)}.`,
+        });
+      }
+    }
+
+    for (const paid of withdrawals) {
+      store.saveClaim(rollupId, {
+        withdrawalIndex: paid.withdrawalIndex,
+        batchIndex: paid.batchIndex,
+        txHash: paid.txHash,
+      });
+      report.withdrawals += 1;
+    }
+    await this.options.alerts.flush();
+    return report;
   }
 
   private judge(batch: StoredBatch, archiveHead: number) {

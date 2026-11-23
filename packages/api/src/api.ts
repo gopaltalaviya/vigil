@@ -27,6 +27,20 @@ interface BatchView {
   verdict: string;
   reasons: string[];
   receipt: { txHash: string; contract: string } | undefined;
+  /** The upheld fraud proof that rejected this claim, when known. */
+  rejection: RejectionView | undefined;
+}
+
+interface RejectionView {
+  txHash: string;
+  height: number;
+  time: number;
+  submitter: string;
+  challenger: string;
+  slashedUqor: string;
+  rewardUqor: string;
+  burnedUqor: string;
+  seenLive: boolean;
 }
 
 interface TipView {
@@ -186,6 +200,9 @@ export class Api {
     receipts: Map<string, { txHash: string; contract: string }>,
   ): BatchView {
     const verdict = this.options.store.verdict(this.options.rollupId, claimId(batch));
+    const fraud = this.options.store
+      .fraudEvents(this.options.rollupId)
+      .find((event) => event.claimId === claimId(batch));
     const receipt =
       batch.status === "rejected"
         ? undefined
@@ -200,6 +217,20 @@ export class Api {
       reasons: verdict?.reasons ?? [],
       receipt:
         receipt === undefined ? undefined : { txHash: receipt.txHash, contract: receipt.contract },
+      rejection:
+        fraud === undefined
+          ? undefined
+          : {
+              txHash: fraud.txHash,
+              height: fraud.height,
+              time: fraud.time,
+              submitter: fraud.submitter,
+              challenger: fraud.challenger,
+              slashedUqor: fraud.slashedUqor,
+              rewardUqor: fraud.rewardUqor,
+              burnedUqor: fraud.burnedUqor,
+              seenLive: fraud.seenLive,
+            },
     };
   }
 

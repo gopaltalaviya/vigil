@@ -20,6 +20,7 @@ import {
   InboxArchive,
   Store,
   VigilError,
+  chainHistory,
   chainInboxSource,
   connectTxSender,
   createChain,
@@ -55,6 +56,7 @@ async function main(argv: string[]): Promise<void> {
       store,
       source: chainInboxSource(chain, config.chainId, config.rollupId),
     }),
+    paidOut: () => chainHistory(chain.rest, config.restUrl, config.rollupId).withdrawals(),
     view: {
       batches: async () => (await chain.rdk.rest.listBatches(config.rollupId)).map(toStoredBatch),
       async inbox() {

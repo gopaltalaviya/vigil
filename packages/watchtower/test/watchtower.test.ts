@@ -3,7 +3,9 @@ import {
   HttpClient,
   InboxArchive,
   Store,
+  claimId,
   createLogger,
+  type ChainHistory,
   type StoredAlert,
   type StoredBatch,
   type Transport,
@@ -89,6 +91,114 @@ function setup(scenario: Scenario = {}) {
 const [first, second] = golden.batches;
 if (first === undefined || second === undefined) throw new Error("fixture needs two batches");
 const forged: StoredBatch = { ...second, stateRoot: "ab".repeat(32), status: "submitted" };
+
+describe("Watchtower history backfill", () => {
+  const fraud = {
+    batchIndex: forged.batchIndex,
+    txHash: "F1",
+    height: forged.submittedAt + 10,
+    time: forged.submittedTime + 14,
+    submitter: "qor1forger",
+    challenger: "qor1otherbot",
+    slashedUqor: "1000000000",
+    rewardUqor: "500000000",
+    burnedUqor: "500000000",
+  };
+  const history = (over: Partial<ChainHistory> = {}): ChainHistory => ({
+    fraud: () => Promise.resolve([fraud]),
+    submissions: () => Promise.resolve([{ ...forged, status: "rejected" }]),
+    withdrawals: () =>
+      Promise.resolve([
+        {
+          batchIndex: 0,
+          withdrawalIndex: 0,
+          recipient: "qor1me",
+          amountUqor: "500000",
+          txHash: "W1",
+          height: 5,
+        },
+      ]),
+    ...over,
+  });
+
+  it("restores a claim rejected while offline, judges it, and reports the miss", async () => {
+    const { watchtower, store } = setup();
+    await watchtower.tick();
+    const report = await watchtower.backfill(history(), { self: "qor1me" });
+
+    expect(report).toMatchObject({ recovered: 1, missed: 1, withdrawals: 1, unmatched: [] });
+    const claim = store.batches(golden.rollupId).find((b) => b.stateRoot === forged.stateRoot);
+    expect(claim?.status).toBe("rejected");
+    expect(claim && store.verdict(golden.rollupId, claimId(claim))?.verdict).toBe("invalid");
+    expect(store.fraudEvents(golden.rollupId)[0]).toMatchObject({
+      challenger: "qor1otherbot",
+      seenLive: false,
+    });
+    expect(store.claim(golden.rollupId, 0)?.txHash).toBe("W1");
+    expect(store.recentAlerts(5).map((a) => a.key)).toContainEqual(
+      expect.stringContaining("missed:"),
+    );
+  });
+
+  it("is idempotent", async () => {
+    const { watchtower, store } = setup();
+    await watchtower.tick();
+    await watchtower.backfill(history());
+    const alerts = store.recentAlerts(10).length;
+    expect(await watchtower.backfill(history())).toMatchObject({ recovered: 0, missed: 0 });
+    expect(store.fraudEvents(golden.rollupId)).toHaveLength(1);
+    expect(store.recentAlerts(10)).toHaveLength(alerts);
+  });
+
+  it("does not call its own winning challenge a miss", async () => {
+    const { watchtower } = setup();
+    await watchtower.tick();
+    const report = await watchtower.backfill(history(), { self: fraud.challenger });
+    expect(report).toMatchObject({ recovered: 1, missed: 0 });
+  });
+
+  it("does not call a claim it saw live a miss", async () => {
+    const { watchtower, state, store } = setup({
+      batches: [first, forged],
+      tipTime: forged.submittedTime + 60,
+    });
+    await watchtower.tick();
+    state.batches = [first, second];
+    const report = await watchtower.backfill(history());
+    expect(report).toMatchObject({ recovered: 1, missed: 0 });
+    expect(store.fraudEvents(golden.rollupId)[0]?.seenLive).toBe(true);
+  });
+
+  it("ties a fraud proof to the newest submission before it", async () => {
+    const { watchtower, store } = setup();
+    await watchtower.tick();
+    const older = { ...forged, stateRoot: "cd".repeat(32), submittedAt: forged.submittedAt - 5 };
+    const later = { ...forged, stateRoot: "ef".repeat(32), submittedAt: fraud.height + 5 };
+    await watchtower.backfill(
+      history({ submissions: () => Promise.resolve([older, forged, later]) }),
+    );
+    expect(store.fraudEvents(golden.rollupId)[0]?.claimId).toBe(claimId(forged));
+  });
+
+  it("keeps a fraud proof with no matching submission for the next run", async () => {
+    const { watchtower, store } = setup();
+    await watchtower.tick();
+    const report = await watchtower.backfill(history({ submissions: () => Promise.resolve([]) }));
+    expect(report.unmatched).toEqual(["F1"]);
+    expect(store.fraudEvents(golden.rollupId)).toEqual([]);
+  });
+
+  it("raises one offline alert for a silence, and none for a short gap", async () => {
+    const { watchtower, store } = setup();
+    await watchtower.tick();
+    const none = { fraud: () => Promise.resolve([]), withdrawals: () => Promise.resolve([]) };
+    await watchtower.backfill(history(none), { previousHeartbeat: 50 });
+    expect(store.recentAlerts(5).some((a) => a.key.startsWith("offline:"))).toBe(false);
+    await watchtower.backfill(history(none), { previousHeartbeat: -1_000 });
+    await watchtower.backfill(history(none), { previousHeartbeat: -1_000 });
+    expect(store.recentAlerts(5).filter((a) => a.key.startsWith("offline:"))).toHaveLength(1);
+  });
+});
 
 describe("Watchtower", () => {
   it("judges every finalized batch of the live rollup as valid and raises nothing", async () => {

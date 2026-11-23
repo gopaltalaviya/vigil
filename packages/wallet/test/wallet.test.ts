@@ -14,6 +14,7 @@ import {
   openKeystore,
   parseAccountId,
   parseQor,
+  type WalletOptions,
 } from "../src/index.js";
 
 const dir = mkdtempSync(join(tmpdir(), "vigil-wallet-"));
@@ -27,7 +28,7 @@ const L1 = hexToBech32("01".repeat(20), "qor");
 let keystores = 0;
 const newAccount = () => createKeystore(join(dir, `k${String(++keystores)}.json`), PASSPHRASE);
 
-function setup() {
+function setup(paidOut?: WalletOptions["paidOut"]) {
   const rollup = new FakeRollup();
   const store = Store.open(":memory:");
   const wallet = new Wallet({
@@ -41,6 +42,7 @@ function setup() {
       source: rollup.source(),
     }),
     view: rollup.view(),
+    ...(paidOut === undefined ? {} : { paidOut }),
   });
   return { rollup, store, wallet, sender: rollup.sender(L1, store) };
 }
@@ -118,6 +120,39 @@ describe("keystore", () => {
 });
 
 describe("wallet", () => {
+  it("never re-sends a payout the chain already made, even with an empty database", async () => {
+    const paid = {
+      batchIndex: 0,
+      withdrawalIndex: 0,
+      recipient: L1,
+      amountUqor: QOR.toString(),
+      txHash: "PAID",
+      height: 1,
+    };
+    const { rollup, wallet, sender, store } = setup(() => Promise.resolve([paid]));
+    const alice = newAccount();
+    await wallet.deposit(sender, alice.accountId, 5n * QOR);
+    await wallet.withdraw(sender, alice, L1, QOR);
+    rollup.submitHonestBatch();
+    rollup.finalizeAll();
+
+    expect(await wallet.claim(sender)).toEqual({ paid: [], failed: [] });
+    expect(rollup.payouts).toEqual([]);
+    expect(store.claim(FAKE_ROLLUP_ID, 0)?.txHash).toBe("PAID");
+  });
+
+  it("sends no payout when the chain's payout history cannot be read", async () => {
+    const { rollup, wallet, sender } = setup(() => Promise.reject(new Error("unreachable")));
+    const alice = newAccount();
+    await wallet.deposit(sender, alice.accountId, 5n * QOR);
+    await wallet.withdraw(sender, alice, L1, QOR);
+    rollup.submitHonestBatch();
+    rollup.finalizeAll();
+
+    await expect(wallet.claim(sender)).rejects.toThrow("unreachable");
+    expect(rollup.payouts).toEqual([]);
+  });
+
   it("runs a full cycle: deposit, transfer, withdraw, batch, finalize, claim", async () => {
     const { rollup, wallet, sender, store } = setup();
     const alice = newAccount();

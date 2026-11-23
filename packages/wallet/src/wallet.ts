@@ -11,6 +11,7 @@ import {
   toBatchClaim,
   toHex,
   verifyBatch,
+  type ExecutedWithdrawal,
   type InboxArchive,
   type Store,
   type StoredBatch,
@@ -35,6 +36,11 @@ export interface WalletOptions {
   store: Store;
   archive: InboxArchive;
   view: WalletView;
+  /**
+   * Payouts according to the chain. When set, `claim` refreshes its records from it first and
+   * sends nothing if it cannot, so a lost database can never cause a repeat payout attempt.
+   */
+  paidOut?: () => Promise<ExecutedWithdrawal[]>;
 }
 
 export interface AccountState {
@@ -168,6 +174,13 @@ export class Wallet {
   async claim(sender: TxSender): Promise<ClaimResult> {
     const { rollupId, store } = this.options;
     const result: ClaimResult = { paid: [], failed: [] };
+    for (const paid of (await this.options.paidOut?.()) ?? []) {
+      store.saveClaim(rollupId, {
+        withdrawalIndex: paid.withdrawalIndex,
+        batchIndex: paid.batchIndex,
+        txHash: paid.txHash,
+      });
+    }
     for (const withdrawal of await this.withdrawals(sender.address)) {
       if (withdrawal.claimed || withdrawal.batchStatus !== "finalized") continue;
       try {

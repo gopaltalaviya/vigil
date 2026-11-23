@@ -2,6 +2,7 @@ import {
   createPublicClient,
   createWalletClient,
   defineChain,
+  getAbiItem,
   http,
   type Abi,
   type Chain,
@@ -11,6 +12,7 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import { IntegrityError, type VigilConfig } from "@vigil/core";
 import { vigilReceiptsAbi } from "./abi.js";
+import type { AnchorLog, AnchorLogSource } from "./recover.js";
 import type { AnchorCall } from "./receipts.js";
 
 /** Thin client for the `VigilReceipts` contract. */
@@ -80,6 +82,34 @@ export class ReceiptsContract {
       functionName: "isAnchorRecorded",
       args: [call.signer, call.receipt],
     });
+  }
+
+  /** Reads the contract's anchor events, for restoring receipt hashes. */
+  logSource(address: Hex): AnchorLogSource {
+    const event = getAbiItem({ abi: vigilReceiptsAbi, name: "AnchorRecorded" });
+    return {
+      latestBlock: () => this.publicClient.getBlockNumber(),
+      blockTime: async (blockNumber) =>
+        Number((await this.publicClient.getBlock({ blockNumber })).timestamp),
+      anchorLogs: async (fromBlock, toBlock) => {
+        const logs = await this.publicClient.getLogs({ address, event, fromBlock, toBlock });
+        return logs.flatMap((log): AnchorLog[] => {
+          const { layerId, layerHeight, stateRoot } = log.args;
+          if (layerId === undefined || layerHeight === undefined || stateRoot === undefined) {
+            return [];
+          }
+          return [
+            {
+              txHash: log.transactionHash,
+              blockNumber: log.blockNumber,
+              layerId,
+              layerHeight,
+              stateRoot: stateRoot.replace(/^0x/, "").toLowerCase(),
+            },
+          ];
+        });
+      },
+    };
   }
 
   /** Verifies and records the anchor on chain. Resolves with the transaction hash. */

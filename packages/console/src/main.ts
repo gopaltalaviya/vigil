@@ -18,6 +18,7 @@ import {
   ConfigError,
   InboxArchive,
   Store,
+  chainHistory,
   chainInboxSource,
   connectTxSender,
   createChain,
@@ -74,6 +75,7 @@ const wallet = new Wallet({
     store,
     source: chainInboxSource(chain, config.chainId, config.rollupId),
   }),
+  paidOut: () => chainHistory(chain.rest, config.restUrl, config.rollupId).withdrawals(),
   view: {
     batches: async () => (await chain.rdk.rest.listBatches(config.rollupId)).map(toStoredBatch),
     async inbox() {

@@ -138,6 +138,27 @@ describe("explorer routes", () => {
     expect(detail?.rejectedClaims).toMatchObject([
       { index: 0, status: "rejected", verdict: "pending" },
     ]);
+
+    store.saveFraudEvent(FAKE_ROLLUP_ID, {
+      txHash: "F1",
+      claimId: claimId(rejected),
+      batchIndex: 0,
+      height: 9,
+      time: 8,
+      submitter: "qor1forger",
+      challenger: "qor1watcher",
+      slashedUqor: "1000",
+      rewardUqor: "500",
+      burnedUqor: "500",
+      seenLive: false,
+    });
+    const after = api.batchDetail(0);
+    expect(after?.rejectedClaims[0]?.rejection).toMatchObject({
+      txHash: "F1",
+      challenger: "qor1watcher",
+      seenLive: false,
+    });
+    expect(after?.batch.rejection).toBeUndefined();
   });
 
   it("removes control characters from text taken from the chain", async () => {

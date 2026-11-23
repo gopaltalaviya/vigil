@@ -8,6 +8,7 @@
  *   vigil-receipts check <batch>    verify a batch's anchor through the contract, read-only
  *   vigil-receipts record <batch>   verify and record a batch's anchor on chain
  *   vigil-receipts sync             record every finalized batch the watchtower judged valid
+ *   vigil-receipts recover          restore missing receipt hashes from the contract's events
  *   vigil-receipts watch            run sync every two minutes until stopped
  */
 import { readFileSync } from "node:fs";
@@ -33,6 +34,7 @@ import {
 } from "./deployer.js";
 import { ReceiptsContract } from "./contract.js";
 import { buildAnchorCall, type AnchorCall } from "./receipts.js";
+import { recoverReceiptHashes } from "./recover.js";
 
 const print = (line: string): void => {
   process.stdout.write(`${line}\n`);
@@ -150,6 +152,25 @@ async function main(argv: string[]): Promise<void> {
     }
   };
 
+  /** Fills in the hash of receipts known only as "already recorded". Sends nothing. */
+  const recover = async (): Promise<void> => {
+    const store = Store.open(join(config.dataDir, "vigil.sqlite"));
+    try {
+      const report = await recoverReceiptHashes({
+        store,
+        rollupId: config.rollupId,
+        contract: address(),
+        source: contract.logSource(address()),
+      });
+      print(
+        `Receipt hashes: ${String(report.recovered)} of ${String(report.missing)} missing restored.` +
+          (report.unresolved.length > 0 ? ` Unresolved: ${report.unresolved.join(", ")}.` : ""),
+      );
+    } finally {
+      store.close();
+    }
+  };
+
   const key = async (): Promise<Hex> => (await deployerAccount(config)).privateKey as Hex;
 
   switch (command) {
@@ -216,6 +237,10 @@ async function main(argv: string[]): Promise<void> {
       await syncOnce();
       break;
     }
+    case "recover": {
+      await recover();
+      break;
+    }
     case "watch": {
       // Long-running form of `sync`, for a container: no shell loop, clean shutdown.
       const intervalMs = envInt("RECEIPTS_INTERVAL_MS", 120_000, { min: 10_000, max: 86_400_000 });
@@ -226,9 +251,14 @@ async function main(argv: string[]): Promise<void> {
           state.wake?.();
         });
       }
+      let recovered = false;
       while (!state.stop) {
         try {
           await syncOnce();
+          if (!recovered) {
+            await recover();
+            recovered = true;
+          }
         } catch (error) {
           log.error({ err: error }, "receipt sync failed; will retry");
         }
@@ -245,7 +275,7 @@ async function main(argv: string[]): Promise<void> {
     default:
       throw new VigilError(
         "CONFIG_INVALID",
-        "usage: vigil-receipts <status|setup|deploy|check|record|sync|watch>",
+        "usage: vigil-receipts <status|setup|deploy|check|record|sync|recover|watch>",
       );
   }
 }

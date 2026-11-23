@@ -834,7 +834,23 @@ const views = {
           ? section(
               "Rejected claims at this index",
               null,
-              batchTable(data.rejectedClaims, "Rejected claims"),
+              el("div", {}, [
+                batchTable(data.rejectedClaims, "Rejected claims"),
+                ...data.rejectedClaims
+                  .filter((claim) => claim.rejection)
+                  .map((claim) =>
+                    el("p", {
+                      className: "muted",
+                      text:
+                        `Fraud proof ${short(claim.rejection.txHash, 10, 6)} at height ${claim.rejection.height}: ` +
+                        `challenger ${short(claim.rejection.challenger, 14, 6)}, submitter ${short(claim.rejection.submitter, 14, 6)}, ` +
+                        `${Number(claim.rejection.slashedUqor) / 1e6} QOR slashed. ` +
+                        (claim.rejection.seenLive
+                          ? "This watchtower saw the claim before it was rejected."
+                          : "Restored from chain events: this watchtower was not watching at the time."),
+                    }),
+                  ),
+              ]),
             )
           : null,
       ]);

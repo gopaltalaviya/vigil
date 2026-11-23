@@ -21,6 +21,7 @@ import {
   createChain,
   createLogger,
   envInt,
+  chainHistory,
   loadConfig,
   toStoredBatch,
 } from "@vigil/core";
@@ -67,16 +68,42 @@ const challengeMode = process.env.WATCHTOWER_CHALLENGE ?? "off";
 if (!["off", "dry-run", "on"].includes(challengeMode)) {
   throw new ConfigError("WATCHTOWER_CHALLENGE must be off, dry-run or on");
 }
+const sender =
+  challengeMode === "off" ? undefined : await connectTxSender(config, chain.rdk, { store, log });
 const challenger =
-  challengeMode === "off"
+  sender === undefined
     ? undefined
     : new Challenger({
         ...shared,
-        sender: await connectTxSender(config, chain.rdk, { store, log }),
+        sender,
         dryRun: challengeMode === "dry-run",
         current: async (batchIndex) =>
           toStoredBatch(await chain.rdk.rest.getBatch(config.rollupId, batchIndex)),
       });
+
+const history = chainHistory(chain.rest, config.restUrl, config.rollupId);
+const BACKFILL_EVERY_MS = 10 * 60_000;
+// Read before the first tick overwrites it: this is how long the watchtower was away.
+let previousHeartbeat = store.heartbeats().find((beat) => beat.service === "watchtower")?.at;
+let nextBackfill = 0;
+
+/** Re-reads rejected claims and payouts from the chain. A failure never stops the watch. */
+const backfill = async (): Promise<void> => {
+  if (Date.now() < nextBackfill) return;
+  try {
+    const report = await watchtower.backfill(history, {
+      ...(sender === undefined ? {} : { self: sender.address }),
+      ...(previousHeartbeat === undefined ? {} : { previousHeartbeat }),
+    });
+    previousHeartbeat = undefined;
+    nextBackfill = Date.now() + BACKFILL_EVERY_MS;
+    if (report.recovered > 0 || report.unmatched.length > 0)
+      log.warn({ report }, "history restored");
+  } catch (error) {
+    nextBackfill = Date.now() + 60_000;
+    log.error({ err: error }, "could not read history from the chain; will retry");
+  }
+};
 
 const tick = async (): Promise<void> => {
   // Challenge first, deliver alerts second: a slow chat API must not delay a fraud proof.
@@ -86,6 +113,7 @@ const tick = async (): Promise<void> => {
     log.warn({ outcomes }, "challenge outcomes");
   }
   await alerts.flush();
+  await backfill();
   log.info(
     {
       inboxHead: report.inboxHead,

@@ -114,6 +114,22 @@ export function claimId(batch: StoredBatch): string {
   ].join(":");
 }
 
+/** An upheld fraud proof, tied to the claim it rejected. */
+export interface StoredFraudEvent {
+  txHash: string;
+  claimId: string;
+  batchIndex: number;
+  height: number;
+  time: number;
+  submitter: string;
+  challenger: string;
+  slashedUqor: string;
+  rewardUqor: string;
+  burnedUqor: string;
+  /** Whether this watchtower had seen the claim before the chain rejected it. */
+  seenLive: boolean;
+}
+
 /** Last sign of life of one service. */
 export interface StoredHeartbeat {
   service: string;
@@ -306,6 +322,23 @@ const MIGRATIONS: readonly string[] = [
     service TEXT PRIMARY KEY,
     at      INTEGER NOT NULL,
     detail  TEXT NOT NULL
+  ) STRICT;
+  `,
+  `
+  CREATE TABLE fraud_events (
+    rollup_id    TEXT NOT NULL,
+    tx_hash      TEXT NOT NULL,
+    claim_id     TEXT NOT NULL,
+    batch_index  INTEGER NOT NULL,
+    height       INTEGER NOT NULL,
+    time         INTEGER NOT NULL,
+    submitter    TEXT NOT NULL,
+    challenger   TEXT NOT NULL,
+    slashed_uqor TEXT NOT NULL,
+    reward_uqor  TEXT NOT NULL,
+    burned_uqor  TEXT NOT NULL,
+    seen_live    INTEGER NOT NULL,
+    PRIMARY KEY (rollup_id, tx_hash, batch_index)
   ) STRICT;
   `,
 ];
@@ -701,9 +734,70 @@ export class Store {
     this.db
       .prepare(
         `INSERT INTO claims (rollup_id, withdrawal_index, batch_index, tx_hash) VALUES (?, ?, ?, ?)
-         ON CONFLICT (rollup_id, withdrawal_index) DO NOTHING`,
+         ON CONFLICT (rollup_id, withdrawal_index)
+         DO UPDATE SET tx_hash = excluded.tx_hash
+         WHERE claims.tx_hash = '' AND excluded.tx_hash <> ''`,
       )
       .run(rollupId, claim.withdrawalIndex, claim.batchIndex, claim.txHash);
+  }
+
+  /** Every recorded payout, in withdrawal order. */
+  claims(rollupId: string): StoredClaim[] {
+    return this.all(
+      "SELECT * FROM claims WHERE rollup_id = ? ORDER BY withdrawal_index",
+      rollupId,
+    ).map((row) => ({
+      withdrawalIndex: int(row, "withdrawal_index"),
+      batchIndex: int(row, "batch_index"),
+      txHash: text(row, "tx_hash"),
+    }));
+  }
+
+  // --- fraud history -------------------------------------------------------
+
+  /** Records an upheld fraud proof. Returns false if it was already recorded. */
+  saveFraudEvent(rollupId: string, event: StoredFraudEvent): boolean {
+    const result = this.db
+      .prepare(
+        `INSERT INTO fraud_events (rollup_id, tx_hash, claim_id, batch_index, height, time,
+           submitter, challenger, slashed_uqor, reward_uqor, burned_uqor, seen_live)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (rollup_id, tx_hash, batch_index) DO NOTHING`,
+      )
+      .run(
+        rollupId,
+        event.txHash,
+        event.claimId,
+        event.batchIndex,
+        event.height,
+        event.time,
+        event.submitter,
+        event.challenger,
+        event.slashedUqor,
+        event.rewardUqor,
+        event.burnedUqor,
+        event.seenLive ? 1 : 0,
+      );
+    return result.changes > 0;
+  }
+
+  /** Upheld fraud proofs for a rollup, oldest first. */
+  fraudEvents(rollupId: string): StoredFraudEvent[] {
+    return this.all("SELECT * FROM fraud_events WHERE rollup_id = ? ORDER BY height", rollupId).map(
+      (row) => ({
+        txHash: text(row, "tx_hash"),
+        claimId: text(row, "claim_id"),
+        batchIndex: int(row, "batch_index"),
+        height: int(row, "height"),
+        time: int(row, "time"),
+        submitter: text(row, "submitter"),
+        challenger: text(row, "challenger"),
+        slashedUqor: text(row, "slashed_uqor"),
+        rewardUqor: text(row, "reward_uqor"),
+        burnedUqor: text(row, "burned_uqor"),
+        seenLive: int(row, "seen_live") === 1,
+      }),
+    );
   }
 
   claim(rollupId: string, withdrawalIndex: number): StoredClaim | undefined {
