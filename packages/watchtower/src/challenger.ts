@@ -1,4 +1,4 @@
-import { buildQledgerFraudProof, checkQledgerFraud } from "@qorechain/rdk";
+import { buildQledgerFraudProof, challengeBatchMsg, checkQledgerFraud } from "@qorechain/rdk";
 import {
   TxFailedError,
   claimId,
@@ -125,6 +125,18 @@ export class Challenger {
       }
     }
     if (batch.status === "challenged") return this.resolve(batch);
+
+    // The local check shares its code with the verdict. Let a node execute the message too, so
+    // a challenge the chain would refuse never risks a fee or a bond. The next tick retries.
+    try {
+      await sender.simulate([
+        challengeBatchMsg({ challenger: sender.address, rollupId, batchIndex, proof }),
+      ]);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "the node refused the challenge";
+      log.warn({ batchIndex, reason }, "challenge simulation failed; not sending");
+      return { batchIndex, action: "skipped", reason: `simulation failed: ${reason}` };
+    }
 
     const outcome = await sender.send("challenge-batch", (tx) =>
       tx.challengeBatch({ rollupId, batchIndex, proof }),

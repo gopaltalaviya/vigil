@@ -11,7 +11,7 @@ export const DOC_PAGES = [
   ["CONTRACT", "Receipts contract"],
   ["ARCHITECTURE", "Architecture"],
   ["THREAT_MODEL", "Threat model"],
-  ["RUNBOOK", "Running Vigil"],
+  ["RUNBOOK", "Running Vigil Watchtower"],
   ["JUDGES", "For judges"],
 ];
 

@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 200" role="img" aria-label="Vigil">
-  <title>Vigil</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 200" role="img" aria-label="Vigil Watchtower">
+  <title>Vigil Watchtower</title>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0C2A20"/>
@@ -10,7 +10,7 @@
       <stop offset="1" stop-color="#34D399" stop-opacity="0"/>
     </radialGradient>
   </defs>
-  <rect width="640" height="200" rx="40" fill="#05130E"/>
+  <rect width="1120" height="200" rx="40" fill="#05130E"/>
   <g transform="translate(36,28) scale(0.72)">
     <rect width="200" height="200" rx="46" fill="url(#bg)"/>
     <rect x="1" y="1" width="198" height="198" rx="45" fill="none" stroke="#A7F3D0" stroke-opacity="0.16" stroke-width="2"/>
@@ -24,5 +24,5 @@
     <path d="M50 64 L100 86 L150 64 M100 86 V152 M50 130 L100 152 L150 130" fill="none" stroke="#ECFDF5" stroke-opacity="0.55" stroke-width="2" stroke-linejoin="round"/>
     <path d="M160 30 l4 10 10 4 -10 4 -4 10 -4 -10 -10 -4 10 -4z" fill="#ECFDF5"/>
   </g>
-  <text x="222" y="134" font-family="Inter, 'Segoe UI Variable Display', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="104" font-weight="700" letter-spacing="-3" fill="#F0FDF4">Vigil</text>
+  <text x="222" y="134" font-family="Inter, 'Segoe UI Variable Display', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="104" font-weight="700" letter-spacing="-3" fill="#F0FDF4">Vigil Watchtower</text>
 </svg>

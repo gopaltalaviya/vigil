@@ -4,17 +4,21 @@ import {
   VigilError,
   claimId,
   ledgerAtSequence,
+  toBatchClaim,
   toHex,
   verifyBatch,
   type InboxArchive,
   type Logger,
   type Store,
+  type StoredBatch,
   type TxSender,
 } from "@vigil/core";
 
 /** What the batcher needs to read and decide; the chain adapter implements it. */
 export interface BatcherView {
   inbox(): Promise<{ head: number; consumed: number }>;
+  /** Every batch the chain currently lists for this rollup. */
+  batches(): Promise<StoredBatch[]>;
   /**
    * Plans the next batch on top of `ledger`, the state after the last batched
    * entry. Rejects with a reason when no batch can be submitted yet, for
@@ -71,18 +75,17 @@ export class Batcher {
       return { action: "waiting", reason: "the local inbox archive is still catching up" };
     }
 
-    // A batch built on an invalid one is rejected with it, and costs our bond.
-    const suspect = this.options.store
-      .batches(rollupId)
-      .find(
-        (batch) =>
-          (batch.status === "submitted" || batch.status === "challenged") &&
-          this.options.store.verdict(rollupId, claimId(batch))?.verdict === "invalid",
-      );
-    if (suspect !== undefined) {
-      const reason = `batch ${String(suspect.batchIndex)} is invalid and still open; not building on it`;
-      log.warn({ batchIndex: suspect.batchIndex }, reason);
-      return { action: "waiting", reason };
+    // A batch built on an invalid one is rejected with it, and costs our bond. The list comes
+    // from the chain and each open claim is re-executed here, so this holds with no watchtower.
+    const open = (await view.batches())
+      .filter((batch) => batch.status === "submitted" || batch.status === "challenged")
+      .sort((a, b) => a.batchIndex - b.batchIndex || a.submittedAt - b.submittedAt);
+    for (const batch of open) {
+      const reason = this.openBatchProblem(batch, sync.head);
+      if (reason !== undefined) {
+        log.warn({ batchIndex: batch.batchIndex }, reason);
+        return { action: "waiting", reason };
+      }
     }
 
     const parent = ledgerAtSequence(this.options, inbox.consumed);
@@ -141,5 +144,28 @@ export class Batcher {
     );
     log.info({ batchIndex, inboxStart, inboxEnd, hash: outcome.hash }, "batch submitted");
     return { action: "submitted", batchIndex, stateRoot, inboxStart, inboxEnd, hash: outcome.hash };
+  }
+
+  /** Why an open batch must not be built on, or undefined when it re-executes correctly. */
+  private openBatchProblem(batch: StoredBatch, archiveHead: number): string | undefined {
+    const { archive, chainId, rollupId, store } = this.options;
+    const label = `batch ${String(batch.batchIndex)}`;
+    const stored = store.verdict(rollupId, claimId(batch))?.verdict;
+    if (stored === "valid") return undefined;
+    if (stored === "invalid") return `${label} is invalid and still open; not building on it`;
+    if (batch.inboxStart > batch.inboxEnd || batch.inboxEnd > archiveHead) {
+      return `${label} is open and not in the verified archive yet; not building on it`;
+    }
+    const check = verifyBatch(toBatchClaim(batch), {
+      chainId,
+      rollupId,
+      parent: ledgerAtSequence(this.options, batch.inboxStart),
+      entries: archive.range(batch.inboxStart, batch.inboxEnd),
+      accFrom: archive.accAt(batch.inboxStart),
+      accTo: archive.accAt(batch.inboxEnd),
+    });
+    return check.verdict === "valid"
+      ? undefined
+      : `${label} is invalid and still open; not building on it`;
   }
 }

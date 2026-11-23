@@ -1,8 +1,8 @@
-<p align="center"><img src="brand/logo.svg" width="320" alt="Vigil"></p>
+<p align="center"><img src="brand/logo.svg" width="520" alt="Vigil Watchtower"></p>
 
 <p align="center"><strong>The rollup that never looks away.</strong></p>
 
-Vigil is a post-quantum rollup stack for [QoreChain](https://qorechain.io): batches signed with
+Vigil Watchtower (Vigil for short) is a post-quantum rollup stack for [QoreChain](https://qorechain.io): batches signed with
 ML-DSA-87, verified settlement receipts, withdrawals, ML-KEM-protected memos, and a watchtower
 that independently re-executes every batch and monitors the base chain underneath.
 

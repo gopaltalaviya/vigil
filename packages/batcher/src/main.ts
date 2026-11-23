@@ -17,6 +17,7 @@ import {
   createLogger,
   envInt,
   loadConfig,
+  toStoredBatch,
 } from "@vigil/core";
 import { runLoop } from "@vigil/watchtower";
 import { Batcher } from "./batcher.js";
@@ -46,6 +47,9 @@ const batcher = new Batcher({
     async inbox() {
       const inbox = await chain.rdk.rest.getInbox(config.rollupId);
       return { head: inbox.headSequence, consumed: inbox.consumedSequence };
+    },
+    async batches() {
+      return (await chain.rdk.rest.listBatches(config.rollupId)).map(toStoredBatch);
     },
     plan: (ledger) =>
       planQledgerBatch(chain.rdk.rest, {

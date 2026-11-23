@@ -107,6 +107,35 @@ describe("Challenger", () => {
     expect(rollup.batches[0]?.status).toBe("submitted");
   });
 
+  it("sends nothing when a node refuses the challenge in simulation", async () => {
+    const { rollup, store, watchtower } = setup();
+    rollup.deposit("qor1user", alice.accountId, 5n * QOR);
+    submitTheft(rollup);
+    const refusing = new Challenger({
+      chainId: FAKE_CHAIN_ID,
+      rollupId: FAKE_ROLLUP_ID,
+      store,
+      archive: new InboxArchive({
+        chainId: FAKE_CHAIN_ID,
+        rollupId: FAKE_ROLLUP_ID,
+        store,
+        source: rollup.source(),
+      }),
+      alerts: new AlertDispatcher({ store, sinks: [], log }),
+      log,
+      sender: {
+        ...rollup.sender(WATCHER, store),
+        simulate: () => Promise.reject(new Error("challenge refused")),
+      },
+    });
+
+    const report = await watchtower.tick();
+    expect(await refusing.challengeAll(report.challengeable)).toEqual([
+      { batchIndex: 0, action: "skipped", reason: "simulation failed: challenge refused" },
+    ]);
+    expect(rollup.challenges).toEqual([]);
+  });
+
   it("does not challenge once the window has closed", async () => {
     const { rollup, watchtower, challenger } = setup();
     rollup.deposit("qor1user", alice.accountId, 5n * QOR);

@@ -240,10 +240,18 @@ footer {
   font-weight: 700;
   letter-spacing: -0.3px;
   text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .brand img {
   border-radius: 9px;
+}
+
+@media (max-width: 420px) {
+  .brand {
+    font-size: 16px;
+  }
 }
 
 nav {

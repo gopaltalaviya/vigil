@@ -55,6 +55,7 @@ function setup(options: { mode?: "own" | "shared"; view?: Partial<BatcherView> }
     archive,
     view: {
       inbox: () => rollup.view().inbox(),
+      batches: () => rollup.view().batches(),
       plan: (ledger) => Promise.resolve(rollup.plan(ledger)),
       ...options.view,
     },
@@ -130,6 +131,20 @@ describe("Batcher", () => {
     const report = await watchtower.tick();
     expect(report.judged.map((j) => j.verdict)).toEqual(["valid"]);
     expect(rollup.ledgerAt(4).get(bob.accountId).balance).toBe(QOR);
+  });
+
+  it("will not build on a forged open batch even with no watchtower running", async () => {
+    const { batcher, rollup } = setup();
+    rollup.deposit("qor1user", alice.accountId, 5n * QOR);
+    const honest = rollup.plan(rollup.ledgerAt(0));
+    // The state root is honest, so only re-executing the withdrawals root exposes the forgery.
+    rollup.acceptBatch({ ...honest.input, withdrawalsRoot: new Uint8Array(32).fill(0xee) });
+    rollup.post("qor1user", transfer(0, QOR));
+
+    const report = await batcher.tick();
+    expect(report).toMatchObject({ action: "waiting" });
+    expect(report).toHaveProperty("reason", expect.stringContaining("batch 0 is invalid"));
+    expect(rollup.batches).toHaveLength(1);
   });
 
   it("waits, without failing, when no batch can be planned yet", async () => {

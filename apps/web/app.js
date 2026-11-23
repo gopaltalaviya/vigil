@@ -1537,7 +1537,7 @@ async function show(force = false) {
     if (link.dataset.route === next.route) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   }
-  document.title = `${view.title} · Vigil`;
+  document.title = `${view.title} · Vigil Watchtower`;
   const main = $("view");
   // On a new page, say so if loading takes more than a moment.
   const placeholder = changed
