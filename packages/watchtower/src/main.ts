@@ -10,6 +10,7 @@
  * proof, `on` submits the challenge and needs the account's seed phrase.
  */
 import { createServer } from "node:http";
+import { inspectTransaction } from "@qorechain/qoresign/network";
 import { join } from "node:path";
 import {
   HttpClient,
@@ -21,6 +22,7 @@ import {
   createChain,
   createLogger,
   envInt,
+  findSubmissionTx,
   chainHistory,
   loadConfig,
   toStoredBatch,
@@ -29,6 +31,7 @@ import { AlertDispatcher, telegramSink, webhookSink, type AlertSink } from "./al
 import { RollupAuditor } from "./audit.js";
 import { Challenger } from "./challenger.js";
 import { runLoop } from "./loop.js";
+import { PqLayerChecker } from "./pq-layer.js";
 import { Watchtower, chainRollupView } from "./watchtower.js";
 
 const config = loadConfig();
@@ -106,6 +109,35 @@ const backfill = async (): Promise<void> => {
   }
 };
 
+const pqChecker = new PqLayerChecker({
+  rollupId: config.rollupId,
+  store,
+  log,
+  inspect: (txhash) =>
+    inspectTransaction({
+      rest: config.restUrl,
+      rpc: config.rpcUrl,
+      chainId: config.chainId,
+      txhash,
+    }),
+  findSubmission: (batchIndex, height) =>
+    findSubmissionTx(chain.rest, config.restUrl, config.rollupId, batchIndex, height),
+});
+let pqRunning = false;
+/** Runs beside the watch: reading signatures must never delay a challenge. */
+const checkPqLayers = (): void => {
+  if (pqRunning) return;
+  pqRunning = true;
+  void pqChecker
+    .checkPending()
+    .catch((error: unknown) => {
+      log.warn({ err: error }, "PQ layer check failed; will retry");
+    })
+    .finally(() => {
+      pqRunning = false;
+    });
+};
+
 const tick = async (): Promise<void> => {
   // Challenge first, deliver alerts second: a slow chat API must not delay a fraud proof.
   const report = await watchtower.tick({ flush: false });
@@ -115,6 +147,7 @@ const tick = async (): Promise<void> => {
   }
   await alerts.flush();
   await backfill();
+  checkPqLayers();
   log.info(
     {
       inboxHead: report.inboxHead,

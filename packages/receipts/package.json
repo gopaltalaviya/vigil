@@ -20,6 +20,8 @@
     "@cosmjs/proto-signing": "0.39.0",
     "@cosmjs/stargate": "0.39.0",
     "@qorechain/evm": "0.14.0",
+    "@qorechain/pqc": "0.2.3",
+    "@qorechain/qoresign": "0.2.0",
     "@qorechain/rdk": "0.9.0",
     "@qorechain/sdk": "0.14.0",
     "@vigil/core": "workspace:*",

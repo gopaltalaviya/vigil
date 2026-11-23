@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { hexToBech32, type RdkClient } from "@qorechain/rdk";
 import { describe, expect, it } from "vitest";
-import { IntegrityError } from "@vigil/core";
-import { buildAnchorCall, vigilReceiptsAbi } from "../src/index.js";
+import { IntegrityError, fromHex } from "@vigil/core";
+import { buildAnchorCall, verifyAnchorSignature, vigilReceiptsAbi } from "../src/index.js";
 
 /** The anchor of a real batch, recorded from the testnet by `pnpm live:probe`. */
 const live = JSON.parse(
@@ -70,6 +70,25 @@ describe("buildAnchorCall", () => {
     expect(call.signature).toBe(live.signature);
     expect(call.signature).toHaveLength(2 + 4627 * 2);
     expect(call.messageHash).toBe(live.messageHash);
+  });
+
+  it("verifies the real anchor off chain and refuses anything altered", async () => {
+    const signer = JSON.parse(
+      readFileSync(new URL("./fixtures/anchor-signer.json", import.meta.url), "utf8"),
+    ) as { publicKey: string };
+    const publicKey = fromHex(signer.publicKey);
+    const call = await buildAnchorCall(fakeRdk(), live.receipt.chainId, live.rollupId, 0);
+    expect(verifyAnchorSignature(publicKey, call)).toBe(true);
+
+    const altered = call.signBytes.slice();
+    altered[0] = (altered[0] ?? 0) ^ 1;
+    expect(verifyAnchorSignature(publicKey, { ...call, signBytes: altered })).toBe(false);
+
+    const wrongKey = publicKey.slice();
+    wrongKey[10] = (wrongKey[10] ?? 0) ^ 1;
+    expect(verifyAnchorSignature(wrongKey, call)).toBe(false);
+    expect(verifyAnchorSignature(publicKey.slice(1), call)).toBe(false);
+    expect(verifyAnchorSignature(publicKey, { ...call, signature: "0x00" })).toBe(false);
   });
 
   it("refuses a batch that has no anchor", async () => {

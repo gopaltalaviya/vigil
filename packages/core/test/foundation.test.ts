@@ -163,7 +163,7 @@ describe("store", () => {
       first.close();
 
       const second = Store.open(path);
-      expect(second.schemaVersion).toBe(5);
+      expect(second.schemaVersion).toBe(6);
       expect(second.inboxRange("r1", 0, 2).map((e) => e.sequence)).toEqual([1, 2]);
       expect(second.inboxEntry("r1", 2)?.payload).toEqual(new Uint8Array([2, 2, 3]));
       expect(second.inboxEntry("r1", 3)).toBeUndefined();
@@ -351,7 +351,7 @@ describe("store", () => {
       store.appendInboxEntries("r1", [entry(1)]);
       store.close();
       const reopened = Store.open(path);
-      expect(reopened.schemaVersion).toBe(5);
+      expect(reopened.schemaVersion).toBe(6);
       expect(reopened.lastInboxEntry("r1")?.sequence).toBe(1);
       reopened.close();
     } finally {

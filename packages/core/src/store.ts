@@ -157,6 +157,30 @@ export interface StoredRollupAudit {
   checkedAt: number;
 }
 
+export type PqCheckStatus = "verified" | "classical" | "invalid" | "not_found";
+
+/** Whether a batch's transaction carried a valid post-quantum signature when checked. */
+export interface StoredPqCheck {
+  claimId: string;
+  batchIndex: number;
+  txHash: string;
+  status: PqCheckStatus;
+  algorithmId: number;
+  signBytesVersion: string;
+  signer: string;
+  checkedAt: number;
+}
+
+export type AnchorCheckStatus = "valid" | "invalid" | "no_key";
+
+/** Result of verifying a batch's ML-DSA-87 anchor signature off chain. */
+export interface StoredAnchorCheck {
+  batchIndex: number;
+  stateRoot: string;
+  status: AnchorCheckStatus;
+  checkedAt: number;
+}
+
 /** Last sign of life of one service. */
 export interface StoredHeartbeat {
   service: string;
@@ -380,6 +404,29 @@ const MIGRATIONS: readonly string[] = [
     matched      INTEGER NOT NULL,
     findings     TEXT NOT NULL,
     checked_at   INTEGER NOT NULL
+  ) STRICT;
+  `,
+  `
+  CREATE TABLE pq_checks (
+    rollup_id          TEXT NOT NULL,
+    claim_id           TEXT NOT NULL,
+    batch_index        INTEGER NOT NULL,
+    tx_hash            TEXT NOT NULL,
+    status             TEXT NOT NULL CHECK (status IN ('verified', 'classical', 'invalid', 'not_found')),
+    algorithm_id       INTEGER NOT NULL,
+    sign_bytes_version TEXT NOT NULL,
+    signer             TEXT NOT NULL,
+    checked_at         INTEGER NOT NULL,
+    PRIMARY KEY (rollup_id, claim_id)
+  ) STRICT;
+
+  CREATE TABLE anchor_checks (
+    rollup_id   TEXT NOT NULL,
+    batch_index INTEGER NOT NULL,
+    state_root  TEXT NOT NULL,
+    status      TEXT NOT NULL CHECK (status IN ('valid', 'invalid', 'no_key')),
+    checked_at  INTEGER NOT NULL,
+    PRIMARY KEY (rollup_id, batch_index, state_root)
   ) STRICT;
   `,
 ];
@@ -853,6 +900,67 @@ export class Store {
       batchIndex: int(row, "batch_index"),
       txHash: text(row, "tx_hash"),
     };
+  }
+
+  // --- post-quantum checks --------------------------------------------------
+
+  savePqCheck(rollupId: string, check: StoredPqCheck): void {
+    this.db
+      .prepare(
+        `INSERT INTO pq_checks (rollup_id, claim_id, batch_index, tx_hash, status, algorithm_id,
+           sign_bytes_version, signer, checked_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (rollup_id, claim_id) DO NOTHING`,
+      )
+      .run(
+        rollupId,
+        check.claimId,
+        check.batchIndex,
+        check.txHash,
+        check.status,
+        check.algorithmId,
+        check.signBytesVersion,
+        check.signer,
+        check.checkedAt,
+      );
+  }
+
+  pqChecks(rollupId: string): StoredPqCheck[] {
+    return this.all(
+      "SELECT * FROM pq_checks WHERE rollup_id = ? ORDER BY batch_index, checked_at",
+      rollupId,
+    ).map((row) => ({
+      claimId: text(row, "claim_id"),
+      batchIndex: int(row, "batch_index"),
+      txHash: text(row, "tx_hash"),
+      status: text(row, "status") as PqCheckStatus,
+      algorithmId: int(row, "algorithm_id"),
+      signBytesVersion: text(row, "sign_bytes_version"),
+      signer: text(row, "signer"),
+      checkedAt: int(row, "checked_at"),
+    }));
+  }
+
+  saveAnchorCheck(rollupId: string, check: StoredAnchorCheck): void {
+    this.db
+      .prepare(
+        `INSERT INTO anchor_checks (rollup_id, batch_index, state_root, status, checked_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (rollup_id, batch_index, state_root) DO NOTHING`,
+      )
+      .run(rollupId, check.batchIndex, check.stateRoot, check.status, check.checkedAt);
+  }
+
+  anchorChecks(rollupId: string): StoredAnchorCheck[] {
+    return this.all(
+      "SELECT * FROM anchor_checks WHERE rollup_id = ? ORDER BY batch_index",
+      rollupId,
+    ).map((row) => ({
+      batchIndex: int(row, "batch_index"),
+      stateRoot: text(row, "state_root"),
+      status: text(row, "status") as AnchorCheckStatus,
+      checkedAt: int(row, "checked_at"),
+    }));
   }
 
   // --- audits of other rollups ---------------------------------------------

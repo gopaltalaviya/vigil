@@ -1,6 +1,7 @@
+import { mldsa87 } from "@qorechain/pqc";
 import { anchorSignBytesForBatch, bech32ToHex, type RdkClient } from "@qorechain/rdk";
 import { keccak256, type Hex } from "viem";
-import { IntegrityError, normalizeHex, toHex } from "@vigil/core";
+import { IntegrityError, fromHex, normalizeHex, toHex } from "@vigil/core";
 
 /** The arguments of `VigilReceipts.recordAnchor` for one settled batch. */
 export interface AnchorCall {
@@ -16,6 +17,22 @@ export interface AnchorCall {
   signature: Hex;
   /** keccak256 of the bytes the creator signed, as the base chain defines them. */
   messageHash: Hex;
+  /** The exact bytes the creator signed. */
+  signBytes: Uint8Array;
+}
+
+const MLDSA87_PUBLIC_KEY_BYTES = 2592;
+const MLDSA87_SIGNATURE_BYTES = 4627;
+
+/**
+ * Verifies a batch's ML-DSA-87 anchor signature off chain, with no gas and no
+ * node involved. Anything of the wrong size is simply not valid.
+ */
+export function verifyAnchorSignature(publicKey: Uint8Array, call: AnchorCall): boolean {
+  const signature = fromHex(call.signature);
+  if (publicKey.length !== MLDSA87_PUBLIC_KEY_BYTES) return false;
+  if (signature.length !== MLDSA87_SIGNATURE_BYTES) return false;
+  return mldsa87.verify(publicKey, call.signBytes, signature);
 }
 
 const hex = (value: string): Hex => `0x${normalizeHex(value)}`;
@@ -68,5 +85,6 @@ export async function buildAnchorCall(
     },
     signature: hex(anchor.pqcSignature),
     messageHash: keccak256(`0x${toHex(message)}`),
+    signBytes: message,
   };
 }

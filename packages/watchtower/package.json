@@ -17,6 +17,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@qorechain/pqc": "0.2.3",
+    "@qorechain/qoresign": "0.2.0",
     "@qorechain/rdk": "0.9.0",
     "@vigil/core": "workspace:*"
   },

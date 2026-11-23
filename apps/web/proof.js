@@ -93,6 +93,16 @@ export function proofView({ el, pill, overview }) {
           ],
         },
         {
+          tone: "primary",
+          status: ["good", "Checked independently"],
+          title: "Every batch transaction is checked for a real post-quantum signature",
+          live: true,
+          story:
+            "Vigil does not take the chain's word for it. QoreSign reads each batch transaction and verifies its ML-DSA layer, and the ML-DSA-87 signature on each settlement anchor is verified off chain with @qorechain/pqc. Results are stored when checked, because a signer's key can rotate later.",
+          outcome: `${s.pqVerified ?? 0} of ${s.pqChecked ?? 0} checked batch transactions carry a valid ML-DSA signature, and ${s.anchorsVerified ?? 0} settlement anchors verify off chain.`,
+          txs: [],
+        },
+        {
           tone: "warn",
           status: ["wait", "Missed, then fixed"],
           title: "A real attacker forged our batch 29 while our watchtower was offline",

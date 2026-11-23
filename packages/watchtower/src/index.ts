@@ -3,3 +3,4 @@ export * from "./challenger.js";
 export * from "./loop.js";
 export * from "./watchtower.js";
 export * from "./audit.js";
+export * from "./pq-layer.js";

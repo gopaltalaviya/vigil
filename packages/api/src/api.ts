@@ -29,6 +29,8 @@ interface BatchView {
   receipt: { txHash: string; contract: string } | undefined;
   /** The upheld fraud proof that rejected this claim, when known. */
   rejection: RejectionView | undefined;
+  /** Post-quantum evidence stored when the batch was checked. */
+  pq: { tx: string; txHash: string; anchor: string | null } | undefined;
 }
 
 interface RejectionView {
@@ -175,6 +177,9 @@ export class Api {
           invalid: judged.filter((b) => b.verdict === "invalid").length,
           finalized: batches.filter((b) => b.status === "finalized").length,
           receiptsRecorded: batches.filter((b) => b.receipt !== undefined).length,
+          pqVerified: batches.filter((b) => b.pq?.tx === "verified").length,
+          pqChecked: batches.filter((b) => b.pq !== undefined).length,
+          anchorsVerified: batches.filter((b) => b.pq?.anchor === "valid").length,
         },
       },
       // Base-chain conditions have their own feed; this one is about the rollup.
@@ -208,6 +213,12 @@ export class Api {
     const fraud = this.options.store
       .fraudEvents(this.options.rollupId)
       .find((event) => event.claimId === claimId(batch));
+    const pqCheck = this.options.store
+      .pqChecks(this.options.rollupId)
+      .find((check) => check.claimId === claimId(batch));
+    const anchor = this.options.store
+      .anchorChecks(this.options.rollupId)
+      .find((c) => c.batchIndex === batch.batchIndex && c.stateRoot === batch.stateRoot);
     const receipt =
       batch.status === "rejected"
         ? undefined
@@ -222,6 +233,14 @@ export class Api {
       reasons: verdict?.reasons ?? [],
       receipt:
         receipt === undefined ? undefined : { txHash: receipt.txHash, contract: receipt.contract },
+      pq:
+        pqCheck === undefined
+          ? undefined
+          : {
+              tx: pqCheck.status,
+              txHash: pqCheck.txHash,
+              anchor: batch.status === "rejected" ? null : (anchor?.status ?? null),
+            },
       rejection:
         fraud === undefined
           ? undefined

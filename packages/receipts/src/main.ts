@@ -14,6 +14,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { fetchPqKeyStatus } from "@qorechain/qoresign/network";
 import { uqorToQor } from "@qorechain/rdk";
 import type { Abi, Hex } from "viem";
 import {
@@ -33,7 +34,7 @@ import {
   registerDeployerKey,
 } from "./deployer.js";
 import { ReceiptsContract } from "./contract.js";
-import { buildAnchorCall, type AnchorCall } from "./receipts.js";
+import { buildAnchorCall, verifyAnchorSignature, type AnchorCall } from "./receipts.js";
 import { recoverReceiptHashes } from "./recover.js";
 
 const print = (line: string): void => {
@@ -82,6 +83,34 @@ async function main(argv: string[]): Promise<void> {
       print(`Opened an EVM window: ${await openDeployerWindow(context)}`);
     }
   };
+  /** Verifies an anchor off chain once, and keeps the result: the signer's key may rotate. */
+  const checkAnchorOffChain = async (index: number, call: AnchorCall): Promise<void> => {
+    const stateRoot = call.receipt.stateRoot.replace(/^0x/, "").toLowerCase();
+    const store = Store.open(join(config.dataDir, "vigil.sqlite"));
+    try {
+      const done = store
+        .anchorChecks(config.rollupId)
+        .some((c) => c.batchIndex === index && c.stateRoot === stateRoot);
+      if (done) return;
+      const rollup = await chain.rdk.rest.getRollup(config.rollupId);
+      const key = await fetchPqKeyStatus({ rest: config.restUrl, address: rollup.creator });
+      const publicKey = key.publicKey;
+      store.saveAnchorCheck(config.rollupId, {
+        batchIndex: index,
+        stateRoot,
+        status:
+          publicKey === undefined
+            ? "no_key"
+            : verifyAnchorSignature(publicKey, call)
+              ? "valid"
+              : "invalid",
+        checkedAt: Math.floor(Date.now() / 1_000),
+      });
+    } finally {
+      store.close();
+    }
+  };
+
   /**
    * Records one anchor. Someone else may record the same receipt first (it is
    * public data); that is the outcome we wanted, so it counts as success.
@@ -142,6 +171,11 @@ async function main(argv: string[]): Promise<void> {
           continue;
         }
         throw error;
+      }
+      try {
+        await checkAnchorOffChain(index, call);
+      } catch (error) {
+        log.warn({ batch: index, err: error }, "could not verify the anchor off chain");
       }
       try {
         print(await recordOne(index, call));

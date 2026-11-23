@@ -172,6 +172,9 @@ describe("Api", () => {
       invalid: 1,
       finalized: 1,
       receiptsRecorded: 1,
+      pqVerified: 0,
+      pqChecked: 0,
+      anchorsVerified: 0,
     });
     expect(overview.rollup.batches.map((b) => [b.index, b.verdict, b.status])).toEqual([
       [2, "pending", "submitted"],

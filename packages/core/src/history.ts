@@ -177,34 +177,47 @@ export function parseSubmission(
   };
 }
 
+/** The hash of the transaction that submitted a batch at a given height. */
+export async function findSubmissionTx(
+  rest: HttpClient,
+  restUrl: string,
+  rollupId: string,
+  batchIndex: number,
+  height: number,
+): Promise<string | undefined> {
+  const txs = await searchTxs(
+    rest,
+    restUrl,
+    `batch_submitted.rollup_id='${rollupId}' AND batch_submitted.batch_index='${String(batchIndex)}'`,
+  );
+  return txs.find((tx) => tx.code === 0 && Number(tx.height) === height)?.txhash;
+}
+
+/** Every transaction matching an event query, oldest first. */
+async function searchTxs(rest: HttpClient, restUrl: string, query: string): Promise<TxResponse[]> {
+  const found: TxResponse[] = [];
+  for (let page = 1; ; page += 1) {
+    const params = new URLSearchParams({ query, page: String(page), limit: String(PAGE_SIZE) });
+    const body = (await rest.getJson(`${restUrl}/cosmos/tx/v1beta1/txs?${params.toString()}`)) as {
+      txs?: TxResponse["tx"][];
+      tx_responses?: Omit<TxResponse, "tx">[];
+      total?: string;
+      pagination?: { total?: string };
+    };
+    const responses = body.tx_responses ?? [];
+    responses.forEach((response, i) => {
+      const tx = body.txs?.[i];
+      if (tx !== undefined) found.push({ ...response, tx });
+    });
+    const total = Number(body.total ?? body.pagination?.total ?? 0);
+    if (responses.length === 0 || found.length >= total) break;
+  }
+  return found.sort((a, b) => Number(a.height) - Number(b.height));
+}
+
 /** History reader backed by the base chain's REST transaction search. */
 export function chainHistory(rest: HttpClient, restUrl: string, rollupId: string): ChainHistory {
-  const search = async (query: string): Promise<TxResponse[]> => {
-    const found: TxResponse[] = [];
-    for (let page = 1; ; page += 1) {
-      const params = new URLSearchParams({
-        query,
-        page: String(page),
-        limit: String(PAGE_SIZE),
-      });
-      const body = (await rest.getJson(
-        `${restUrl}/cosmos/tx/v1beta1/txs?${params.toString()}`,
-      )) as {
-        txs?: TxResponse["tx"][];
-        tx_responses?: Omit<TxResponse, "tx">[];
-        total?: string;
-        pagination?: { total?: string };
-      };
-      const responses = body.tx_responses ?? [];
-      responses.forEach((response, i) => {
-        const tx = body.txs?.[i];
-        if (tx !== undefined) found.push({ ...response, tx });
-      });
-      const total = Number(body.total ?? body.pagination?.total ?? 0);
-      if (responses.length === 0 || found.length >= total) break;
-    }
-    return found.sort((a, b) => Number(a.height) - Number(b.height));
-  };
+  const search = (query: string) => searchTxs(rest, restUrl, query);
 
   return {
     async fraud() {
