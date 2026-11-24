@@ -314,6 +314,7 @@ Vigil builds on open-source work, used under their licences:
 - `@qorechain/qoresign`: inspection of each batch transaction's ML-DSA-87 layer, and key lookups.
 - `@qorechain/pqc`: ML-DSA-87 verification of settlement anchors off chain, and attestation
   signing.
+- `@qorechain/qore-cli`: `pnpm verify:proof` checks every public claim with QoreChain's own CLI.
 - [`@qorechain/mcp`](https://github.com/qorechain/qorechain-mcp) and the
   [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk): the MCP server.
 - [`@qorechain/rdk`](https://github.com/qorechain/qorechain-rdk) (Apache-2.0): chain client,

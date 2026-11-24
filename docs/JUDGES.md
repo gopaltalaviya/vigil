@@ -5,11 +5,27 @@ built and to evidence you can check yourself on the QoreChain testnet (`qorechai
 
 ## Where to look
 
-| What              | Where                                                                               |
-| ----------------- | ----------------------------------------------------------------------------------- |
-| Rollup            | `vigil-1` (layer `vigil-1`), created at height 10,234,711                           |
-| Receipts contract | `0xced683ad4319a34873e2c1aa90d18e2fcf1af1d1` on EVM chain 9800                      |
-| Check it yourself | `ROLLUP_ID=vigil-1 pnpm watchtower --once` re-executes every batch from public data |
+| What              | Where                                                                                    |
+| ----------------- | ---------------------------------------------------------------------------------------- |
+| Rollup            | `vigil-1` (layer `vigil-1`), created at height 10,234,711                                |
+| Receipts contract | `0xced683ad4319a34873e2c1aa90d18e2fcf1af1d1` on EVM chain 9800                           |
+| Check it yourself | `ROLLUP_ID=vigil-1 pnpm watchtower --once` re-executes every batch from public data      |
+| One-command check | `pnpm verify:proof`: every Proof transaction and every receipt, with QoreChain's own CLI |
+
+## One-command check
+
+`pnpm verify:proof` needs no key, no `.env`, no Docker and no Vigil service. It uses QoreChain's
+CLI (`@qorechain/qore-cli`) against the public testnet endpoints:
+
+- `qore pq status` on every transaction of the Proof page: each native-lane transaction must carry
+  exactly one ML-DSA-87 layer that verifies. EVM-lane transactions are expected to show
+  `classical` with reason `evm_lane`, because that lane has no ML-DSA-87 layer.
+- `qore read-contract` with `VigilReceipts.isAnchorRecorded` for every final batch of `vigil-1`
+  that has a settlement anchor, and `isAttestationRecorded` for the watchtower's attestations.
+
+It exits non-zero on any mismatch. A transaction the node no longer keeps is reported as `pruned`.
+On 24 Nov 2026 it reported 17 of 17 transactions as expected, 29 of 30 final batches with a
+recorded anchor (batch 28 has no anchor served by the chain) and 2 attestations, in about 8 s.
 
 ## Requirements
 

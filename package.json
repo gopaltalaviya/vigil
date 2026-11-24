@@ -30,10 +30,12 @@
     "api": "tsx packages/api/src/main.ts",
     "console": "tsx packages/console/src/main.ts",
     "mcp": "tsx packages/mcp/src/main.ts",
+    "verify:proof": "node scripts/verify-proof.mjs",
     "video": "node scripts/video/record.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@qorechain/qore-cli": "0.1.1",
     "@qorechain/rdk": "0.9.0",
     "@types/node": "24.19.2",
     "@vigil/core": "workspace:*",

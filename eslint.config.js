@@ -33,4 +33,14 @@ export default tseslint.config(
     files: ["scripts/**/*.ts"],
     rules: { "no-console": "off" },
   },
+  {
+    // Plain Node scripts that run with no build step.
+    files: ["scripts/*.mjs"],
+    ...tseslint.configs.disableTypeChecked,
+    languageOptions: {
+      ...tseslint.configs.disableTypeChecked.languageOptions,
+      globals: { process: "readonly", console: "readonly", URL: "readonly" },
+    },
+    rules: { ...tseslint.configs.disableTypeChecked.rules, "no-console": "off" },
+  },
 );
