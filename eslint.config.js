@@ -12,6 +12,7 @@ export default tseslint.config(
       "eslint.config.js",
       "apps/web/**",
       "scripts/video/**",
+      "examples/**",
       "packages/receipts/src/abi.ts",
     ],
   },

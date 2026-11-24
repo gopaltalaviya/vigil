@@ -11,6 +11,7 @@ dist/
 out/
 cache/
 broadcast/
+examples/*/lib/
 .solc-cache/
 
 # local state

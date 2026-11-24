@@ -8,3 +8,4 @@ contracts/cache
 packages/*/test/fixtures
 LICENSE
 docs/cbom.json
+examples/settlement-gate
