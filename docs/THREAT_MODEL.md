@@ -112,6 +112,8 @@ rollup's creator. Anyone may submit a valid receipt; that is intended.
 
 - Base-chain transactions are hybrid-signed (secp256k1 and ML-DSA-87). Settlement anchors are
   signed with ML-DSA-87. L2 transactions are signed with ML-DSA-44. Memos use ML-KEM-1024.
+- `pnpm redteam` replays ten attacks against live data, each refused by a named check with a
+  passing control: [REDTEAM.md](REDTEAM.md).
 - QoreScan's inventory of the contracts, the chain and its endpoints is in [CBOM.md](CBOM.md),
   with what it cannot see.
 

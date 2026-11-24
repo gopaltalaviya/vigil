@@ -320,6 +320,7 @@ See [docs/RUNBOOK.md](docs/RUNBOOK.md).
 - [Runbook](docs/RUNBOOK.md): deployment, alerts and incidents.
 - [Receipts contract](docs/CONTRACT.md): what it verifies and how Vigil sends record calls.
 - [MCP server](docs/MCP.md): read Vigil and QoreChain from an AI assistant.
+- [Red-team replay](docs/REDTEAM.md): ten attacks on live data, each refused by a named check.
 - [Crypto inventory](docs/CBOM.md): every algorithm in the contracts, the chain and its endpoints.
 - [Demo walkthrough](docs/DEMO.md).
 

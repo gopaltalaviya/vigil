@@ -11,6 +11,7 @@ export const DOC_PAGES = [
   ["CONTRACT", "Receipts contract"],
   ["MCP", "MCP server"],
   ["CBOM", "Crypto inventory"],
+  ["REDTEAM", "Red-team replay"],
   ["ARCHITECTURE", "Architecture"],
   ["THREAT_MODEL", "Threat model"],
   ["RUNBOOK", "Running Vigil Watchtower"],
