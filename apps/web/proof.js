@@ -208,6 +208,32 @@ export function proofView({ el, pill, overview }) {
           ],
         },
         {
+          tone: "info",
+          status: ["good", "Contract relies on it"],
+          title: "A contract paid out only after a batch had settled",
+          story:
+            "SettlementGate, an escrow made with create-qorechain-dapp, locked 0.1 QOR until batch 29 of vigil-1 had a recorded receipt. Asked with a forged state root, it said no; asked with the batch's real anchor, it said yes.",
+          outcome:
+            "The escrow released 0.1 QOR to the payee. Any contract can gate money on a rollup batch's ML-DSA-87 settlement the same way.",
+          txs: [
+            tx(
+              "SettlementGate deployed",
+              "0xd1e0f1d15dd80ab5090388e76d3d67c55eee00d1f86dc34fbf16068464fb1202",
+              true,
+            ),
+            tx(
+              "0.1 QOR locked on batch 29",
+              "0xfbc44efd07656a3f52d51f7e48582306f9af804dab724a557b008fbccae2a249",
+              true,
+            ),
+            tx(
+              "Released to the payee",
+              "0xc80015952bc57f2d48e4cee4034ba2415485ee482d35980cae389463a2f7eb70",
+              true,
+            ),
+          ],
+        },
+        {
           tone: "primary",
           status: ["good", "Money out"],
           title: "A withdrawal was paid out from the rollup",

@@ -32,6 +32,7 @@
     "mcp": "tsx packages/mcp/src/main.ts",
     "verify:proof": "node scripts/verify-proof.mjs",
     "metrics": "tsx scripts/metrics.ts",
+    "settlement-gate": "tsx --env-file=.env scripts/settlement-gate.ts",
     "cbom": "qorescan scan --name vigil --network testnet --address qor1x2jpzzxspw9yl59uwgxyjtxnx8clehnwt2yt0c --tls evm-testnet.qore.host:443 --tls api-testnet.qore.host:443 --solidity contracts --out docs/cbom.json && node scripts/check-cbom.mjs docs/cbom.json",
     "video": "node scripts/video/record.mjs"
   },

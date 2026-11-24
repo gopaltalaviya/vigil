@@ -336,6 +336,12 @@ time of recording. If you consume it:
 - A signer can sign two different roots for the same height; both can be recorded. Query with the
   full receipt.
 
+[`examples/settlement-gate`](examples/settlement-gate) is a contract that does exactly this: an
+escrow that pays out only once a named batch's anchor by the rollup's creator is recorded. It was
+scaffolded with `create-qorechain-dapp@0.14.0` (foundry template), is tested against a stand-in and
+against the real `VigilReceipts` on a testnet fork, and is live at
+`0x8f05cd493adb455818ffe63e3eb09ecdd21c89af`, where it released 0.1 QOR on batch 29.
+
 ## Security
 
 - Secrets are read from the environment only and are redacted from logs.
@@ -353,6 +359,7 @@ Vigil builds on open-source work, used under their licences:
 - `@qorechain/pqc`: ML-DSA-87 verification of settlement anchors off chain, and attestation
   signing.
 - `@qorechain/qore-cli`: `pnpm verify:proof` checks every public claim with QoreChain's own CLI.
+- `create-qorechain-dapp` 0.14.0: the scaffold of `examples/settlement-gate` (foundry template).
 - `@qorechain/qorescan`: the cryptographic bill of materials in `docs/cbom.json`, checked in CI.
 - [`@qorechain/mcp`](https://github.com/qorechain/qorechain-mcp) and the
   [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk): the MCP server.

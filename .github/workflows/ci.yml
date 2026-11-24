@@ -52,6 +52,10 @@ jobs:
         working-directory: contracts
       - run: forge test -vv
         working-directory: contracts
+      - run: forge install foundry-rs/forge-std --no-git
+        working-directory: examples/settlement-gate
+      - run: forge fmt --check && forge test -vv
+        working-directory: examples/settlement-gate
 
   cbom:
     runs-on: ubuntu-latest
