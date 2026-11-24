@@ -11,13 +11,22 @@
  *   vigil-receipts sync             record every finalized batch the watchtower judged valid
  *   vigil-receipts recover          restore missing receipt hashes from the contract's events
  *   vigil-receipts watch            run sync every two minutes until stopped
+ *   vigil-receipts smart-account link [days]   lock record calls to a hot key (default 14 days)
+ *   vigil-receipts smart-account status        the smart account, its rule and the hot key
+ *   vigil-receipts smart-account revoke        disable the hot key at once
+ *
+ * Record calls go through the smart account when its hot key is ready, and
+ * through a scoped EVM window otherwise. VIGIL_RECEIPTS_MODE=smart or window
+ * forces one lane.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fetchPqKeyStatus } from "@qorechain/qoresign/network";
 import { bech32ToHex, pqcKeypairFromEnv, signerFromEnv, uqorToQor } from "@qorechain/rdk";
 import type { Abi, Hex } from "viem";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+import { fetchAuthNonce, fetchAuthenticators, fetchSpendingRules } from "@qorechain/sdk";
 import {
   Store,
   VigilError,
@@ -28,13 +37,22 @@ import {
   loadConfig,
 } from "@vigil/core";
 import {
+  RECORD_GAS,
   deployerAccount,
+  deployerRelayer,
   deployerStatus,
   fundDeployer,
   openDeployerWindow,
   openScopedWindow,
   registerDeployerKey,
 } from "./deployer.js";
+import {
+  buildLinkMsgs,
+  buildRevokeMsg,
+  executeRecord,
+  smartAccountReady,
+  type SmartAccount,
+} from "./smart-account.js";
 import { attestationFor, signAttestation } from "./attest.js";
 import { ReceiptsContract } from "./contract.js";
 import { buildAnchorCall, verifyAnchorSignature, type AnchorCall } from "./receipts.js";
@@ -134,9 +152,11 @@ async function main(argv: string[]): Promise<void> {
     if (!(await contract.checkAnchor(address(), call))) {
       return `Batch ${String(index)}: signature does not verify; nothing was sent.`;
     }
-    await ensureScopedWindow();
     try {
-      const hash = await contract.recordAnchor(await key(), address(), call);
+      const hash = await sendRecord(ReceiptsContract.encodeRecordAnchor(call), async () => {
+        await ensureScopedWindow();
+        return contract.recordAnchor(await key(), address(), call);
+      });
       remember(index, call.receipt.stateRoot, hash);
       return `Batch ${String(index)}: recorded. Transaction ${hash}`;
     } catch (error) {
@@ -217,6 +237,168 @@ async function main(argv: string[]): Promise<void> {
   };
 
   const key = async (): Promise<Hex> => (await deployerAccount(config)).privateKey as Hex;
+
+  /** The hot key lives in the data directory, never in `.env` or the output. */
+  const hotKeyPath = join(config.dataDir, "receipts-hot.key");
+  const readHotKey = (): Hex | undefined => {
+    if (!existsSync(hotKeyPath)) return undefined;
+    const value = readFileSync(hotKeyPath, "utf8").trim();
+    if (!/^0x[0-9a-fA-F]{64}$/.test(value)) {
+      throw new VigilError("CONFIG_INVALID", "the hot key file is malformed", { path: hotKeyPath });
+    }
+    return value as Hex;
+  };
+  const smartAccount = async (hotKey: Hex): Promise<SmartAccount> => {
+    const relayer = await deployerRelayer(context);
+    return {
+      rest: config.restUrl,
+      chainId: config.chainId,
+      account: relayer.address,
+      hotKey,
+      relayer,
+    };
+  };
+  const mode = (): "auto" | "smart" | "window" => {
+    const value = process.env.VIGIL_RECEIPTS_MODE?.trim() ?? "";
+    if (value === "") return "auto";
+    if (value === "auto" || value === "smart" || value === "window") return value;
+    throw new VigilError("CONFIG_INVALID", "VIGIL_RECEIPTS_MODE must be auto, smart or window");
+  };
+
+  /**
+   * Sends one record call to the receipts contract: through the smart account
+   * when its hot key is ready, else through the scoped window. A relayed call
+   * that fails on chain is never retried through the window here, because it
+   * has used up the hot key's nonce; the next round re-checks the record.
+   */
+  const sendRecord = async (data: Hex, viaWindow: () => Promise<string>): Promise<string> => {
+    const lane = mode();
+    if (lane === "window") return viaWindow();
+    const hotKey = readHotKey();
+    const smart = hotKey === undefined ? undefined : await smartAccount(hotKey);
+    const readiness =
+      smart === undefined
+        ? { ready: false, reason: "no hot key" }
+        : await smartAccountReady(smart, address(), BigInt(Math.floor(Date.now() / 1_000)));
+    if (smart === undefined || !readiness.ready) {
+      if (lane === "smart") {
+        throw new VigilError(
+          "CONFIG_INVALID",
+          `smart account not ready: ${readiness.reason ?? ""}`,
+        );
+      }
+      log.warn({ reason: readiness.reason }, "smart account not ready; using the scoped window");
+      return viaWindow();
+    }
+    return executeRecord(smart, { to: address(), data, gasLimit: RECORD_GAS });
+  };
+
+  const smartAccountCommand = async (action: string | undefined): Promise<void> => {
+    const relayer = await deployerRelayer(context);
+    const read = { rest: config.restUrl, address: relayer.address };
+    switch (action ?? "") {
+      case "link": {
+        const days = Number(argv[2] ?? "14");
+        if (!Number.isInteger(days) || days < 1 || days > 30) {
+          throw new VigilError("CONFIG_INVALID", "give the key's lifetime in days, 1 to 30");
+        }
+        let hotKey = readHotKey();
+        if (hotKey === undefined) {
+          hotKey = generatePrivateKey();
+          writeFileSync(hotKeyPath, `${hotKey}\n`, { flag: "wx", mode: 0o600 });
+          print(`Created a hot key in the data directory.`);
+        }
+        const hotAddress = privateKeyToAccount(hotKey).address;
+        const expiryUnix = BigInt(Math.floor(Date.now() / 1_000) + days * 86_400);
+        const result = await relayer.broadcast(
+          buildLinkMsgs({
+            chainId: config.chainId,
+            owner: relayer.address,
+            hotKey,
+            contract: address(),
+            expiryUnix,
+          }),
+          1_000_000n,
+        );
+        if (result.code !== 0) {
+          throw new VigilError("TX_FAILED", "linking the hot key was rejected", {
+            hash: result.transactionHash,
+            code: result.code,
+          });
+        }
+        print(
+          `Linked hot key ${hotAddress} until ${new Date(Number(expiryUnix) * 1_000).toISOString()}.`,
+        );
+        print(`Transaction ${result.transactionHash}`);
+        const readiness = await smartAccountReady(
+          await smartAccount(hotKey),
+          address(),
+          BigInt(Math.floor(Date.now() / 1_000)),
+        );
+        print(`Ready: ${readiness.ready ? "yes" : `no (${readiness.reason ?? ""})`}`);
+        break;
+      }
+      case "status": {
+        print(`Account:    ${relayer.address}`);
+        const hotKey = readHotKey();
+        const hotAddress = hotKey === undefined ? undefined : privateKeyToAccount(hotKey).address;
+        print(`Hot key:    ${hotAddress ?? "none in the data directory"}`);
+        try {
+          const rules = await fetchSpendingRules(read);
+          for (const rule of rules.rules) {
+            print(
+              `Rule:       ${rule.id} ${rule.enabled ? "enabled" : "disabled"}, per call ${rule.perTxLimit.toString()}, daily ${rule.dailyLimit.toString()} uqor, calls ${rule.allowedEvmCalls.join(" ")}`,
+            );
+          }
+          for (const k of await fetchAuthenticators(read)) {
+            print(
+              `Key:        ${k.scheme} 0x${k.pubkeyHex.replace(/^0x/i, "")} ${k.permissions.join(",")} until ${new Date(Number(k.expiryUnix) * 1_000).toISOString()}${k.revoked ? " REVOKED" : ""}`,
+            );
+          }
+        } catch (error) {
+          print(`Smart account: none or unreadable (${(error as Error).message})`);
+        }
+        if (hotKey !== undefined && hotAddress !== undefined) {
+          const nonce = await fetchAuthNonce({ ...read, pubkey: hotAddress });
+          print(`Nonce:      ${nonce.nonce.toString()}, ${nonce.linked ? "linked" : "not linked"}`);
+          const readiness = await smartAccountReady(
+            await smartAccount(hotKey),
+            address(),
+            BigInt(Math.floor(Date.now() / 1_000)),
+          );
+          print(`Ready:      ${readiness.ready ? "yes" : `no (${readiness.reason ?? ""})`}`);
+        }
+        print(`Mode:       ${mode()}`);
+        break;
+      }
+      case "revoke": {
+        const hotKey = readHotKey();
+        if (hotKey === undefined) throw new VigilError("CONFIG_INVALID", "no hot key to revoke");
+        const result = await relayer.broadcast(
+          [
+            buildRevokeMsg({
+              owner: relayer.address,
+              hotAddress: privateKeyToAccount(hotKey).address,
+            }),
+          ],
+          1_000_000n,
+        );
+        if (result.code !== 0) {
+          throw new VigilError("TX_FAILED", "revoking the hot key was rejected", {
+            hash: result.transactionHash,
+            code: result.code,
+          });
+        }
+        print(`Revoked. Transaction ${result.transactionHash}`);
+        break;
+      }
+      default:
+        throw new VigilError(
+          "CONFIG_INVALID",
+          "usage: vigil-receipts smart-account <link|status|revoke>",
+        );
+    }
+  };
 
   switch (command) {
     case "status": {
@@ -312,13 +494,18 @@ async function main(argv: string[]): Promise<void> {
         break;
       }
       const signed = await signAttestation(reader, signer, pqc.keypair, attestation);
-      await ensureScopedWindow();
-      const hash = await contract.recordAttestation(
-        await key(),
-        address(),
-        signer,
-        signed.attestation,
-        signed.signature,
+      const hash = await sendRecord(
+        ReceiptsContract.encodeRecordAttestation(signer, signed.attestation, signed.signature),
+        async () => {
+          await ensureScopedWindow();
+          return contract.recordAttestation(
+            await key(),
+            address(),
+            signer,
+            signed.attestation,
+            signed.signature,
+          );
+        },
       );
       print(`Batch ${String(index)}: attestation recorded. Transaction ${hash}`);
       break;
@@ -362,10 +549,14 @@ async function main(argv: string[]): Promise<void> {
       }
       break;
     }
+    case "smart-account": {
+      await smartAccountCommand(argument);
+      break;
+    }
     default:
       throw new VigilError(
         "CONFIG_INVALID",
-        "usage: vigil-receipts <status|setup|deploy|check|record|attest|sync|recover|watch>",
+        "usage: vigil-receipts <status|setup|deploy|check|record|attest|sync|recover|watch|smart-account>",
       );
   }
 }

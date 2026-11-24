@@ -2,6 +2,7 @@ import {
   createPublicClient,
   createWalletClient,
   defineChain,
+  encodeFunctionData,
   getAbiItem,
   http,
   type Abi,
@@ -138,6 +139,24 @@ export class ReceiptsContract {
           args: [signer, attestation],
         }),
     };
+  }
+
+  /** Calldata of `recordAnchor`, for sending through another lane. */
+  static encodeRecordAnchor(call: AnchorCall): Hex {
+    return encodeFunctionData({
+      abi: vigilReceiptsAbi,
+      functionName: "recordAnchor",
+      args: [call.signer, call.receipt, call.signature],
+    });
+  }
+
+  /** Calldata of `recordAttestation`, for sending through another lane. */
+  static encodeRecordAttestation(signer: Hex, attestation: BatchAttestation, signature: Hex): Hex {
+    return encodeFunctionData({
+      abi: vigilReceiptsAbi,
+      functionName: "recordAttestation",
+      args: [signer, attestation, signature],
+    });
   }
 
   /** Records a signed attestation. Resolves with the transaction hash. */

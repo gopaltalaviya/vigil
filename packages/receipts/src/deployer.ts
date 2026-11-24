@@ -13,6 +13,7 @@ import {
   type UnifiedAccount,
 } from "@qorechain/sdk";
 import { ConfigError, TxFailedError, type Logger, type VigilConfig } from "@vigil/core";
+import type { Relayer } from "./smart-account.js";
 
 /** Fee for one native-lane transaction; hybrid transactions are large, so gas is generous. */
 const NATIVE_FEE = { amount: [{ denom: "uqor", amount: "150000" }], gas: "1000000" };
@@ -187,6 +188,47 @@ export async function openDeployerWindow(
     ...(options.allowedTargets === undefined ? {} : { allowedTargets: options.allowedTargets }),
   });
   return broadcastFromDeployer(context, account, "hybrid", "open-evm-window", message);
+}
+
+/**
+ * The deployer as a signer of owner and relayer messages, signed hybrid. It
+ * keeps the delivered events and message responses, so a relayed execution's
+ * own success can be checked.
+ */
+export async function deployerRelayer(context: DeployerContext): Promise<Relayer> {
+  const { config, log } = context;
+  const account = await deployerAccount(config);
+  const signer = new EthNativeSigner(account, { signMode: "hybrid", rest: config.restUrl });
+  return {
+    address: account.cosmos,
+    async broadcast(messages, gas) {
+      const transport = await StargateClient.connect(config.rpcUrl);
+      try {
+        const { accountNumber, sequence } = await transport.getSequence(account.cosmos);
+        const signed = signer.sign({
+          chainId: config.chainId,
+          accountNumber,
+          sequence: BigInt(sequence),
+          fee: feeFor(gas),
+          messages,
+          signBytesVersion: await signer.resolveSignBytesVersion(config.chainId),
+        });
+        const result = await transport.broadcastTx(signed.txRawBytes);
+        log.info({ hash: result.transactionHash, code: result.code }, "relayed transaction");
+        return result;
+      } finally {
+        transport.disconnect();
+      }
+    },
+  };
+}
+
+/** A fee at the same price per gas as `NATIVE_FEE`. */
+export function feeFor(gas: bigint): { amount: { denom: string; amount: string }[]; gas: string } {
+  const fee = BigInt(NATIVE_FEE.amount[0]?.amount ?? "0");
+  const baseGas = BigInt(NATIVE_FEE.gas);
+  const amount = (fee * gas + baseGas - 1n) / baseGas; // rounded up
+  return { amount: [{ denom: "uqor", amount: amount.toString() }], gas: gas.toString() };
 }
 
 async function broadcastFromDeployer(

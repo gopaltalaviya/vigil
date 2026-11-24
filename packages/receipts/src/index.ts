@@ -4,3 +4,4 @@ export * from "./contract.js";
 export * from "./deployer.js";
 export * from "./receipts.js";
 export * from "./recover.js";
+export * from "./smart-account.js";
