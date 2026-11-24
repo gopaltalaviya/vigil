@@ -123,18 +123,18 @@ const pqChecker = new PqLayerChecker({
   findSubmission: (batchIndex, height) =>
     findSubmissionTx(chain.rest, config.restUrl, config.rollupId, batchIndex, height),
 });
-let pqRunning = false;
+let pqRun: Promise<void> | undefined;
 /** Runs beside the watch: reading signatures must never delay a challenge. */
 const checkPqLayers = (): void => {
-  if (pqRunning) return;
-  pqRunning = true;
-  void pqChecker
+  if (pqRun !== undefined) return;
+  pqRun = pqChecker
     .checkPending()
+    .then(() => undefined)
     .catch((error: unknown) => {
       log.warn({ err: error }, "PQ layer check failed; will retry");
     })
     .finally(() => {
-      pqRunning = false;
+      pqRun = undefined;
     });
 };
 
@@ -196,6 +196,8 @@ const auditRollups = async (): Promise<void> => {
 
 if (once) {
   await tick();
+  // The PQ check runs beside the tick; let it finish before the database closes.
+  await pqRun;
   store.close();
 } else {
   let lastSuccess = 0;
