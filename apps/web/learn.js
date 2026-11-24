@@ -4,6 +4,7 @@
 const PAGES = [
   ["concept", "Concept"],
   ["how-it-works", "How it works"],
+  ["use-cases", "Use cases"],
   ["before-after", "Before and after"],
   ["security", "Security"],
   ["post-quantum", "Post-quantum"],
@@ -176,6 +177,63 @@ export function learnView({ el, pill, latestBatch }) {
         el("a", { className: "button ghost", href: "#/docs", text: "Read the docs" }),
       ]),
     ],
+
+    "use-cases": () => {
+      const useCase = (title, who, what, evidence) =>
+        el("section", { className: "use-case" }, [
+          el("h2", { text: title }),
+          el("p", {}, [el("strong", { text: "For: " }), who]),
+          p(what),
+          el("p", { className: "muted" }, [
+            el("strong", { text: "Shown on the testnet: " }),
+            evidence,
+          ]),
+        ]);
+      return [
+        el("p", {
+          className: "lead",
+          text: "Five ways to use Vigil today. Each one already happened on the QoreChain testnet; the Proof page and the docs hold the transactions.",
+        }),
+        useCase(
+          "Payments with a private note",
+          "people paying each other on the rollup who need to say what a payment is for",
+          "A transfer can carry a memo sealed with ML-KEM-1024 to the key the recipient published on QoreChain, and bound to that transfer. Amounts stay public; the note is readable only by the recipient, now and after quantum computers arrive.",
+          "a recipient key, a sealed memo bound to a 1.5 QOR transfer, and the red-team replay refusing a changed or moved memo.",
+        ),
+        useCase(
+          "A watchtower for rollups you do not run",
+          "teams running a qledger-v1 rollup on QoreChain, and anyone holding funds in one",
+          "Vigil re-executes other teams' rollups from public data and reports any batch it can prove wrong, including frauds that change only the withdrawals root. It never challenges a rollup it does not run; it alerts.",
+          "on wicketgate-pay, batch 12 changed only its withdrawals root and paid 13 QOR with nobody challenging it. Vigil's audit reports it as proven fraud.",
+        ),
+        useCase(
+          "Contracts that pay only after settlement",
+          "developers who want a contract to act on a rollup batch only once it has truly settled",
+          "VigilReceipts records each final batch's ML-DSA-87 settlement anchor after checking it with the pqcVerify precompile. Any contract can ask isAnchorRecorded before releasing money.",
+          "SettlementGate, an escrow made with create-qorechain-dapp, released 0.1 QOR only when batch 29's receipt was recorded, and said no to a forged state root.",
+        ),
+        useCase(
+          "AI assistants that check before they answer",
+          "operators and users who ask an assistant about the rollup",
+          "The Vigil MCP server gives an assistant read-only tools for the rollup, its batches, accounts and the audits of other rollups, beside QoreChain's own tools. It holds no key and cannot send anything.",
+          "a live MCP session listed 18 tools and returned batch 18's verdict, its receipt and a verified ML-DSA-87 check of the transaction.",
+        ),
+        useCase(
+          "Other protocols building on vigil-1",
+          "teams who need a rollup with an honest, checkable history",
+          "Because vigil-1 is based, anyone may post to it. Another team's exit protocol, Wicketgate, deposited 4 QOR, posted a transfer and a 2 QOR withdrawal, and paid an instant exit against batch 28, which Vigil's batcher submitted. The withdrawal was later paid out on chain.",
+          "Wicketgate's deposit 178DA6D9… and withdrawal 480B6636… on vigil-1, and the payout of batch 28 withdrawal #7.",
+        ),
+        el("div", { className: "actions" }, [
+          el("a", { className: "button", href: "#/proof", text: "See the transactions" }),
+          el("a", {
+            className: "button ghost",
+            href: "#/rollups",
+            text: "Audits of other rollups",
+          }),
+        ]),
+      ];
+    },
 
     "how-it-works": () => {
       const batch = latestBatch();
