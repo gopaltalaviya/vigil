@@ -1,4 +1,4 @@
-import { Registry } from "@cosmjs/proto-signing";
+import { Registry, type EncodeObject } from "@cosmjs/proto-signing";
 import { StargateClient, defaultRegistryTypes } from "@cosmjs/stargate";
 import { evmWindowCost, evmWindowStatus } from "@qorechain/evm";
 import { pqcKeypairFromEnv, signerFromEnv, type RdkClient } from "@qorechain/rdk";
@@ -80,6 +80,29 @@ export async function sendFromMainAccount(
   toAddress: string,
   amountUqor: bigint,
 ): Promise<string> {
+  return broadcastFromMainAccount(context, "send", (from) => [
+    {
+      typeUrl: "/cosmos.bank.v1beta1.MsgSend",
+      value: {
+        fromAddress: from,
+        toAddress,
+        amount: [{ denom: "uqor", amount: amountUqor.toString() }],
+      },
+    },
+  ]);
+}
+
+/**
+ * Signs and broadcasts messages from the main (native) account, hybrid: the
+ * secp256k1 signature plus the ML-DSA-87 layer. Messages may be any type in
+ * the standard registry (bank, IBC transfer, …); `build` receives the
+ * account's address. Resolves with the hash once the chain accepted it.
+ */
+export async function broadcastFromMainAccount(
+  context: DeployerContext,
+  label: string,
+  build: (from: string) => EncodeObject[],
+): Promise<string> {
   const { config, rdk, log } = context;
   const env = {
     QORE_MNEMONIC: config.secrets.mnemonic,
@@ -108,19 +131,10 @@ export async function sendFromMainAccount(
       fee: NATIVE_FEE,
       rest: config.restUrl,
       transport,
-      messages: [
-        {
-          typeUrl: "/cosmos.bank.v1beta1.MsgSend",
-          value: {
-            fromAddress: from.address,
-            toAddress,
-            amount: [{ denom: "uqor", amount: amountUqor.toString() }],
-          },
-        },
-      ],
+      messages: build(from.address),
     });
-    assertAccepted("send", result);
-    log.info({ hash: result.transactionHash, to: toAddress }, "transfer confirmed");
+    assertAccepted(label, result);
+    log.info({ label, hash: result.transactionHash }, "transaction confirmed");
     return result.transactionHash;
   } finally {
     transport.disconnect();

@@ -146,6 +146,13 @@ ROLLUP_ID=vigil-1 pnpm watchtower --once   # re-execute and judge every batch yo
 pnpm live:probe vigil-1                    # check an anchor signature with the chain's precompiles
 ```
 
+Money that leaves the rollup can leave QoreChain too: `pnpm ibc-exit 0.5` sent 0.5 QOR withdrawn
+from `vigil-1` over IBC (`channel-1`, ICS-20) to the operator's own address on Osmosis testnet, and
+the relayer's acknowledgement came back 21 seconds later
+(`471BDAC775B1A4A2766BCFF8CDC6B1970CF7D4C67865ED6B5471439871BC6CD5`). Another team's protocol,
+Wicketgate, already uses `vigil-1`: it paid an instant exit against batch 28. Both are on the Proof
+page, with the other cases in Learn, **Use cases**.
+
 ## Using the rollup
 
 Set `QORE_MNEMONIC` (a funded testnet account) and `VIGIL_KEYSTORE_PASSPHRASE` in `.env`, then:

@@ -249,6 +249,72 @@ export function proofView({ el, pill, overview }) {
           ],
         },
         {
+          tone: "info",
+          status: ["good", "Interop"],
+          title: "Money withdrawn from the rollup left QoreChain for Osmosis",
+          story:
+            "0.5 QOR, withdrawn from vigil-1 to the operator's account, was sent over IBC (ICS-20, channel-1) to the operator's own address on Osmosis testnet. QoreChain's relayer delivered it and the acknowledgement came back 21 seconds later.",
+          outcome:
+            "The Osmosis balance went from 0 to 0.5 QOR as an IBC token. Funds can leave the rollup and then leave QoreChain.",
+          txs: [
+            tx(
+              "IBC transfer, 0.5 QOR",
+              "471BDAC775B1A4A2766BCFF8CDC6B1970CF7D4C67865ED6B5471439871BC6CD5",
+            ),
+            tx(
+              "Relayer's acknowledgement",
+              "54F9AE440FFE9BE6C0998AE62D802E3C0CD450D08CABCAE781F7716CB0293E24",
+            ),
+          ],
+        },
+        {
+          tone: "primary",
+          status: ["good", "Used by others"],
+          title: "Another team's protocol paid an instant exit from vigil-1",
+          story:
+            "Wicketgate, another fest team's exit protocol, deposited 4 QOR into vigil-1 and posted a transfer and a 2 QOR withdrawal. Vigil's batcher included them in batch 28; Wicketgate's watchers re-executed it and paid the exit before the batch was final.",
+          outcome:
+            "vigil-1 is open to anyone and its history is checkable by others. The 2 QOR withdrawal was later paid out on chain.",
+          txs: [
+            tx(
+              "Wicketgate's deposit, 4 QOR",
+              "178DA6D9ECDFD389A84D7E2DBA58DF62A30736104898139C293B011762921527",
+            ),
+            tx(
+              "Wicketgate's withdrawal post",
+              "480B66366A148320444647A36C781A23379BB829AED726327D7A0AF4F481AA85",
+            ),
+          ],
+        },
+        {
+          tone: "info",
+          status: ["good", "Least privilege"],
+          title: "The receipts key can do nothing but record receipts",
+          story:
+            "Record calls are signed by a hot key linked to a QoreChain smart account with one spending rule: only recordAnchor and recordAttestation on VigilReceipts, no value, for 14 days. When that key is not ready, an EVM window that can reach only this contract is used instead.",
+          outcome:
+            "A stolen receipts key could record a receipt and nothing else. The attestations of batches 26 and 27 were recorded through each lane.",
+          txs: [
+            tx(
+              "Scoped EVM window",
+              "87F3D1C1BFD5B80CDB016E3E2CE1081B5D1CE69143E695C4184E4F569D1C0C93",
+            ),
+            tx(
+              "Attestation of batch 27 (window)",
+              "0xaefc88412dccc090f52167a8f25669e14a620dfac61712d2c6200404c8e62c6d",
+              true,
+            ),
+            tx(
+              "Hot key linked to the smart account",
+              "FF2A147287FEDCC422209A01B0EDFC752CAE82B427DD9A3EF33D7EF1C6B8E82E",
+            ),
+            tx(
+              "Attestation of batch 26 (smart account)",
+              "6C37DDE1DFAF4BBA539A11093B86829D8978CBC96C7387F1BD4B2F47C0CF018C",
+            ),
+          ],
+        },
+        {
           tone: "pink",
           status: ["good", "Private"],
           title: "A payment note only the recipient could read",

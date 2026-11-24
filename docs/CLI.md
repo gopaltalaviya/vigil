@@ -68,6 +68,25 @@ ROLLUP_ID=vigil-1 pnpm watchtower --once
 | `pnpm fraud:drill`                | Dry run of a fraud rehearsal                                                                                       |
 | `pnpm fraud:drill --execute`      | A throwaway account (`QORE_DRILL_MNEMONIC`) bonds and submits a batch with a wrong state root. Its bond is slashed |
 
+## Checks anyone can run (no key)
+
+| Command                                    | What it does                                                                                     |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `pnpm verify:proof`                        | Every Proof transaction (`qore pq status`) and every receipt (`qore read-contract`); see JUDGES  |
+| `pnpm metrics [--readme]`                  | Headline numbers recomputed from the chain; `--readme` rewrites the table in README.md           |
+| `pnpm redteam`                             | Ten attacks on live data, each refused by a named check with a control; see REDTEAM              |
+| `pnpm cbom`                                | QoreScan inventory of the contracts, the chain and its endpoints into `docs/cbom.json`; see CBOM |
+| `pnpm mcp`                                 | The MCP server over stdio; see MCP                                                               |
+| `ROLLUP_ID=vigil-1 pnpm watchtower --once` | Re-executes and judges every batch                                                               |
+
+## With the operator's keys (`.env`)
+
+| Command                                                    | What it does                                                                                                                            |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm redteam:full`                                        | `redteam`, plus a simulated second claim of a paid withdrawal (nothing is sent)                                                         |
+| `pnpm ibc-exit --check` / `pnpm ibc-exit <qor>`            | Checks the IBC channel to Osmosis testnet, or sends QOR to the operator's own address there and waits for the relayer's acknowledgement |
+| `pnpm settlement-gate deploy \| open \| status \| release` | Runs the SettlementGate example with the receipts deployer account                                                                      |
+
 ## Development
 
 | Command                                      | What it does                                                                  |
