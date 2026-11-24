@@ -283,6 +283,7 @@ See [docs/RUNBOOK.md](docs/RUNBOOK.md).
 - [Runbook](docs/RUNBOOK.md): deployment, alerts and incidents.
 - [Receipts contract](docs/CONTRACT.md): what it verifies and how Vigil sends record calls.
 - [MCP server](docs/MCP.md): read Vigil and QoreChain from an AI assistant.
+- [Crypto inventory](docs/CBOM.md): every algorithm in the contracts, the chain and its endpoints.
 - [Demo walkthrough](docs/DEMO.md).
 
 ## Relying on recorded receipts
@@ -315,6 +316,7 @@ Vigil builds on open-source work, used under their licences:
 - `@qorechain/pqc`: ML-DSA-87 verification of settlement anchors off chain, and attestation
   signing.
 - `@qorechain/qore-cli`: `pnpm verify:proof` checks every public claim with QoreChain's own CLI.
+- `@qorechain/qorescan`: the cryptographic bill of materials in `docs/cbom.json`, checked in CI.
 - [`@qorechain/mcp`](https://github.com/qorechain/qorechain-mcp) and the
   [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk): the MCP server.
 - [`@qorechain/rdk`](https://github.com/qorechain/qorechain-rdk) (Apache-2.0): chain client,

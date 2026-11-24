@@ -31,11 +31,13 @@
     "console": "tsx packages/console/src/main.ts",
     "mcp": "tsx packages/mcp/src/main.ts",
     "verify:proof": "node scripts/verify-proof.mjs",
+    "cbom": "qorescan scan --name vigil --network testnet --address qor1x2jpzzxspw9yl59uwgxyjtxnx8clehnwt2yt0c --tls evm-testnet.qore.host:443 --tls api-testnet.qore.host:443 --solidity contracts --out docs/cbom.json && node scripts/check-cbom.mjs docs/cbom.json",
     "video": "node scripts/video/record.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@qorechain/qore-cli": "0.1.1",
+    "@qorechain/qorescan": "0.1.0",
     "@qorechain/rdk": "0.9.0",
     "@types/node": "24.19.2",
     "@vigil/core": "workspace:*",

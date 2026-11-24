@@ -53,6 +53,22 @@ jobs:
       - run: forge test -vv
         working-directory: contracts
 
+  cbom:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # QoreScan's launcher downloads its release binary and checks its SHA-256 before running it.
+      - run: pnpm exec qorescan solidity contracts --out qorescan.cbom.json
+      - run: node scripts/check-cbom.mjs qorescan.cbom.json
+      - run: node scripts/check-cbom.mjs docs/cbom.json
+
   secrets:
     runs-on: ubuntu-latest
     timeout-minutes: 5
