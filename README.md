@@ -13,7 +13,7 @@ Built for _Build Before Q-Day: The QoreChain Developer Fest_, Protocol Builders 
 | Measured on the testnet (2026-11-24, `pnpm metrics`)   | Value                                                                               |
 | ------------------------------------------------------ | ----------------------------------------------------------------------------------- |
 | Final batches of `vigil-1`                             | 30, covering 45 inbox entries                                                       |
-| Inbox entries, checked against the chain's accumulator | 45: 5 deposits, 27 transfers, 9 withdrawals, 2 sealed memos, 2 other posts          |
+| Inbox entries, checked against the chain's accumulator | 47: 5 deposits, 29 transfers, 9 withdrawals, 2 sealed memos, 2 other posts          |
 | Deposited / withdrawals paid out                       | 12 QOR / 2 paid, 2.5 QOR                                                            |
 | Settlement anchors recorded in `VigilReceipts`         | 29 of 30 final batches (1 without an anchor from the chain)                         |
 | Forged batches rejected by an upheld fraud proof       | 4: 1 by Vigil's watchtower (5 s after submission), 3 by other teams' bots (10–14 s) |
