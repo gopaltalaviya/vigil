@@ -147,7 +147,11 @@ describe("operator console", () => {
   it("refuses everything about the wallet until the operator signs in", async () => {
     const { call, close } = await startConsole();
     try {
-      expect((await call("/api/session")).body).toEqual({ console: true, signedIn: false });
+      expect((await call("/api/session")).body).toEqual({
+        console: true,
+        signedIn: false,
+        siwq: false,
+      });
       expect((await call("/api/wallet")).status).toBe(401);
       expect((await call("/api/wallet/deposit", { amount: "1" })).status).toBe(401);
       expect((await call("/api/session", { password: "nope" })).status).toBe(401);
@@ -186,7 +190,11 @@ describe("operator console", () => {
     const { call, rollup, close, getAccount, store } = await startConsole();
     try {
       expect((await call("/api/session", { password: PASSWORD })).status).toBe(200);
-      expect((await call("/api/session")).body).toEqual({ console: true, signedIn: true });
+      expect((await call("/api/session")).body).toEqual({
+        console: true,
+        signedIn: true,
+        siwq: false,
+      });
 
       const empty = await call("/api/wallet");
       expect(empty.body).toMatchObject({

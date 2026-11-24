@@ -1135,7 +1135,13 @@ const views = {
           }),
         ]);
       }
-      if (!state.session.signedIn) return el("div", { className: "stack" }, [head, signInCard()]);
+      if (!state.session.signedIn) {
+        return el("div", { className: "stack" }, [
+          head,
+          signInCard(),
+          state.session.siwq ? siwqCard() : null,
+        ]);
+      }
       if (data.account === null) {
         return el("div", { className: "stack" }, [
           head,
@@ -1580,7 +1586,121 @@ function signInCard() {
     el("h2", { text: "Sign in to the console" }),
     el("p", {
       className: "muted",
-      text: "The console signs transactions with the rollup operator's account, so it is protected by a password.",
+      text: "The console signs transactions with the rollup operator's account, so it is protected: by a password, or by a signature from that account.",
+    }),
+    form,
+  ]);
+}
+
+// Sign In With QoreChain: the console issues a one-time message, the operator signs it with the
+// account's keys (with `vigil login`, or with QoreX where it can sign messages), and the console
+// checks the secp256k1 and the ML-DSA-87 signature against the key registered on chain.
+function siwqCard() {
+  const address = field("siwq-address", "Operator account", {
+    required: true,
+    autocomplete: "off",
+    spellcheck: "false",
+    placeholder: "qor1…",
+  });
+  const message = field("siwq-message", "Message to sign", { rows: 8, readOnly: true });
+  const signature = field(
+    "siwq-signature",
+    "Signed message",
+    { rows: 4, spellcheck: "false", placeholder: "Paste the line printed by vigil login" },
+    "Run: pnpm -s vigil login, paste the message above, press Ctrl+D (Ctrl+Z then Enter on Windows), and paste its output here.",
+  );
+  const error = el("p", { className: "error", role: "alert" });
+  const qorex = window.qorex?.native;
+  const canQorex =
+    typeof qorex?.signArbitrary === "function" &&
+    (!Array.isArray(qorex.capabilities) || qorex.capabilities.includes("signArbitrary"));
+  const steps = el("div", { hidden: true }, [message.node, signature.node]);
+
+  const verify = async (body) => {
+    await api("/api/siwq/verify", body);
+    await refreshSession();
+    await show(true);
+  };
+  const guard = (run) => async (event) => {
+    event?.preventDefault();
+    error.textContent = "";
+    try {
+      await run();
+    } catch (problem) {
+      error.textContent = problem.message;
+    }
+  };
+  const start = el("button", {
+    className: "button ghost",
+    type: "button",
+    id: "siwq-start",
+    text: "Get the message",
+    on: {
+      click: guard(async () => {
+        const issued = await api("/api/siwq/challenge", { address: address.input.value.trim() });
+        message.input.value = issued.message;
+        steps.hidden = false;
+        withQorex.hidden = !canQorex;
+        submit.hidden = false;
+      }),
+    },
+  });
+  const withQorex = el("button", {
+    className: "button ghost",
+    type: "button",
+    hidden: true,
+    id: "siwq-qorex",
+    text: "Sign with QoreX",
+    on: {
+      click: guard(async () => {
+        await qorex.enable?.("qorechain-diana");
+        const signed = await qorex.signArbitrary(
+          "qorechain-diana",
+          address.input.value.trim(),
+          message.input.value,
+        );
+        await verify({
+          message: message.input.value,
+          signature: {
+            signatureType: signed.signatureType,
+            classical: signed.classical,
+            pq: signed.pq,
+          },
+        });
+      }),
+    },
+  });
+  const submit = el("button", {
+    className: "button",
+    type: "submit",
+    hidden: true,
+    text: "Sign in",
+  });
+  const form = el("form", { novalidate: true, id: "siwq-form" }, [
+    address.node,
+    steps,
+    error,
+    el("div", { className: "row" }, [start, withQorex, submit]),
+  ]);
+  form.addEventListener(
+    "submit",
+    guard(async () => {
+      let parsed;
+      try {
+        parsed = JSON.parse(signature.input.value);
+      } catch {
+        throw new Error("Paste the whole line that vigil login printed.");
+      }
+      await verify(parsed);
+    }),
+  );
+  return el("div", { className: "card" }, [
+    el("h2", { text: "Or sign in with QoreChain" }),
+    el("p", {
+      className: "muted",
+      text: canQorex
+        ? "Sign a one-time message with the operator's account in QoreX, or with the vigil command line. Both the secp256k1 and the ML-DSA-87 signature are checked against the key registered on chain."
+        : "Sign a one-time message with the operator's account using the vigil command line. Both the secp256k1 and the ML-DSA-87 signature are checked against the key registered on chain. (A QoreX version that can sign messages was not detected.)",
     }),
     form,
   ]);

@@ -26,6 +26,7 @@ import {
   envInt,
   loadConfig,
   toStoredBatch,
+  validateAddress,
   type TxSender,
 } from "@vigil/core";
 import { memoKeys } from "@vigil/memo";
@@ -33,6 +34,7 @@ import { Wallet, createKeystore, openKeystore } from "@vigil/wallet";
 import { Operator } from "./operator.js";
 import { createConsoleRoutes } from "./routes.js";
 import { Sessions } from "./session.js";
+import { SiwqSignIn } from "./siwq.js";
 
 const config = loadConfig();
 const log = createLogger({ service: "console", level: config.logLevel });
@@ -112,12 +114,35 @@ const sessions = new Sessions({
   password,
   secureCookie: process.env.CONSOLE_SECURE_COOKIE === "1",
 });
+// Sign In With QoreChain: the operator's own account, plus any listed in CONSOLE_SIWQ_ADDRESSES.
+const extraSignIn = (process.env.CONSOLE_SIWQ_ADDRESSES ?? "")
+  .split(",")
+  .map((a) => a.trim())
+  .filter((a) => a !== "")
+  .map((a) => {
+    const check = validateAddress(a);
+    if (!check.valid) {
+      throw new ConfigError("CONSOLE_SIWQ_ADDRESSES holds an invalid address", {
+        problems: [{ variable: "CONSOLE_SIWQ_ADDRESSES", problem: check.error }],
+      });
+    }
+    return check.bech32;
+  });
+const domain = process.env.CONSOLE_DOMAIN?.trim() ?? `127.0.0.1:${String(port)}`;
+const siwq = new SiwqSignIn({
+  domain,
+  uri: `${process.env.CONSOLE_SECURE_COOKIE === "1" ? "https" : "http"}://${domain}/`,
+  chainId: config.chainId,
+  rest: config.restUrl,
+  allowed: async () => [(await sender()).address, ...extraSignIn],
+});
+
 const server = createApiServer({
   api,
   staticDir,
   docsDir: process.env.DOCS_DIR ?? fileURLToPath(new URL("../../../docs", import.meta.url)),
   log,
-  routes: createConsoleRoutes({ operator, sessions, log }),
+  routes: createConsoleRoutes({ operator, sessions, siwq, log }),
   trustProxy: process.env.TRUST_PROXY === "1",
   cacheSecs: 2,
 }).listen(port, host, () => {

@@ -14,6 +14,7 @@
  *   vigil memo send <qor1...> <account-id> <qor> <text>
  *                                     transfer with a memo only the qor1 owner can read
  *   vigil memo inbox                  read memos addressed to this account
+ *   vigil login                       sign the console's sign-in message (read from stdin)
  */
 import { join } from "node:path";
 import {
@@ -33,6 +34,7 @@ import {
 import { memoKeys, readMemos, sealMemo, transferHash } from "@vigil/memo";
 import { InputError, formatQor, parseQor } from "./amount.js";
 import { createKeystore, keystoreAccountId, openKeystore, type L2Account } from "./keystore.js";
+import { signLogin } from "./login.js";
 import { Wallet, parseAccountId } from "./wallet.js";
 
 const print = (line: string): void => {
@@ -75,6 +77,22 @@ async function main(argv: string[]): Promise<void> {
 
   try {
     switch (command) {
+      case "login": {
+        const mnemonic = config.secrets.mnemonic;
+        if (mnemonic === undefined) throw new InputError("QORE_MNEMONIC is not set");
+        const chunks: Buffer[] = [];
+        for await (const chunk of process.stdin) chunks.push(chunk as Buffer);
+        const signed = signLogin({
+          message: Buffer.concat(chunks).toString("utf8"),
+          mnemonic,
+          ...(config.secrets.pqcSeedHex === undefined
+            ? {}
+            : { pqcSeedHex: config.secrets.pqcSeedHex }),
+        });
+        // One line to paste into the console. It holds signatures and public keys only.
+        print(JSON.stringify(signed));
+        break;
+      }
       case "keygen": {
         const created = createKeystore(keystorePath, passphrase(config));
         print(`L2 account created: ${Buffer.from(created.accountId).toString("hex")}`);

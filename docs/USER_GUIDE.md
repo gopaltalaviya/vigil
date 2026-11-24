@@ -57,8 +57,20 @@ signed and nothing is sent. Without QoreX the page says so and the button is not
 
 ## Wallet (operator console)
 
-Sign in with the console password set in `VIGIL_CONSOLE_PASSWORD`. Five failed attempts lock the
-sign-in for five minutes.
+Sign in with the console password set in `VIGIL_CONSOLE_PASSWORD`, or with QoreChain:
+
+1. Under **Or sign in with QoreChain**, enter the operator's `qor1` address and choose **Get the
+   message**. The console shows a one-time Sign In With QoreChain message, valid for five minutes.
+2. Sign it. On the server, run `pnpm -s vigil login`, paste the message, end the input (Ctrl+D, or
+   Ctrl+Z then Enter on Windows) and paste the line it prints. With a QoreX version that can sign
+   messages, choose **Sign with QoreX** instead.
+3. The console checks the secp256k1 signature and the ML-DSA-87 signature against the key the
+   account registered on chain with a proof of possession. A classical-only signature is refused.
+
+Only the operator's own account, and any listed in `CONSOLE_SIWQ_ADDRESSES`, may sign in. The
+`vigil login` route uses the same seed phrase the console holds, so it replaces the shared password
+with a post-quantum signature rather than adding a second person. Five failed attempts, of either
+kind, lock the sign-in for five minutes.
 
 1. **Create account.** The first time, create a rollup account. Its ML-DSA-44 key is stored
    encrypted on the server.

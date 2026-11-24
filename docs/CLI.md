@@ -19,6 +19,7 @@ assume the environment is set.
 | `vigil memo register`                                 | Publishes your ML-KEM-1024 key on chain (once)                                    |
 | `vigil memo send <qor1...> <account-id> <qor> <text>` | Transfer with a memo only the `qor1` owner can read                               |
 | `vigil memo inbox`                                    | Decrypts memos addressed to you                                                   |
+| `vigil login`                                         | Signs the console's Sign In With QoreChain message, read from stdin               |
 
 Example:
 

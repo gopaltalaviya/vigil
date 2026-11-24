@@ -48,24 +48,38 @@ export class Sessions {
   }
 
   signIn(password: unknown, client: string): SignInResult {
-    const now = this.now();
-    const failed = this.failures.get(client);
-    if (failed !== undefined && now - failed.since >= this.lockSecs) this.failures.delete(client);
-    if ((this.failures.get(client)?.count ?? 0) >= this.maxAttempts) {
-      return { ok: false, reason: "locked" };
-    }
+    if (this.isLocked(client)) return { ok: false, reason: "locked" };
     const matches =
       typeof password === "string" && timingSafeEqual(digest(password), this.passwordDigest);
     if (!matches) {
-      const entry = this.failures.get(client) ?? { count: 0, since: now };
-      entry.count += 1;
-      this.failures.set(client, entry);
+      this.recordFailure(client);
       return { ok: false, reason: "wrong-password" };
     }
+    return { ok: true, cookie: this.grant(client) };
+  }
+
+  /** Whether `client` has failed too often recently to try again yet. */
+  isLocked(client: string): boolean {
+    const failed = this.failures.get(client);
+    if (failed !== undefined && this.now() - failed.since >= this.lockSecs) {
+      this.failures.delete(client);
+    }
+    return (this.failures.get(client)?.count ?? 0) >= this.maxAttempts;
+  }
+
+  /** Counts a failed sign-in, by password or by signature, towards the lock-out. */
+  recordFailure(client: string): void {
+    const entry = this.failures.get(client) ?? { count: 0, since: this.now() };
+    entry.count += 1;
+    this.failures.set(client, entry);
+  }
+
+  /** Starts a session for a client that has proved who it is; returns its cookie. */
+  grant(client: string): string {
     this.failures.delete(client);
     const token = randomBytes(32).toString("hex");
-    this.active.set(digest(token).toString("hex"), now + this.ttlSecs);
-    return { ok: true, cookie: this.cookie(token, this.ttlSecs) };
+    this.active.set(digest(token).toString("hex"), this.now() + this.ttlSecs);
+    return this.cookie(token, this.ttlSecs);
   }
 
   /** Whether the cookie value belongs to a live session. */

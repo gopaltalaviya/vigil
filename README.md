@@ -356,7 +356,8 @@ Vigil builds on open-source work, used under their licences:
 - [`@qorechain/qoreseal`](https://github.com/qorechain/qoreseal): ML-KEM-1024 envelopes for memos.
 - [`@qorechain/sdk`](https://github.com/qorechain/qorechain-sdk) and `@qorechain/evm`: EVM account,
   key registration, authorisation windows and the smart-account (`x/abstractaccount`) messages.
-- `@qorechain/qoresign`: inspection of each batch transaction's ML-DSA-87 layer, and key lookups.
+- `@qorechain/qoresign`: inspection of each batch transaction's ML-DSA-87 layer, key lookups, and
+  Sign In With QoreChain for the operator console.
 - `@qorechain/pqc`: ML-DSA-87 verification of settlement anchors off chain, and attestation
   signing.
 - `@qorechain/qore-cli`: `pnpm verify:proof` checks every public claim with QoreChain's own CLI.

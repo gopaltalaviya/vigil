@@ -50,6 +50,8 @@ never its value.
 | `API_PORT`                 | `8080`                                 | Public server port                                                                            |
 | `CONSOLE_PORT`             | `8090`                                 | Console port                                                                                  |
 | `CONSOLE_HOST`             | `127.0.0.1`                            | Console listen address                                                                        |
+| `CONSOLE_DOMAIN`           | `127.0.0.1:<CONSOLE_PORT>`             | Host the browser uses for the console; part of every sign-in message                          |
+| `CONSOLE_SIWQ_ADDRESSES`   | unset                                  | Further `qor1` accounts allowed to sign in with QoreChain, comma separated                    |
 | `CONSOLE_SECURE_COOKIE`    | unset                                  | `1` to mark the session cookie Secure (when served over HTTPS)                                |
 | `TRUST_PROXY`              | `0`                                    | `1` when a reverse proxy on the same host fronts the server                                   |
 | `LOG_LEVEL`                | `info`                                 | `fatal`, `error`, `warn`, `info`, `debug` or `trace`                                          |
