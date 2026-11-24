@@ -28,7 +28,7 @@ export function rollupsView({ el, pill, api, ago, short }) {
 
   const row = (audit) => {
     const [tone, label] = STATUS[audit.status] ?? ["plain", audit.status];
-    return el("article", { className: "proof-card" }, [
+    return el("article", { className: `proof-card status-${audit.status}` }, [
       el("div", { className: "proof-top" }, [pill(tone, label)]),
       el("h2", { className: "mono", text: audit.rollupId }),
       el("p", {

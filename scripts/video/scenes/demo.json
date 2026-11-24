@@ -4,7 +4,7 @@
     {
       "card": "brand/cover.png",
       "name": "title",
-      "narration": "Vigil: a post-quantum rollup with a watchtower, on the QoreChain testnet. Here is the demo.",
+      "narration": "Vigil Watchtower: a post-quantum rollup with its own watchtower, on the QoreChain testnet.",
       "minSeconds": 4
     },
     {
@@ -20,7 +20,7 @@
         }
       ],
       "caption": "Vigil: a rollup that checks itself",
-      "narration": "Vigil is a post-quantum rollup on QoreChain with its own watchtower. Every batch is re-executed the moment it lands, and a wrong one is challenged before it can settle. On the right, the watchtower's live view of the latest batches.",
+      "narration": "Every batch of the Vigil rollup is re-executed the moment it lands, and a wrong one is challenged before it can settle. On the right, the watchtower's live view.",
       "steps": [
         {
           "action": "wait",
@@ -67,11 +67,11 @@
         },
         {
           "action": "waitFor",
-          "js": "fetch('/api/overview').then(r=>r.json()).then(d=>{window.__recStart=d.rollup.inboxEntriesArchived+2;return true})"
+          "js": "fetch('/api/overview').then(r=>r.json()).then(d=>{window.__recStart=d.rollup.inboxEntriesArchived+1;return true})"
         }
       ],
       "caption": "Sign in to the operator wallet",
-      "narration": "The wallet signs server side, behind a password. The password is typed from the environment and never shown.",
+      "narration": "The operator wallet signs on the server. It opens with a password, typed here from the environment, or with Sign In With QoreChain.",
       "steps": [
         {
           "action": "waitForSelector",
@@ -128,40 +128,6 @@
         {
           "action": "wait",
           "ms": 2500
-        }
-      ]
-    },
-    {
-      "name": "withdraw",
-      "caption": "Withdraw back to the base chain",
-      "narration": "A withdrawal goes through the same inbox. It can be claimed with a Merkle proof once its batch is final.",
-      "steps": [
-        {
-          "action": "click",
-          "selector": "button[data-tab='withdraw']",
-          "ms": 600
-        },
-        {
-          "action": "type",
-          "selector": "#withdraw-amount",
-          "text": "0.01"
-        },
-        {
-          "action": "click",
-          "selector": "#wallet-panel button[type=submit]",
-          "ms": 1500
-        },
-        {
-          "action": "waitFor",
-          "js": "!document.querySelector('#wallet-panel button[aria-busy]')",
-          "timeoutMs": 120000
-        },
-        {
-          "action": "wait",
-          "ms": 2500
-        },
-        {
-          "action": "hidePointer"
         }
       ]
     },
@@ -271,24 +237,50 @@
       ]
     },
     {
-      "name": "chain",
+      "name": "rollups",
       "before": [
         {
           "action": "goto",
-          "hash": "#/chain"
+          "hash": "#/rollups"
         }
       ],
-      "caption": "Watching QoreChain itself",
-      "narration": "Vigil also watches QoreChain itself: block production, block time against the documented value, and silent changes to its settings.",
+      "caption": "Auditing other teams' rollups",
+      "narration": "The watchtower also re-executes every other rollup on the network, read-only. On wicketgate-pay it proved that batch 12 changed only its withdrawals root. That batch paid out 13 Q O R, and nobody challenged it.",
       "steps": [
         {
           "action": "wait",
           "ms": 2500
         },
         {
-          "action": "scroll",
-          "y": 600,
-          "ms": 2500
+          "action": "scrollTo",
+          "selector": ".status-fraud_found",
+          "block": "center",
+          "ms": 6000
+        }
+      ]
+    },
+    {
+      "name": "gate",
+      "before": [
+        {
+          "action": "goto",
+          "hash": "#/proof"
+        }
+      ],
+      "caption": "Contracts can rely on settlement",
+      "narration": "Contracts can rely on settlement. This escrow, made with create QoreChain dapp, paid out only once batch 29's receipt was recorded, and refused a forged state root. Withdrawn funds can also leave QoreChain: this exit reached Osmosis over I B C in 21 seconds.",
+      "steps": [
+        {
+          "action": "scrollTo",
+          "selector": ".proof-grid .proof-card:nth-child(8)",
+          "block": "center",
+          "ms": 6000
+        },
+        {
+          "action": "scrollTo",
+          "selector": ".proof-grid .proof-card:nth-child(10)",
+          "block": "center",
+          "ms": 5000
         }
       ]
     },
@@ -297,22 +289,27 @@
       "before": [
         {
           "action": "goto",
-          "hash": "#/docs/JUDGES"
+          "hash": "#/learn/use-cases"
         }
       ],
-      "caption": "Learn, Docs and Proof, built in",
-      "narration": "Learn, Docs and Proof are built in: the concept, the threat model, and every claim with its transactions.",
+      "caption": "Use cases, docs and one-command checks",
+      "narration": "Use cases, docs, a red-team replay and every claim with its transaction are built in, and one command re-checks them all from a fresh clone, with no key.",
       "steps": [
         {
           "action": "wait",
-          "ms": 2500
+          "ms": 2000
+        },
+        {
+          "action": "scroll",
+          "y": 500,
+          "ms": 3000
         }
       ]
     },
     {
       "card": "brand/cover.png",
       "name": "end",
-      "narration": "Vigil. Post-quantum settlement, always watched. Open source under Apache 2.",
+      "narration": "Vigil Watchtower. Post-quantum settlement, always watched. Open source under Apache 2.",
       "minSeconds": 4
     }
   ]

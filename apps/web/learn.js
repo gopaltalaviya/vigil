@@ -198,7 +198,7 @@ export function learnView({ el, pill, latestBatch }) {
           "Payments with a private note",
           "people paying each other on the rollup who need to say what a payment is for",
           "A transfer can carry a memo sealed with ML-KEM-1024 to the key the recipient published on QoreChain, and bound to that transfer. Amounts stay public; the note is readable only by the recipient, now and after quantum computers arrive.",
-          "a recipient key, a sealed memo bound to a 1.5 QOR transfer, and the red-team replay refusing a changed or moved memo.",
+          "a recipient key, a sealed memo bound to a 0.25 QOR transfer, and the red-team replay refusing a changed or moved memo.",
         ),
         useCase(
           "A watchtower for rollups you do not run",

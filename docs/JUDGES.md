@@ -57,19 +57,29 @@ encodings. Vigil adds:
 - Private memos bound to transfers.
 - A monitor of QoreChain itself, which found mainnet's block time at 4.78 s against a documented
   3.1 s.
-- A web app and operator console.
+- A web app and operator console, with Sign In With QoreChain (ML-DSA-87 checked against the
+  registered key).
+- A read-only audit of every other `qledger-v1` rollup on the network, which proved that
+  `wicketgate-pay` batch 12 paid out 13 QOR on a forged withdrawals root.
+- Receipt recording through a smart account whose key can call only the two record functions, with
+  a scoped EVM window as the fallback.
+- `SettlementGate`, an example contract that pays only after a batch has settled.
+- One-command checks from a fresh clone with no key: `verify:proof`, `metrics`, `redteam`.
 
 ## Quality
 
-- 159 TypeScript tests and 19 contract tests, including a golden test that replays a live rollup's
-  public data and reproduces the state roots the chain finalized.
-- A 134-check browser test of the web app in light and dark themes and at phone width, including a
-  real transfer.
+- 230 TypeScript tests, 19 contract tests and 10 tests of the SettlementGate example (2 of them
+  against the real `VigilReceipts` on a testnet fork), including a golden test that replays a live
+  rollup's public data and reproduces the state roots the chain finalized.
+- A 170-check browser test of the web app in light and dark themes and at phone width, including
+  Sign In With QoreChain through the browser.
+- `pnpm redteam`: ten attacks on live data, each refused by a named check with a passing control.
 - Two independent reviews (contract and services). Their findings are fixed or documented in the
   [threat model](THREAT_MODEL.md).
 
 ## Videos
 
-- `media/vigil-demo.mp4`: the demo, 2.5 minutes, with real testnet transactions and the fraud catch.
+- `media/vigil-demo.mp4`: the demo, 2 minutes 48 seconds, with a real testnet transfer, the fraud
+  catch, the audit of other rollups, SettlementGate and the IBC exit.
 - `media/vigil-overview.mp4`: the concept in one minute.
 - `media/vigil-security.mp4`: the forged batch 18 stopped by the watchtower, step by step.

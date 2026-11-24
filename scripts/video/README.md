@@ -6,11 +6,11 @@
 node --env-file=.env scripts/video/record.mjs overview http://127.0.0.1:8090
 ```
 
-| Scene list | Output                     | Content                                                                     |
-| ---------- | -------------------------- | --------------------------------------------------------------------------- |
-| `overview` | `media/vigil-overview.mp4` | The concept in about a minute                                               |
-| `demo`     | `media/vigil-demo.mp4`     | The full demo, under three minutes. Sends two 0.01 QOR testnet transactions |
-| `security` | `media/vigil-security.mp4` | How a forged batch is caught                                                |
+| Scene list | Output                     | Content                                                                    |
+| ---------- | -------------------------- | -------------------------------------------------------------------------- |
+| `overview` | `media/vigil-overview.mp4` | The concept in about a minute                                              |
+| `demo`     | `media/vigil-demo.mp4`     | The full demo, under three minutes. Sends one 0.01 QOR testnet transaction |
+| `security` | `media/vigil-security.mp4` | How a forged batch is caught                                               |
 
 It drives a headless Chrome over the DevTools protocol at 1440×810, captures the screen, speaks
 each scene's narration with a built-in Windows voice (`narrate.ps1`), and joins the scenes into an
