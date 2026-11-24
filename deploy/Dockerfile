@@ -17,6 +17,7 @@ COPY packages/receipts/package.json packages/receipts/
 COPY packages/monitor/package.json packages/monitor/
 COPY packages/api/package.json packages/api/
 COPY packages/console/package.json packages/console/
+COPY packages/mcp/package.json packages/mcp/
 RUN pnpm install --frozen-lockfile --filter "./packages/*..." --filter .
 
 COPY packages packages

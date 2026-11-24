@@ -9,6 +9,7 @@ export const DOC_PAGES = [
   ["API", "HTTP API"],
   ["CONFIGURATION", "Configuration"],
   ["CONTRACT", "Receipts contract"],
+  ["MCP", "MCP server"],
   ["ARCHITECTURE", "Architecture"],
   ["THREAT_MODEL", "Threat model"],
   ["RUNBOOK", "Running Vigil Watchtower"],

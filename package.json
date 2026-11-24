@@ -29,6 +29,7 @@
     "monitor": "tsx packages/monitor/src/main.ts",
     "api": "tsx packages/api/src/main.ts",
     "console": "tsx packages/console/src/main.ts",
+    "mcp": "tsx packages/mcp/src/main.ts",
     "video": "node scripts/video/record.mjs"
   },
   "devDependencies": {

@@ -63,6 +63,37 @@ bytes validatorSetHash, uint64 txCount)`.
   revert with `AlreadyRecorded`; the state is what you wanted. The Vigil client treats that as
   success.
 
+## How Vigil sends record calls
+
+The receipts service never holds a key that can do more than record receipts. It has two lanes
+for `recordAnchor` and `recordAttestation`, and picks one per call.
+
+1. **Smart account (preferred).** The deployer account owns a QoreChain smart account. A separate
+   hot key is linked to it with permission `evm`, an expiry of at most 30 days, and one spending
+   rule: value at most 1 uqor per call and per day, and calls allowed only to
+   `0xced683ad…f1d1/0x6bc29f02` (`recordAnchor`) and `0xced683ad…f1d1/0xfdccffe8`
+   (`recordAttestation`). The hot key signs each call; the deployer relays it as `MsgExecuteEVM`
+   and pays the fee. No EVM window is opened. A relayed call counts as sent only when the chain
+   reports that the execution itself succeeded, because a failed execution still returns code 0.
+2. **Scoped EVM window (fallback).** When the hot key is missing, expired or revoked, the service
+   opens an EVM window whose only allowed target is this contract, for at most 5 calls.
+
+`VIGIL_RECEIPTS_MODE=smart` or `window` forces one lane; the default `auto` uses the smart account
+when it is ready.
+
+```
+vigil-receipts smart-account link 14   # create the hot key in the data directory and link it for 14 days
+vigil-receipts smart-account status    # rule, key, expiry, nonce, and whether it is ready
+vigil-receipts smart-account revoke    # disable the hot key at once
+```
+
+The hot key is written once to the data directory (`receipts-hot.key`, mode 0600) and is never
+printed. Revoking it, or letting it expire, moves recording back to the scoped window.
+
+On the testnet today, a call made through the smart account changes the contract's state but its
+event is not returned by `eth_getLogs`. Vigil therefore stores the relaying transaction's hash when
+it sends, and checks records with `isAnchorRecorded` and `isAttestationRecorded`, never with logs.
+
 ## Tests
 
 `contracts/test/VigilReceipts.t.sol`: 19 tests, including fuzz tests, against stand-in precompiles.

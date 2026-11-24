@@ -200,11 +200,18 @@ pnpm receipts setup       # fund the deployer, register its ML-DSA-87 key, open 
 pnpm receipts deploy      # deploy VigilReceipts
 pnpm receipts check 0     # verify batch 0's anchor through the contract, read-only
 pnpm receipts record 0    # verify and record it
+pnpm receipts attest 0    # sign and record this watchtower's ML-DSA-87 attestation of batch 0
+pnpm receipts smart-account link 14   # lock record calls to a hot key for 14 days
 ```
 
 QoreChain's EVM side only accepts transactions from an account with a registered post-quantum
 key and an open authorisation window, so `setup` does both. The deployer only pays gas; receipts
 are signed by the rollup's creator and checked against the creator's registered key.
+
+Record calls then go through a QoreChain smart account: a hot key that may call only
+`recordAnchor` and `recordAttestation` on `VigilReceipts`, with no value, until it expires. When
+that key is not ready, the service falls back to an EVM window that can reach only this contract.
+See [docs/CONTRACT.md](docs/CONTRACT.md#how-vigil-sends-record-calls).
 
 ## Running the watchtower
 
@@ -274,6 +281,8 @@ See [docs/RUNBOOK.md](docs/RUNBOOK.md).
 - [Threat model](docs/THREAT_MODEL.md): what is protected, against whom, and the limits, with a
   test or a testnet transaction for every claim.
 - [Runbook](docs/RUNBOOK.md): deployment, alerts and incidents.
+- [Receipts contract](docs/CONTRACT.md): what it verifies and how Vigil sends record calls.
+- [MCP server](docs/MCP.md): read Vigil and QoreChain from an AI assistant.
 - [Demo walkthrough](docs/DEMO.md).
 
 ## Relying on recorded receipts
@@ -301,7 +310,12 @@ Vigil builds on open-source work, used under their licences:
 
 - [`@qorechain/qoreseal`](https://github.com/qorechain/qoreseal): ML-KEM-1024 envelopes for memos.
 - [`@qorechain/sdk`](https://github.com/qorechain/qorechain-sdk) and `@qorechain/evm`: EVM account,
-  key registration and authorisation windows.
+  key registration, authorisation windows and the smart-account (`x/abstractaccount`) messages.
+- `@qorechain/qoresign`: inspection of each batch transaction's ML-DSA-87 layer, and key lookups.
+- `@qorechain/pqc`: ML-DSA-87 verification of settlement anchors off chain, and attestation
+  signing.
+- [`@qorechain/mcp`](https://github.com/qorechain/qorechain-mcp) and the
+  [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk): the MCP server.
 - [`@qorechain/rdk`](https://github.com/qorechain/qorechain-rdk) (Apache-2.0): chain client,
   `qledger-v1` execution, inbox hashing, receipt and envelope helpers.
 - [forge-std](https://github.com/foundry-rs/forge-std) and [viem](https://github.com/wevm/viem).
