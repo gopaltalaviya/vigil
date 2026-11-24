@@ -234,7 +234,25 @@ describe("operator console", () => {
       expect(
         (await call("/api/wallet/transfer", { to: other, amount: "0.25" })).body.memoHash,
       ).toBeNull();
-      expect((await call("/api/wallet/withdraw", { amount: "1" })).status).toBe(200);
+      const typo = `${OPERATOR.slice(0, -1)}${OPERATOR.endsWith("q") ? "p" : "q"}`;
+      expect(
+        (await call("/api/wallet/withdraw", { amount: "1", recipient: typo })).body.error,
+      ).toMatch(/not a valid address \(BAD_CHECKSUM\)/);
+      expect(
+        (
+          await call("/api/wallet/transfer", {
+            to: other,
+            amount: "0.25",
+            memo: "x",
+            memoRecipient: typo,
+          })
+        ).body.error,
+      ).toMatch(/memo recipient is not a valid address \(BAD_CHECKSUM\)/);
+      // The 0x spelling of the operator's own account is accepted and paid to its qor1 form.
+      expect(
+        (await call("/api/wallet/withdraw", { amount: "1", recipient: `0x${"0a".repeat(20)}` }))
+          .status,
+      ).toBe(200);
       expect((await call("/api/wallet/withdraw", { amount: "100" })).body.error).toMatch(
         /does not hold/,
       );

@@ -10,3 +10,4 @@ export * from "./log.js";
 export * from "./replay.js";
 export * from "./store.js";
 export * from "./tx.js";
+export { validateAddress, type AddressCheck } from "./vendor/custody-kit/address.js";

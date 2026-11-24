@@ -120,6 +120,33 @@ describe("explorer routes", () => {
     expect(body(api.handle("/api/session"))).toEqual({ console: false, signedIn: false });
   });
 
+  it("lists withdrawals to a base-chain address given in either spelling, and refuses bad ones", async () => {
+    const { api } = await scenario();
+    const byBech32 = body(api.handle(`/api/withdrawals/${PAYEE}`)) as unknown as {
+      recipient: string;
+      withdrawals: { sequence: number; amount: string }[];
+    };
+    expect(byBech32.recipient).toBe(PAYEE);
+    expect(byBech32.withdrawals.map((w) => [w.sequence, w.amount])).toEqual([[4, "500000"]]);
+    const byHex = body(api.handle(`/api/withdrawals/0x${"0b".repeat(20)}`));
+    expect(byHex).toEqual(byBech32);
+    const nobody = hexToBech32("0c".repeat(20), "qor");
+    expect(body(api.handle(`/api/withdrawals/${nobody}`))).toEqual({
+      recipient: nobody,
+      withdrawals: [],
+    });
+
+    const typo = `${PAYEE.slice(0, -1)}${PAYEE.endsWith("q") ? "p" : "q"}`;
+    expect(api.handle(`/api/withdrawals/${typo}`)).toMatchObject({ status: 400 });
+    expect(body(api.handle(`/api/withdrawals/${typo}`))).toMatchObject({ code: "BAD_CHECKSUM" });
+    expect(body(api.handle(`/api/withdrawals/%20${PAYEE}`))).toMatchObject({ code: "WHITESPACE" });
+    expect(body(api.handle("/api/withdrawals/%E0%A4%A"))).toMatchObject({ code: "BAD_ENCODING" });
+    const validator = hexToBech32("0b".repeat(20), "qorvaloper");
+    expect(body(api.handle(`/api/withdrawals/${validator}`))).toMatchObject({
+      code: "KIND_NOT_ALLOWED",
+    });
+  });
+
   it("shows the live claim at an index and lists the ones the chain rejected", async () => {
     const { api, store, rollup } = await scenario();
     const live = rollup.batches[0];

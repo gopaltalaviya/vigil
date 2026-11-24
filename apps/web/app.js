@@ -861,15 +861,101 @@ const views = {
   accounts: {
     title: "Accounts",
     async load(param) {
-      const [entries, account] = await Promise.all([
+      const isAddress = param !== undefined && /^(qor1|0x)/i.test(param);
+      const [entries, account, payouts] = await Promise.all([
         api("/api/entries"),
         param && /^[0-9a-fA-F]{64}$/.test(param)
           ? api(`/api/accounts/${param}`)
           : Promise.resolve(null),
+        isAddress
+          ? api(`/api/withdrawals/${encodeURIComponent(param)}`).catch((error) => ({
+              error: error.message,
+            }))
+          : Promise.resolve(null),
       ]);
-      return { entries: entries.entries, account };
+      return { entries: entries.entries, account, payouts };
     },
     render(data, param) {
+      const isAddress = param !== undefined && /^(qor1|0x)/i.test(param);
+      const address = el("input", {
+        id: "base-address",
+        name: "address",
+        required: true,
+        autocomplete: "off",
+        spellcheck: "false",
+        placeholder: "qor1… or 0x…",
+        value: isAddress ? param : "",
+      });
+      // QoreX, read-only: the wallet only tells us its address; nothing is signed.
+      const qorex = window.qorex?.native;
+      const useQorex = async () => {
+        try {
+          await qorex.enable("qorechain-diana");
+          const key = await qorex.getKey("qorechain-diana");
+          location.hash = `#/accounts/${key.bech32Address}`;
+        } catch (error) {
+          toast("QoreX did not share an address", String(error?.message ?? error), true);
+        }
+      };
+      const addressForm = el(
+        "form",
+        {
+          on: {
+            submit: (event) => {
+              event.preventDefault();
+              location.hash = `#/accounts/${address.value.trim()}`;
+            },
+          },
+        },
+        [
+          el("div", { className: "field" }, [
+            el("label", { for: "base-address", text: "QoreChain address" }),
+            address,
+            el("span", {
+              className: "help",
+              text: "Withdrawals from the rollup that pay this address. Checked with QoreChain's custody kit: a mistyped address is refused, not guessed.",
+            }),
+          ]),
+          el("div", { className: "row" }, [
+            el("button", { className: "button", type: "submit", text: "Find withdrawals" }),
+            qorex && typeof qorex.getKey === "function"
+              ? el("button", {
+                  className: "button ghost",
+                  type: "button",
+                  id: "use-qorex",
+                  text: "Use my QoreX address",
+                  on: { click: useQorex },
+                })
+              : el("span", { className: "muted", text: "QoreX not detected." }),
+          ]),
+        ],
+      );
+      const payouts = data.payouts
+        ? el("div", { className: "card", id: "payouts" }, [
+            el("h2", { text: "Withdrawals to this address" }),
+            data.payouts.error
+              ? el("p", { className: "empty", text: `Not a valid address: ${data.payouts.error}` })
+              : data.payouts.withdrawals.length === 0
+                ? el("p", { className: "empty", text: `None to ${data.payouts.recipient}.` })
+                : el(
+                    "ul",
+                    { className: "feed" },
+                    data.payouts.withdrawals.map((w) =>
+                      el(
+                        "li",
+                        {},
+                        el("div", { className: "row" }, [
+                          el("span", { className: "title", text: `${qor(w.amount)} QOR` }),
+                          el("span", {
+                            className: "meta",
+                            text: `entry ${w.sequence} · height ${w.height.toLocaleString("en-US")}${w.signatureValid ? "" : " · invalid signature, never paid"}`,
+                          }),
+                        ]),
+                      ),
+                    ),
+                  ),
+          ])
+        : null;
       const input = el("input", {
         id: "account-id",
         name: "id",
@@ -917,6 +1003,17 @@ const views = {
           }),
         ]),
         el("div", { className: "split" }, [
+          el("div", { className: "card" }, [
+            el("h2", { text: "Withdrawals to a QoreChain address" }),
+            addressForm,
+          ]),
+          payouts ??
+            el("p", {
+              className: "empty",
+              text: "Enter a qor1 or 0x address, or let QoreX fill in yours.",
+            }),
+        ]),
+        el("div", { className: "split" }, [
           el("div", { className: "card" }, [el("h2", { text: "Find an account" }), form]),
           data.account
             ? el("div", { className: "card" }, [
@@ -940,9 +1037,10 @@ const views = {
               ])
             : el("p", {
                 className: "empty",
-                text: param
-                  ? "That is not a valid account id."
-                  : "Enter an account id to see its balance.",
+                text:
+                  param && !isAddress
+                    ? "That is not a valid account id."
+                    : "Enter an account id to see its balance.",
               }),
         ]),
         section(

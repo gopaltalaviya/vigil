@@ -13,6 +13,7 @@ export default tseslint.config(
       "apps/web/**",
       "scripts/video/**",
       "examples/**",
+      "packages/*/src/vendor/**",
       "packages/receipts/src/abi.ts",
     ],
   },

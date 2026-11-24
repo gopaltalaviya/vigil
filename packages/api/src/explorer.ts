@@ -105,6 +105,14 @@ export class Explorer {
     return store.inboxRange(rollupId, from, to).map((entry) => describeEntry(entry, this.context));
   }
 
+  /** Every archived withdrawal request that pays `recipient` (a `qor1` address), oldest first. */
+  withdrawalsTo(recipient: string): EntryView[] {
+    const head = this.context.store.lastInboxEntry(this.context.rollupId)?.sequence ?? 0;
+    return this.entries(0, head).filter(
+      (entry) => entry.kind === "withdrawal" && entry.recipient === recipient,
+    );
+  }
+
   /** The most recent `limit` entries, newest first. */
   recentEntries(limit: number): EntryView[] {
     const head = this.context.store.lastInboxEntry(this.context.rollupId)?.sequence ?? 0;

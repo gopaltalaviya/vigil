@@ -1,5 +1,5 @@
 import type { SealKeyPair } from "@qorechain/qoreseal";
-import { VigilError, toHex, type Store, type TxSender } from "@vigil/core";
+import { VigilError, toHex, validateAddress, type Store, type TxSender } from "@vigil/core";
 import { MAX_MEMO_BYTES, readMemos, sealMemo, transferHash } from "@vigil/memo";
 import { InputError, parseQor, type L2Account, type Wallet } from "@vigil/wallet";
 
@@ -141,7 +141,10 @@ export class Operator {
       if (new TextEncoder().encode(memoText).length > MAX_MEMO_BYTES) {
         throw new InputError(`the memo is longer than ${String(MAX_MEMO_BYTES)} bytes`);
       }
-      const memoRecipient = text(field(body, "memoRecipient"), "memo recipient address");
+      const memoRecipient = qorAddress(
+        text(field(body, "memoRecipient"), "memo recipient address"),
+        "memo recipient",
+      );
       const published = await this.deps.kemKey(memoRecipient);
       if (published === undefined) {
         throw new InputError("the memo recipient has not published an encryption key");
@@ -167,7 +170,8 @@ export class Operator {
   async withdraw(body: unknown): Promise<{ hash: string }> {
     const amount = parseQor(text(field(body, "amount"), "amount"));
     const sender = await this.deps.sender();
-    const recipient = optional(field(body, "recipient")) ?? sender.address;
+    const given = optional(field(body, "recipient"));
+    const recipient = given === undefined ? sender.address : qorAddress(given, "recipient");
     const outcome = await this.deps.wallet.withdraw(
       sender,
       this.requireAccount(),
@@ -222,4 +226,17 @@ function optional(value: unknown): string | undefined {
 /** Message safe to show an operator: our own errors verbatim, anything else generic. */
 export function publicMessage(error: unknown): string {
   return error instanceof VigilError ? error.message : "the request failed; see the server log";
+}
+
+/**
+ * A base-chain account address in its `qor1` form. Accepts the `qor1` and the
+ * `0x` spelling, and refuses a bad checksum, a validator address, stray
+ * whitespace or a wrong length with the custody kit's error code.
+ */
+export function qorAddress(input: string, label: string): string {
+  const check = validateAddress(input);
+  if (!check.valid) {
+    throw new InputError(`the ${label} is not a valid address (${check.error}): ${check.detail}`);
+  }
+  return check.bech32;
 }

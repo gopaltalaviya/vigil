@@ -50,6 +50,11 @@ values if they differ), and every inbox entry it covers, decoded.
 Paste a rollup account id (64 hexadecimal characters) to see its balance and how many transactions
 it has sent. Balances come from replaying the verified inbox, not from anyone's word.
 
+**Withdrawals to a QoreChain address** lists the rollup withdrawals that pay a `qor1…` or `0x…`
+address. A mistyped address is refused with the reason (for example a bad checksum). With the QoreX
+wallet installed, **Use my QoreX address** asks QoreX for your address and fills it in; nothing is
+signed and nothing is sent. Without QoreX the page says so and the button is not shown.
+
 ## Wallet (operator console)
 
 Sign in with the console password set in `VIGIL_CONSOLE_PASSWORD`. Five failed attempts lock the

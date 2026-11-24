@@ -9,3 +9,4 @@ packages/*/test/fixtures
 LICENSE
 docs/cbom.json
 examples/settlement-gate
+packages/core/src/vendor

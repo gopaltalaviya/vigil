@@ -79,6 +79,26 @@ Balance and nonce of a rollup account after every archived entry.
 { "accountId": "14e8c2f8…", "balance": "4730000", "nonce": "6", "asOfEntry": 14 }
 ```
 
+### `GET /api/withdrawals/{address}`
+
+Every withdrawal request in the archived inbox that pays a base-chain address, oldest first, in the
+shape of `entries` above. The address may be given as `qor1…` or `0x…`; it is checked with the
+QoreChain custody kit's `validateAddress`, and `recipient` is its `qor1` form. A bad address is
+refused with `400` and the kit's error code (`BAD_CHECKSUM`, `WHITESPACE`, `WRONG_PREFIX`,
+`KIND_NOT_ALLOWED`, …), never guessed.
+
+```json
+{
+  "recipient": "qor1…",
+  "withdrawals": [
+    { "sequence": 10, "kind": "withdrawal", "amount": "300000", "signatureValid": true }
+  ]
+}
+```
+
+A withdrawal with an invalid signature is listed but is never paid. Whether a valid one has been
+paid yet is shown in the operator's wallet.
+
 ### `GET /api/entries`
 
 The 50 most recent inbox entries, newest first, in the same shape as `entries` above.

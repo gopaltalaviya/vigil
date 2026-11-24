@@ -1,4 +1,4 @@
-import { claimId, type Store, type StoredBatch } from "@vigil/core";
+import { claimId, validateAddress, type Store, type StoredBatch } from "@vigil/core";
 import { Explorer } from "./explorer.js";
 
 export interface ApiOptions {
@@ -112,6 +112,21 @@ export class Api {
     const account = /^\/api\/accounts\/([0-9a-fA-F]{64})$/.exec(path);
     if (account?.[1] !== undefined) {
       return json(200, this.explorer.account(account[1].toLowerCase()));
+    }
+    const withdrawals = /^\/api\/withdrawals\/([^/]{1,128})$/.exec(path);
+    if (withdrawals?.[1] !== undefined) {
+      let input: string;
+      try {
+        input = decodeURIComponent(withdrawals[1]);
+      } catch {
+        return json(400, { error: "the address is not valid", code: "BAD_ENCODING" });
+      }
+      const check = validateAddress(input);
+      if (!check.valid) return json(400, { error: check.detail, code: check.error });
+      return json(200, {
+        recipient: check.bech32,
+        withdrawals: this.explorer.withdrawalsTo(check.bech32),
+      });
     }
     return json(404, { error: "not found" });
   }

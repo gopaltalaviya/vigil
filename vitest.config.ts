@@ -30,6 +30,8 @@ export default defineConfig({
         "packages/receipts/src/abi.ts",
         "packages/receipts/src/contract.ts",
         "packages/receipts/src/deployer.ts",
+        // Vendored third-party code, kept byte for byte as released.
+        "packages/*/src/vendor/**",
       ],
       thresholds: { lines: 90, functions: 90, branches: 80, statements: 90 },
     },

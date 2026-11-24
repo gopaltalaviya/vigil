@@ -4,5 +4,10 @@ Copyright 2026 The Vigil Watchtower authors
 This product includes software developed by the QoreChain project
 (https://github.com/qorechain/qorechain-rdk), licensed under the Apache License 2.0.
 
+packages/core/src/vendor/custody-kit contains address.ts and bech32.ts, unmodified, from the
+QoreChain custody kit (https://github.com/qorechain/qorechain-custody-kit), tag v0.1.1, commit
+4455daddfbd055ab0b4b7cb0beb90d3e3460d06b. Copyright 2026 QoreChain Association, licensed under the
+Apache License 2.0.
+
 Test fixtures in packages/core/test/fixtures contain public data recorded from the
 QoreChain testnet.

@@ -361,6 +361,7 @@ Vigil builds on open-source work, used under their licences:
   signing.
 - `@qorechain/qore-cli`: `pnpm verify:proof` checks every public claim with QoreChain's own CLI.
 - `create-qorechain-dapp` 0.14.0: the scaffold of `examples/settlement-gate` (foundry template).
+- [QoreChain custody kit](https://github.com/qorechain/qorechain-custody-kit) v0.1.1 (Apache-2.0): `validateAddress`, vendored unmodified in `packages/core/src/vendor/custody-kit`, checks every base-chain address the API and the console accept.
 - `@qorechain/qorescan`: the cryptographic bill of materials in `docs/cbom.json`, checked in CI.
 - [`@qorechain/mcp`](https://github.com/qorechain/qorechain-mcp) and the
   [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk): the MCP server.
