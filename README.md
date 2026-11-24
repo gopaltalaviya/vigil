@@ -8,6 +8,23 @@ that independently re-executes every batch and monitors the base chain underneat
 
 Built for _Build Before Q-Day: The QoreChain Developer Fest_, Protocol Builders category.
 
+<!-- metrics:start -->
+
+| Measured on the testnet (2026-11-24, `pnpm metrics`)   | Value                                                                               |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| Final batches of `vigil-1`                             | 30, covering 45 inbox entries                                                       |
+| Inbox entries, checked against the chain's accumulator | 45: 5 deposits, 27 transfers, 9 withdrawals, 2 sealed memos, 2 other posts          |
+| Deposited / withdrawals paid out                       | 12 QOR / 2 paid, 2.5 QOR                                                            |
+| Settlement anchors recorded in `VigilReceipts`         | 29 of 30 final batches (1 without an anchor from the chain)                         |
+| Forged batches rejected by an upheld fraud proof       | 4: 1 by Vigil's watchtower (5 s after submission), 3 by other teams' bots (10–14 s) |
+| Bonds slashed from cheaters / paid to Vigil            | 4000 QOR / 500 QOR                                                                  |
+
+<!-- metrics:end -->
+
+Every number above is recomputed from the testnet alone by `pnpm metrics` (no key, no `.env`, no
+Vigil database). Watchtower uptime is not on chain, so it is not in the table; the Dashboard shows
+the age of each service's last tick.
+
 > **Status:** every component below runs on the QoreChain testnet and has tests in this
 > repository. Vigil is testnet software and has not been audited.
 
