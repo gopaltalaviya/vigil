@@ -331,9 +331,24 @@ rebuilds the signed bytes on chain, reads the signer's ML-DSA-87 key from QoreCh
 (`pqcKeyStatus`), checks the signature with `pqcVerify`, and records the result. The caller never
 supplies the public key, so only the registered key holder can produce a valid receipt.
 
-Local EVMs do not implement QoreChain's precompiles, so the contract is tested two ways: unit and
-fuzz tests against stand-in precompiles, and `pnpm live:probe`, which simulates the same
-verification code on a live node with `eth_call`.
+Local EVMs do not implement QoreChain's precompiles, so the contract is tested two ways: unit,
+fuzz and invariant tests against stand-in precompiles, and `pnpm live:probe`, which simulates the
+same verification code on a live node with `eth_call`.
+
+The invariant tests drive the contract with random sequences of honest records, forgeries,
+replays, other signers' receipts, unregistered signers and plain value transfers, and check after
+every step that only correctly signed receipts are recorded, each once, that records never change,
+that lookups agree with what was recorded, and that the contract holds no funds. The
+`SettlementGate` example has the same kind of tests: money is conserved, the balance is the sum of
+open escrows, nothing pays before its batch is recorded, and no escrow pays twice.
+
+| `forge coverage` (25 Nov 2026)      | Lines        | Statements    | Branches      | Functions    |
+| ----------------------------------- | ------------ | ------------- | ------------- | ------------ |
+| `VigilReceipts` + `ReceiptVerifier` | 100% (63/63) | 98.9% (92/93) | 90.9% (10/11) | 100% (13/13) |
+| `SettlementGate` (example)          | 100% (40/40) | 98.3% (57/58) | 92.3% (12/13) | 100% (7/7)   |
+
+`LiveProbe.sol` is not in the first row: it is a diagnostic contract that `pnpm live:probe`
+simulates against the live node, with no unit tests of its own.
 
 ## Deployment
 
