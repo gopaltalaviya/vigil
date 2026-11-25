@@ -71,7 +71,7 @@ encodings. Vigil adds:
 
 ## Quality
 
-- 239 TypeScript tests, 19 contract tests and 10 tests of the SettlementGate example (2 of them
+- 242 TypeScript tests, 19 contract tests and 10 tests of the SettlementGate example (2 of them
   against the real `VigilReceipts` on a testnet fork), including a golden test that replays a live
   rollup's public data and reproduces the state roots the chain finalized.
 - A 170-check browser test of the web app in light and dark themes and at phone width, including
