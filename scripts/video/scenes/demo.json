@@ -245,7 +245,7 @@
         }
       ],
       "caption": "Auditing other teams' rollups",
-      "narration": "The watchtower also re-executes the other rollups on the network, read-only. On wicketgate-pay, re-executing batch 12 gives its state root but a different withdrawals root, the same mismatch the rollup's own team reports. That batch is final, and 13 Q O R were withdrawn under it.",
+      "narration": "The watchtower also re-executes the other rollups on the network, read-only. On wicketgate-pay, batch 12 re-executes to its state root but not to its withdrawals root, a mismatch the rollup's own team also reports.",
       "steps": [
         {
           "action": "wait",
