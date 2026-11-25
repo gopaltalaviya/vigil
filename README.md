@@ -376,6 +376,8 @@ See [docs/RUNBOOK.md](docs/RUNBOOK.md).
 - [Red-team replay](docs/REDTEAM.md): ten attacks on live data, each refused by a named check.
 - [Crypto inventory](docs/CBOM.md): every algorithm in the contracts, the chain and its endpoints.
 - [Demo walkthrough](docs/DEMO.md).
+- [AI usage](AI_USAGE.md): how the project was built with an AI coding assistant, and what the
+  team decided, approved and checked.
 
 ## Relying on recorded receipts
 
