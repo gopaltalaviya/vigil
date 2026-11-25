@@ -24,15 +24,15 @@ CLI (`@qorechain/qore-cli`) against the public testnet endpoints:
   that has a settlement anchor, and `isAttestationRecorded` for the watchtower's attestations.
 
 It exits non-zero on any mismatch. A transaction the node no longer keeps is reported as `pruned`.
-On 24 Nov 2026 it reported 17 of 17 transactions as expected, 29 of 30 final batches with a
-recorded anchor (batch 28 has no anchor served by the chain) and 2 attestations, in about 8 s.
+On 25 Nov 2026 it reported 29 of 29 transactions as expected, 31 of 32 final batches with a
+recorded anchor (batch 28 has no anchor served by the chain) and 2 attestations, in about 9 s.
 
 ## Requirements
 
 | Requirement                 | What Vigil does                                                                                                      | Evidence                                                                                                                                                                                                            |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ML-DSA-signed batches       | Every batch of `vigil-1` carries the creator's ML-DSA-87 anchor signature; base-chain transactions are hybrid-signed | Batch 0: `B15BF4B9BACA1DE7ED0E290C8BD9D409AF11A8207D38FD5481066C047092E70E`; anchor on layer `vigil-1` with a 4,627-byte signature                                                                                  |
-| Withdrawal                  | Withdrawals are paid from the deposit pool with a Merkle proof once the batch is final                               | Claim of 0.5 QOR: `511A29444A436A13956E9A40D8199B40803EE79197C102A7FD6FBF7967833BE6`                                                                                                                                |
+| Withdrawal                  | Withdrawals are paid from the deposit pool with a Merkle proof once the batch is final; 8 of 9 are paid              | Claim of 0.5 QOR: `511A29444A436A13956E9A40D8199B40803EE79197C102A7FD6FBF7967833BE6`; claim of 0.3 QOR: `EF08E2F0A81C1DC9A8A35770577DFFB2CAF958C3EF80EA5047177CDD5FEE8617`                                          |
 | Verified settlement receipt | `VigilReceipts` verifies the anchor with `pqcKeyStatus` and `pqcVerify` and records it                               | Batch 0 receipt: `0xa4e7838ccc9e11bb03d7650a53579aa99e34f3c7a67177b322f6dfe0cc7b1855`                                                                                                                               |
 | Watchtower                  | Re-executes every batch from a verified inbox copy; challenges a wrong one with a re-execution fraud proof           | Forged batch 18: `E6993DBCAE77E735D138E03748A09321899525BAF24C464BEE360C2A9C02BDB4`; Vigil's challenge 5 s later, fraud upheld and bond slashed: `349C8DF05F888E2AEB8826101F49FD8960EB3662A47530B37C71307206822330` |
 | ML-KEM data protection      | Private memos sealed with ML-KEM-1024 to the recipient's registered key, bound to the transfer                       | Key published: `9409BE3284B456530AE1EDBA7622D04AB1D6B12A6D7C28835FE6000D36FD4CBC`; memo: `1D39B55A28FDD65478B4769200156D5785449DA02B33C751D0A067E125BCA674`                                                         |
@@ -60,7 +60,10 @@ encodings. Vigil adds:
 - A web app and operator console, with Sign In With QoreChain (ML-DSA-87 checked against the
   registered key).
 - A read-only audit of every other `qledger-v1` rollup on the network, which proved that
-  `wicketgate-pay` batch 12 paid out 13 QOR on a forged withdrawals root.
+  `wicketgate-pay` batch 12 paid out 13 QOR on a forged withdrawals root, and re-executes all
+  1,521 batches of `sealed-scouts-1` (12,580 inbox entries) from its own verified archive.
+- An inbox reader that keeps working after the chain prunes posted data, and a key-less second
+  watchtower on GitHub Actions that alerts while the main host is down.
 - Receipt recording through a smart account whose key can call only the two record functions, with
   a scoped EVM window as the fallback.
 - `SettlementGate`, an example contract that pays only after a batch has settled.
@@ -68,7 +71,7 @@ encodings. Vigil adds:
 
 ## Quality
 
-- 230 TypeScript tests, 19 contract tests and 10 tests of the SettlementGate example (2 of them
+- 239 TypeScript tests, 19 contract tests and 10 tests of the SettlementGate example (2 of them
   against the real `VigilReceipts` on a testnet fork), including a golden test that replays a live
   rollup's public data and reproduces the state roots the chain finalized.
 - A 170-check browser test of the web app in light and dark themes and at phone width, including

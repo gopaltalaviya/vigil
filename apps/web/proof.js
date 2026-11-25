@@ -236,15 +236,19 @@ export function proofView({ el, pill, overview }) {
         {
           tone: "primary",
           status: ["good", "Money out"],
-          title: "A withdrawal was paid out from the rollup",
+          title: "Withdrawals were paid out from the rollup",
           story:
-            "0.5 QOR withdrawn on the rollup was paid back on QoreChain once its batch was final, with a Merkle proof against the batch's withdrawals root.",
+            "Money withdrawn on the rollup was paid back on QoreChain once its batch was final, each payout with a Merkle proof against the batch's withdrawals root. Eight of the nine withdrawals in final batches are paid, 2.85 QOR in all; one of them was another team's exit through vigil-1.",
           outcome:
             "Funds really leave the rollup, and only through a batch that survived its challenge window.",
           txs: [
             tx(
               "Withdrawal claim, 0.5 QOR",
               "511A29444A436A13956E9A40D8199B40803EE79197C102A7FD6FBF7967833BE6",
+            ),
+            tx(
+              "Withdrawal claim, 0.3 QOR (batch 3)",
+              "EF08E2F0A81C1DC9A8A35770577DFFB2CAF958C3EF80EA5047177CDD5FEE8617",
             ),
           ],
         },

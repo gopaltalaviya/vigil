@@ -56,6 +56,20 @@ challenges. This was observed on the testnet: a batch with a flipped state root 
 window (3,600 seconds on the testnet). A mismatch in the data hash alone is detected and alerted
 but cannot be proven by re-execution, so it is not challenged.
 
+**Single host.** Vigil's challenging watchtower runs on one machine. That machine has been away:
+while it slept on 18-19 November, batch 29 of `vigil-1` was forged twice and both forgeries were
+rejected by other teams' bots, not by Vigil; on 24-25 November it slept for 6.5 hours (no batch
+was submitted in that gap). What is in place:
+
+- Every tick compares the time since the last heartbeat; after a gap of more than 300 seconds the
+  watchtower raises "was offline" and re-reads what happened from chain events, so a missed
+  forgery is reported. Live test: paused for 6 minutes, alert raised 1 second after resuming.
+- A second, key-less watchtower runs on GitHub Actions every 15 minutes
+  (`.github/workflows/sentinel.yml`). It re-executes and alerts, and its run fails while an
+  invalid batch can still be challenged. It holds no seed phrase, so it cannot challenge; GitHub
+  may delay a scheduled run, and a 15-minute cadence can see a forgery late in its one-hour
+  window. It is a backstop that tells a human, not a second challenger.
+
 ### 2. The submitter stops, censors, or batches slowly
 
 Deposits and withdrawals sit in the inbox until some submitter batches them.
@@ -87,9 +101,21 @@ Batches commit to inbox entries by hash; the entries themselves live in base-cha
   Tests: "inbox archive integrity" in `packages/core/test/golden.test.ts`.
 - The archive is kept locally, so re-execution keeps working after the public node prunes old
   blocks.
+- The chain keeps each post's accumulator value for 648,000 blocks (about 11 days on the testnet,
+  `posted_data_retention_blocks`), and a checkpoint post (every 64th) only until a finalized
+  batch covers it. A new archive therefore reads every entry up to the inbox head in one pass and
+  checks the result against the head's accumulator, which the chain always serves. The read
+  follows every page of the transaction search (the kit stops after 5,000 transactions) and
+  resumes from the height of the last archived entry.
+  Tests: `packages/core/test/inbox.test.ts` ("syncs from an empty store to the head in one read,
+  past a pruned checkpoint", "follows every result page, where the kit alone stops after 50").
+- The audit of other teams' rollups keeps the same verified archive per rollup, so each round
+  reads only new posts. `sealed-scouts-1` (12,580 entries, 1,521 batches) is audited this way.
 
-**Limit.** An entry that was pruned before any Vigil instance archived it cannot be recovered
-from the public node. A new watchtower should be started early or seeded from a backup.
+**Limit.** Entries come from the public node's transaction index. If a node pruned old
+transactions before any Vigil instance archived them, they could not be recovered from it; the
+testnet node still serves the transactions of `vigil-1` back to its creation. A new watchtower should be started early or
+seeded from a backup.
 
 ### 5. A forged or replayed settlement receipt
 
@@ -187,8 +213,9 @@ been observed during a real halt.
   instead of claiming all is well. The page writes
   every value as text. Tests: `packages/api/test/api.test.ts`.
 
-**Limit.** The page shows what the operator's database contains. To verify independently, run
-your own watchtower: `ROLLUP_ID=vigil-1 pnpm watchtower --once`.
+**Limit.** The page shows what the operator's database contains. The static mirror
+(`pnpm export:site`) is a copy of that database at one moment, marked as such on every page. To
+verify independently, run your own watchtower: `ROLLUP_ID=vigil-1 pnpm watchtower --once`.
 
 ## Independent review
 
