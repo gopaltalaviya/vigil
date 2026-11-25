@@ -36,6 +36,25 @@ Requirements: a Linux host with Docker and the Compose plugin, and a funded test
 | `monitor`    | No                                  | none                | Marks sources unavailable                  |
 | `api`        | No                                  | `:8080/healthz`     | Keeps serving the last known state         |
 
+## Sentinel: a second watchtower on GitHub Actions
+
+`.github/workflows/sentinel.yml` runs `pnpm watchtower --once` for `vigil-1` four times an hour
+on GitHub's machines, so the rollup is still checked while the main host sleeps or is down.
+
+- It holds no seed phrase and `WATCHTOWER_CHALLENGE` is `off`: it re-executes and alerts, it
+  cannot challenge. Challenging stays with the main watchtower.
+- Alerts go through the same dispatcher as the main watchtower. Set the repository secrets
+  `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` (or `ALERT_WEBHOOK_URL`); without them alerts only
+  appear in the run log.
+- Its database is kept between runs in the Actions cache, so each alert is sent once. A run with
+  an empty cache re-reads history and reports once each forged batch the chain rejected before it
+  started watching (four on `vigil-1`).
+- A run exits 3, and shows as failed, while an invalid batch is still inside its challenge window.
+  With `--once` the watchtower never reports an offline gap: scheduled runs are meant to have them.
+- Limits: GitHub runs schedules from the default branch only, may delay them by several minutes,
+  and disables them after 60 days without a commit. A 15-minute schedule can see a forged batch
+  late in its one-hour window; it is a backstop, not a replacement for the main watchtower.
+
 ## Routine operations
 
 - **Logs:** `docker compose --env-file .env -f deploy/compose.yaml logs -f watchtower`. Logs are JSON, one event

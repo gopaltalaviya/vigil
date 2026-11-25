@@ -75,6 +75,14 @@ export interface ChallengeCandidate {
   secondsRemaining: number;
 }
 
+/**
+ * Exit status of a single `--once` run: 3 while an invalid batch can still be challenged, so a
+ * scheduler shows a failed run for exactly as long as the fraud can be stopped; otherwise 0.
+ */
+export function onceExitCode(report: Pick<TickReport, "challengeable">): number {
+  return report.challengeable.length > 0 ? 3 : 0;
+}
+
 export interface TickReport {
   inboxHead: number;
   entriesAdded: number;

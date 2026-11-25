@@ -5,6 +5,10 @@
  *
  * Usage: vigil-watchtower [--once]
  *
+ * With --once it judges everything once and exits: 0 when nothing can be challenged, 3 while an
+ * invalid batch is still inside its challenge window. It never reports an offline gap, because
+ * a scheduled run (the sentinel) is meant to have them.
+ *
  * WATCHTOWER_CHALLENGE controls what happens when a batch is found invalid:
  * `off` (default) only alerts, `dry-run` also builds and checks the fraud
  * proof, `on` submits the challenge and needs the account's seed phrase.
@@ -32,7 +36,7 @@ import { RollupAuditor } from "./audit.js";
 import { Challenger } from "./challenger.js";
 import { runLoop } from "./loop.js";
 import { PqLayerChecker } from "./pq-layer.js";
-import { Watchtower, chainRollupView } from "./watchtower.js";
+import { Watchtower, chainRollupView, onceExitCode, type TickReport } from "./watchtower.js";
 
 const config = loadConfig();
 const log = createLogger({ service: "watchtower", level: config.logLevel });
@@ -88,8 +92,11 @@ const challenger =
 const history = chainHistory(chain.rest, config.restUrl, config.rollupId);
 const BACKFILL_EVERY_MS = 10 * 60_000;
 const OFFLINE_AFTER_SECS = 300;
-// Read before the first tick overwrites it: this is how long the watchtower was away.
-let previousHeartbeat = store.heartbeats().find((beat) => beat.service === "watchtower")?.at;
+// Read before the first tick overwrites it: this is how long the watchtower was away. A run
+// with --once is expected to be scheduled with gaps (a sentinel), so it never reports one.
+let previousHeartbeat = once
+  ? undefined
+  : store.heartbeats().find((beat) => beat.service === "watchtower")?.at;
 let nextBackfill = 0;
 
 /** Re-reads rejected claims and payouts from the chain. A failure never stops the watch. */
@@ -140,11 +147,11 @@ const checkPqLayers = (): void => {
     });
 };
 
-const tick = async (): Promise<void> => {
+const tick = async (): Promise<TickReport> => {
   // A sleeping host or a hung tick stops the loop without restarting the process, so the
   // start-up check alone never sees that gap. Compare against the last heartbeat every tick.
   const lastBeat = store.heartbeats().find((beat) => beat.service === "watchtower")?.at;
-  if (lastBeat !== undefined && Date.now() / 1000 - lastBeat > OFFLINE_AFTER_SECS) {
+  if (!once && lastBeat !== undefined && Date.now() / 1000 - lastBeat > OFFLINE_AFTER_SECS) {
     previousHeartbeat ??= lastBeat;
     nextBackfill = 0;
   }
@@ -167,6 +174,7 @@ const tick = async (): Promise<void> => {
     },
     "tick complete",
   );
+  return report;
 };
 
 log.info(
@@ -204,10 +212,19 @@ const auditRollups = async (): Promise<void> => {
 };
 
 if (once) {
-  await tick();
+  const report = await tick();
   // The PQ check runs beside the tick; let it finish before the database closes.
   await pqRun;
   store.close();
+  // A scheduler (cron, CI) sees a failed run while fraud can still be stopped.
+  const code = onceExitCode(report);
+  if (code !== 0) {
+    log.error(
+      { batches: report.challengeable.map((c) => c.batch.batchIndex) },
+      "an invalid batch can still be challenged",
+    );
+    process.exitCode = code;
+  }
 } else {
   let lastSuccess = 0;
   const controller = new AbortController();

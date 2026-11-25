@@ -1,0 +1,52 @@
+# A second, key-less watchtower for vigil-1 that runs on GitHub's machines, so the rollup is
+# still checked when the main host is asleep or down. It re-executes every batch from public
+# chain data, delivers alerts through the same code as the main watchtower, and cannot
+# challenge: it has no seed phrase. A run fails (exit 3) while an invalid batch can still be
+# challenged. Schedules run on the default branch only, and GitHub may delay them.
+name: Sentinel
+
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sentinel
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      NODE_NO_WARNINGS: "1"
+      ROLLUP_ID: vigil-1
+      VIGIL_DATA_DIR: sentinel-data
+      WATCHTOWER_CHALLENGE: "off"
+      # Optional. Without them alerts are only logged.
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The previous run's database: verdicts and delivered alerts, so an alert is sent once.
+      - uses: actions/cache/restore@v4
+        with:
+          path: sentinel-data
+          key: sentinel-${{ github.run_id }}
+          restore-keys: sentinel-
+      - run: pnpm watchtower --once
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: sentinel-data
+          key: sentinel-${{ github.run_id }}-${{ github.run_attempt }}

@@ -15,6 +15,7 @@ import {
   AlertDispatcher,
   Watchtower,
   formatAlert,
+  onceExitCode,
   runLoop,
   telegramSink,
   webhookSink,
@@ -208,6 +209,7 @@ describe("Watchtower", () => {
     expect(report).toMatchObject({ inboxHead: 9, entriesAdded: 9, alertsRaised: 0 });
     expect(report.judged.map((j) => j.verdict)).toEqual(["valid", "valid"]);
     expect(report.challengeable).toEqual([]);
+    expect(onceExitCode(report)).toBe(0);
     expect(store.latestSnapshot(golden.rollupId, 9)?.stateRoot).toBe(second.stateRoot);
   });
 
@@ -234,6 +236,8 @@ describe("Watchtower", () => {
     expect(report.judged[1]).toMatchObject({ verdict: "invalid", reasons: ["state_root"] });
     expect(report.challengeable).toHaveLength(1);
     expect(report.challengeable[0]?.secondsRemaining).toBe(WINDOW - 600);
+    // A scheduled --once run fails for as long as this fraud can still be stopped.
+    expect(onceExitCode(report)).toBe(3);
     const alert = store.recentAlerts(1)[0];
     expect(alert?.severity).toBe("critical");
     expect(alert?.body).toContain(second.stateRoot);
@@ -260,6 +264,7 @@ describe("Watchtower", () => {
     });
     const report = await finalized.watchtower.tick();
     expect(report.challengeable).toEqual([]);
+    expect(onceExitCode(report)).toBe(0);
     expect(finalized.store.recentAlerts(1)[0]?.title).toMatch(/was finalized/);
 
     const rejected = setup({

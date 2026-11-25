@@ -289,6 +289,9 @@ ROLLUP_ID=<rollup-id> pnpm watchtower          # keep watching; health check on 
 
 State is kept in `VIGIL_DATA_DIR` (default `./data`), so a restart resumes where it stopped.
 Set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`, or `ALERT_WEBHOOK_URL`, to receive alerts.
+`--once` exits 3 while an invalid batch can still be challenged, so a scheduler sees it fail. A
+key-less second watchtower runs this way every 15 minutes on GitHub Actions
+(`.github/workflows/sentinel.yml`, see the [runbook](docs/RUNBOOK.md#sentinel-a-second-watchtower-on-github-actions)).
 
 | Alert                                   | Severity | Raised when                                                           |
 | --------------------------------------- | -------- | --------------------------------------------------------------------- |
