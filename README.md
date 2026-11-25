@@ -85,8 +85,8 @@ how a forged batch is caught (1:05). The video files are not stored in the repos
 
 A rollup is only as trustworthy as the people checking it. On QoreChain an optimistic rollup
 gives anyone one hour (on testnet) to prove a bad batch wrong, but the rollup kit ships no
-watchtower that can judge a `qledger-v1` batch, and nothing challenges automatically. Vigil
-fills that gap, and adds the pieces an operator needs around it.
+watchtower that can judge a `qledger-v1` batch (as of 16 Nov 2026, when we started). Vigil
+Watchtower fills that gap, and adds the pieces an operator needs around it.
 
 ## Components
 

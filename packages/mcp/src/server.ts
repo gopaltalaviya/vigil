@@ -104,7 +104,7 @@ export function createVigilServer(options: VigilServerOptions): McpServer {
     {
       title: "Audits of other rollups",
       description:
-        "Vigil's read-only re-execution of every other rollup on the network: batches checked, and any provable fraud found.",
+        "Vigil's read-only re-execution of every other rollup on the network: batches checked, and any batch whose commitments differ from re-execution (status `mismatch`).",
       annotations: READ_ONLY,
     },
     () => get("/api/rollups"),

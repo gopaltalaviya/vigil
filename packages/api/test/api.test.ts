@@ -130,7 +130,7 @@ describe("rollup audits route", () => {
     const store = Store.open(":memory:");
     store.saveRollupAudit({
       rollupId: "other-1",
-      status: "fraud_found",
+      status: "mismatch",
       reason: "",
       vm: "qledger-v1",
       settlement: "optimistic",

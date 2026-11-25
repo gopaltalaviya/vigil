@@ -57,8 +57,8 @@ Run over stdio against a live Vigil API on 24 Nov 2026, with a real MCP client:
 - `vigil_rollup_status` returns `vigil-1` with 34 batch claims and its receipts contract.
 - `vigil_get_batch` with `index: 18` returns the honest batch 18, verdict `valid`, its receipt and
   a `verified` PQ check of its transaction.
-- `vigil_rollup_audits` returns 12 rollups; `wicketgate-pay` is `fraud_found`, batch 12, reason
-  `withdrawals_root`, proven.
+- `vigil_rollup_audits` returns 12 rollups; `wicketgate-pay` is `mismatch` (finalised), batch 12,
+  reason `withdrawals_root`, `proven: true` (the kit's fraud check agrees).
 - `get_pq_status` with `target` set to the forged batch 18 transaction `E6993DBC…02BDB4` returns
   tier `pqc`, one ML-DSA-87 layer, sign bytes `v2`, verified.
 

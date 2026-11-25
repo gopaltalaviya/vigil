@@ -1,6 +1,6 @@
 # Red-team replay
 
-`pnpm redteam` runs ten attacks against Vigil with live testnet data. Each attack must be refused
+`pnpm redteam` runs ten attacks against Vigil Watchtower with live testnet data. Each attack must be refused
 by a named check, and each has a control: the same check, given the honest input, must accept
 it. Nothing is broadcast. EVM attacks are `eth_call`s against the deployed `VigilReceipts`; the
 double withdrawal is a node simulation.
@@ -29,9 +29,10 @@ from the chain: every inbox entry is fetched and checked against the chain's has
 | Sealed memo moved to another transfer                    | QoreSeal: the transfer hash is the envelope's associated data | refused                       | opened on its own transfer   |
 | Claim batch 0 withdrawal #0 again (paid in `511A2944…`)  | QoreChain RDK: each withdrawal index pays once                | `withdrawal already executed` | proof rebuilt from the batch |
 
-The forged withdrawals root is the class of fraud that paid out 13 QOR on another team's rollup
-(`wicketgate-pay` batch 12) with nobody challenging it; Vigil's audit of other rollups reports
-that batch as proven fraud.
+A forged withdrawals root is also the kind of mismatch Vigil's audit of other rollups reproduces
+on `wicketgate-pay` batch 12: re-execution gives its state root but not its withdrawals root. The
+rollup's own team reports the same mismatch in its [proof log](https://github.com/timix648/wicketgate/blob/main/PROOF.md). The batch is final and a
+13 QOR withdrawal was executed under it.
 
 ## Limits
 

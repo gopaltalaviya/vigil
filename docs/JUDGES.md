@@ -1,6 +1,6 @@
 # For judges
 
-Vigil is a Protocol Builders entry. This page maps each requirement of the category to what was
+Vigil Watchtower is a Protocol Builders entry. This page maps each requirement of the category to what was
 built and to evidence you can check yourself on the QoreChain testnet (`qorechain-diana`).
 
 ## Where to look
@@ -45,23 +45,25 @@ challenge was confirmed 3 seconds later. The chain recorded `rdk_fraud_upheld` w
 operator account as the challenger: the cheater's 1,000 QOR bond was slashed, 500 QOR burned and
 500 QOR paid to Vigil. Every case, with links to the transactions, is on the app's **Proof** page.
 
-## What is original
+## What we built on top of the kit
 
 The QoreChain rollup kit provides the client, the `qledger-v1` execution functions and the proof
-encodings. Vigil adds:
+encodings. Vigil Watchtower adds:
 
-- A watchtower for `qledger-v1` rollups, which the kit does not have, with automatic challenges.
+- A watchtower for `qledger-v1` rollups (the kit did not include one when we started, 16 Nov
+  2026), with automatic challenges.
 - A verified, pruning-proof inbox archive and ledger snapshots.
 - A batcher that refuses to submit a batch it would judge invalid.
-- On-chain verification of settlement anchors (`VigilReceipts`), which did not exist.
+- On-chain verification of settlement anchors (`VigilReceipts`).
 - Private memos bound to transfers.
 - A monitor of QoreChain itself, which found mainnet's block time at 4.78 s against a documented
   3.1 s.
 - A web app and operator console, with Sign In With QoreChain (ML-DSA-87 checked against the
   registered key).
-- A read-only audit of every other `qledger-v1` rollup on the network, which proved that
-  `wicketgate-pay` batch 12 paid out 13 QOR on a forged withdrawals root, and re-executes all
-  1,521 batches of `sealed-scouts-1` (12,580 inbox entries) from its own verified archive.
+- A read-only audit of the other `qledger-v1` rollups on the network. It independently reproduces
+  the withdrawals-root mismatch in `wicketgate-pay` batch 12 that the rollup's own team also
+  reports ([their proof log](https://github.com/timix648/wicketgate/blob/main/PROOF.md)), and re-executes all 1,521 batches of `sealed-scouts-1`
+  (12,580 inbox entries) from its own verified archive.
 - An inbox reader that keeps working after the chain prunes posted data, and a key-less second
   watchtower on GitHub Actions that alerts while the main host is down.
 - Receipt recording through a smart account whose key can call only the two record functions, with
@@ -77,7 +79,8 @@ encodings. Vigil adds:
 - A 170-check browser test of the web app in light and dark themes and at phone width, including
   Sign In With QoreChain through the browser.
 - `pnpm redteam`: ten attacks on live data, each refused by a named check with a passing control.
-- Two independent reviews (contract and services). Their findings are fixed or documented in the
+- No professional audit. The contract and the services each had a separate AI-assisted security
+  review of the source, checked by the team; the findings are fixed or documented in the
   [threat model](THREAT_MODEL.md).
 
 ## Videos

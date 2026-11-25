@@ -3,7 +3,7 @@
 
 const STATUS = {
   clean: ["good", "All batches match"],
-  fraud_found: ["bad", "Provable fraud"],
+  mismatch: ["bad", "Mismatch"],
   not_judgeable: ["plain", "Not judgeable"],
   error: ["wait", "Could not read"],
 };
@@ -15,8 +15,8 @@ export function rollupsView({ el, pill, api, ago, short }) {
       document.createTextNode(
         ` (${item.status}): ${item.reasons.join(", ")}. ` +
           (item.proven
-            ? "The chain's own fraud check, run locally, confirms it."
-            : "Differs from re-execution; the fraud check does not confirm it."),
+            ? "The rollup kit's fraud check, run locally on this batch, reports the same mismatch."
+            : "Differs from re-execution; the kit's fraud check does not report it."),
       ),
       el("div", {
         className: "mono muted",
@@ -27,7 +27,10 @@ export function rollupsView({ el, pill, api, ago, short }) {
     ]);
 
   const row = (audit) => {
-    const [tone, label] = STATUS[audit.status] ?? ["plain", audit.status];
+    const [tone, base] = STATUS[audit.status] ?? ["plain", audit.status];
+    // A mismatch on a batch that has already finalised can no longer be challenged.
+    const final = audit.findings.some((item) => item.proven && item.status === "finalized");
+    const label = audit.status === "mismatch" ? `${base}, ${final ? "finalised" : "open"}` : base;
     return el("article", { className: `proof-card status-${audit.status}` }, [
       el("div", { className: "proof-top" }, [pill(tone, label)]),
       el("h2", { className: "mono", text: audit.rollupId }),
@@ -35,7 +38,7 @@ export function rollupsView({ el, pill, api, ago, short }) {
         className: "muted",
         text:
           `${audit.vm}, ${audit.settlement}, ${audit.chainStatus}. ` +
-          (audit.status === "clean" || audit.status === "fraud_found"
+          (audit.status === "clean" || audit.status === "mismatch"
             ? `${audit.matched} of ${audit.batches} batches match re-execution. `
             : `${audit.reason}. `) +
           `Checked ${ago(audit.checkedAt)}.`,

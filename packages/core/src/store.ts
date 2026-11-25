@@ -146,7 +146,8 @@ export interface StoredAuditFinding {
 /** The latest independent audit of another team's rollup. Alert-only. */
 export interface StoredRollupAudit {
   rollupId: string;
-  status: "clean" | "fraud_found" | "not_judgeable" | "error";
+  /** `mismatch`: at least one batch differs from re-execution and the kit's fraud check agrees. */
+  status: "clean" | "mismatch" | "not_judgeable" | "error";
   reason: string;
   vm: string;
   settlement: string;
@@ -428,6 +429,26 @@ const MIGRATIONS: readonly string[] = [
     checked_at  INTEGER NOT NULL,
     PRIMARY KEY (rollup_id, batch_index, state_root)
   ) STRICT;
+  `,
+  `
+  CREATE TABLE rollup_audits_v2 (
+    rollup_id    TEXT PRIMARY KEY,
+    status       TEXT NOT NULL CHECK (status IN ('clean', 'mismatch', 'not_judgeable', 'error')),
+    reason       TEXT NOT NULL,
+    vm           TEXT NOT NULL,
+    settlement   TEXT NOT NULL,
+    chain_status TEXT NOT NULL,
+    batches      INTEGER NOT NULL,
+    matched      INTEGER NOT NULL,
+    findings     TEXT NOT NULL,
+    checked_at   INTEGER NOT NULL
+  ) STRICT;
+  INSERT INTO rollup_audits_v2
+    SELECT rollup_id, CASE status WHEN 'fraud_found' THEN 'mismatch' ELSE status END, reason, vm,
+           settlement, chain_status, batches, matched, findings, checked_at
+    FROM rollup_audits;
+  DROP TABLE rollup_audits;
+  ALTER TABLE rollup_audits_v2 RENAME TO rollup_audits;
   `,
 ];
 
@@ -996,7 +1017,7 @@ export class Store {
       const status = text(row, "status");
       if (
         status !== "clean" &&
-        status !== "fraud_found" &&
+        status !== "mismatch" &&
         status !== "not_judgeable" &&
         status !== "error"
       ) {

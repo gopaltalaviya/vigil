@@ -204,7 +204,7 @@ export function learnView({ el, pill, latestBatch }) {
           "A watchtower for rollups you do not run",
           "teams running a qledger-v1 rollup on QoreChain, and anyone holding funds in one",
           "Vigil re-executes other teams' rollups from public data and reports any batch it can prove wrong, including frauds that change only the withdrawals root. It never challenges a rollup it does not run; it alerts.",
-          "on wicketgate-pay, batch 12 changed only its withdrawals root and paid 13 QOR with nobody challenging it. Vigil's audit reports it as proven fraud.",
+          "on wicketgate-pay, re-execution of batch 12 reproduces its state root but not its withdrawals root, a mismatch the rollup's own team also reports. The batch is final and a 13 QOR withdrawal was executed under it.",
         ),
         useCase(
           "Contracts that pay only after settlement",
@@ -526,7 +526,7 @@ export function learnView({ el, pill, latestBatch }) {
         "Fraud is caught only if at least one honest watcher is online during the challenge window.",
         "Hybrid signatures are only as strong as the chain's enforcement of the post-quantum half; a key's first registration is authorised classically.",
         "A memo hides its text only. Who sent it, when, its size and the payment it points to are public.",
-        "Vigil is testnet software and has not had a professional audit. It was reviewed by two independent reviewers; their findings are fixed or documented.",
+        "Vigil Watchtower is testnet software and has not had a professional audit. The contract and the services each had a separate AI-assisted security review of the source, checked by the team; the findings are fixed or documented in the threat model.",
       ]),
       el(
         "div",
@@ -686,7 +686,7 @@ export function learnView({ el, pill, latestBatch }) {
         ],
         [
           "Is it audited?",
-          "No professional audit. Two independent reviews were done; every finding is fixed or documented in the threat model.",
+          "No professional audit. The contract and the services each had a separate AI-assisted security review of the source, checked by the team; every finding is fixed or documented in the threat model.",
         ],
         ["Is it open source?", "Yes, under the Apache-2.0 licence."],
       ].map(([q, a]) =>

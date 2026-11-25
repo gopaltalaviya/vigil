@@ -2,7 +2,7 @@
 
 ## Scope
 
-Vigil is testnet software. It has not been audited. Do not use it with keys or funds that
+Vigil Watchtower is testnet software. It has not had a professional audit. Do not use it with keys or funds that
 matter.
 
 ## Reporting a problem

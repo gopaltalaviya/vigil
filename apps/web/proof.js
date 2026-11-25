@@ -25,7 +25,7 @@ export function proofView({ el, pill, overview }) {
           ),
     ]);
 
-  const card = ({ tone, status, title, story, outcome, steps, txs, live }) =>
+  const card = ({ tone, status, title, story, outcome, steps, txs, live, source }) =>
     el("article", { className: `proof-card tone-${tone}` }, [
       el("div", { className: "proof-top" }, [
         pill(status[0], status[1]),
@@ -46,6 +46,16 @@ export function proofView({ el, pill, overview }) {
           )
         : null,
       el("p", { className: "proof-outcome" }, [el("strong", { text: "Result: " }), outcome]),
+      source
+        ? el("p", { className: "proof-source" }, [
+            el("a", {
+              href: source[1],
+              target: "_blank",
+              rel: "noopener noreferrer",
+              text: `${source[0]} ↗`,
+            }),
+          ])
+        : null,
       txs && txs.length > 0 ? el("ul", { className: "proof-txs" }, txs) : null,
     ]);
 
@@ -138,12 +148,16 @@ export function proofView({ el, pill, overview }) {
         },
         {
           tone: "warn",
-          status: ["bad", "Found by audit"],
-          title: "Our audit found a fraud on another rollup that nobody challenged",
+          status: ["bad", "Mismatch, finalised"],
+          title: "A withdrawals-root mismatch on another rollup, reproduced independently",
           story:
-            "Vigil re-executes every qledger-v1 rollup on the testnet from its first batch. Batch 12 of wicketgate-pay kept a correct state root but published a withdrawals root that re-execution does not produce. The chain's own fraud check, run locally on that batch, confirms it. The challenge window passed without a challenge and the batch became final.",
+            "Vigil Watchtower re-executes every qledger-v1 rollup on the testnet from public chain data. For batch 12 of wicketgate-pay, re-execution reproduces the batch's state root but not its withdrawals root. The rollup's own team reports the same mismatch in their published proof log. The batch is final on chain.",
           outcome:
-            "A 13 QOR withdrawal was paid out under that root. Vigil reports this and does nothing else: it has no code path that challenges a rollup it does not operate. See the Rollups page for the live audit of every rollup.",
+            "A 13 QOR withdrawal was executed under that batch. Vigil reports the mismatch and does nothing else: it has no code path that challenges a rollup it does not operate. The Rollups page shows the live audit of every rollup.",
+          source: [
+            "The wicketgate-pay team's own report (PROOF.md)",
+            "https://github.com/timix648/wicketgate/blob/main/PROOF.md",
+          ],
           txs: [
             tx(
               "13 QOR payout from batch 12",

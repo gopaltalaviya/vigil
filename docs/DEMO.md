@@ -1,6 +1,6 @@
 # Demo walkthrough
 
-A script for showing Vigil end to end on the QoreChain testnet in about three minutes. Run the
+A script for showing Vigil Watchtower end to end on the QoreChain testnet in about three minutes. Run the
 commands from the repository root with a funded account in `.env`. Replace `pnpm vigil` with
 `pnpm exec tsx --env-file=.env packages/wallet/src/main.ts` if your shell does not load `.env`.
 

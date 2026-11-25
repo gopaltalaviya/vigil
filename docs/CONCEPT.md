@@ -1,6 +1,6 @@
 # Concept
 
-Vigil is a rollup on QoreChain that is safe to use because someone is always checking it, and
+Vigil Watchtower is a rollup on QoreChain that is safe to use because someone is always checking it, and
 that checking is open to anyone.
 
 ## The problem
@@ -20,8 +20,8 @@ can claim balances that do not exist and withdraw them.
 
 Two more gaps made this worse on QoreChain:
 
-- The rollup kit has no watchtower that can judge batches of the `qledger-v1` execution model, and
-  nothing challenges automatically.
+- When we started (16 Nov 2026), the rollup kit shipped no watchtower that could judge batches of
+  the `qledger-v1` execution model.
 - Settlement signatures exist only off chain, so no contract can rely on them.
 
 ## What Vigil does

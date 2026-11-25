@@ -1,6 +1,6 @@
 # Crypto inventory
 
-[`docs/cbom.json`](cbom.json) is a cryptographic bill of materials (CycloneDX 1.6) of Vigil
+[`docs/cbom.json`](cbom.json) is a cryptographic bill of materials (CycloneDX 1.6) of Vigil Watchtower
 Watchtower, made with QoreChain's scanner, QoreScan (`@qorechain/qorescan` 0.1.0). It lists every
 algorithm QoreScan finds in four places: the Solidity contracts, the testnet chain itself, the
 receipts deployer account, and the TLS endpoints Vigil talks to.

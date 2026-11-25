@@ -192,7 +192,7 @@ export class RollupAuditor {
     const { head } = await archive.sync();
     const entries = archive.range(0, head);
     const replay = replayRollup({ chainId, rollupId }, batches, entries);
-    return this.record(rollup, replay.findings.some((f) => f.proven) ? "fraud_found" : "clean", {
+    return this.record(rollup, replay.findings.some((f) => f.proven) ? "mismatch" : "clean", {
       batches: replay.checked,
       matched: replay.matched,
       findings: replay.findings,
@@ -225,7 +225,7 @@ export class RollupAuditor {
       this.options.alerts.raise({
         key: `foreign-fraud:${audit.rollupId}:${String(finding.batchIndex)}:${finding.claimedStateRoot}:${finding.claimedWithdrawalsRoot}`,
         severity: open ? "critical" : "warning",
-        title: `Provable fraud in batch ${String(finding.batchIndex)} of ${audit.rollupId}`,
+        title: `Re-execution mismatch in batch ${String(finding.batchIndex)} of ${audit.rollupId}`,
         body:
           `Status on chain: ${finding.status}. Mismatch: ${finding.reasons.join(", ")}.\n` +
           `Alert only: this watchtower does not challenge other teams' rollups.`,

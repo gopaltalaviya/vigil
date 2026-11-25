@@ -176,7 +176,7 @@ export function homeView({
           ]),
           el("p", {
             className: "home-lead",
-            text: "Vigil is a post-quantum rollup on QoreChain with its own watchtower. Every batch is re-executed the moment it lands, and a wrong one is challenged before it can settle.",
+            text: "Vigil Watchtower is a post-quantum rollup on QoreChain with its own watchtower. Every batch is re-executed the moment it lands, and a wrong one is challenged before it can settle.",
           }),
           el(
             "ol",

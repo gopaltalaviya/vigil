@@ -11,7 +11,7 @@ The theme button in the header switches between system, light and dark. The choi
 
 ## Home
 
-The front page explains Vigil on one screen: what it is, the three things it guarantees, and a
+The front page explains Vigil Watchtower on one screen: what it is, the three things it guarantees, and a
 live card from the watchtower with the latest batches and their verdicts. Further down: what
 changes with Vigil, the settlement diagram, the six parts, the post-quantum algorithms, and how
 to check everything yourself.

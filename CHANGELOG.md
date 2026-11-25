@@ -40,7 +40,7 @@ All notable changes are recorded here. The format follows
 - `@vigil/console`: password-protected operator console that performs wallet actions.
 - Service heartbeats, shown in the web app.
 
-### Fixed (independent review)
+### Fixed (security review)
 
 - Verdicts are keyed by the whole batch claim; a replacement batch is judged from scratch.
 - Resolving a challenge now requires the same local fraud check as opening one.

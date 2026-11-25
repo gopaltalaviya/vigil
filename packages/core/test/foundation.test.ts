@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { Writable } from "node:stream";
 import { QledgerLedger } from "@qorechain/rdk";
 import { describe, expect, it } from "vitest";
@@ -163,7 +164,7 @@ describe("store", () => {
       first.close();
 
       const second = Store.open(path);
-      expect(second.schemaVersion).toBe(6);
+      expect(second.schemaVersion).toBe(7);
       expect(second.inboxRange("r1", 0, 2).map((e) => e.sequence)).toEqual([1, 2]);
       expect(second.inboxEntry("r1", 2)?.payload).toEqual(new Uint8Array([2, 2, 3]));
       expect(second.inboxEntry("r1", 3)).toBeUndefined();
@@ -351,8 +352,42 @@ describe("store", () => {
       store.appendInboxEntries("r1", [entry(1)]);
       store.close();
       const reopened = Store.open(path);
-      expect(reopened.schemaVersion).toBe(6);
+      expect(reopened.schemaVersion).toBe(7);
       expect(reopened.lastInboxEntry("r1")?.sequence).toBe(1);
+      reopened.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("renames the old fraud_found audit status to mismatch when migrating to version 7", () => {
+    const dir = mkdtempSync(join(tmpdir(), "vigil-migrate-"));
+    try {
+      const path = join(dir, "vigil.sqlite");
+      Store.open(path).close();
+      // Rebuild a version 6 database: the old audit table and one row in the old wording.
+      const raw = new DatabaseSync(path);
+      raw.exec(`
+        DROP TABLE rollup_audits;
+        CREATE TABLE rollup_audits (
+          rollup_id TEXT PRIMARY KEY,
+          status TEXT NOT NULL CHECK (status IN ('clean', 'fraud_found', 'not_judgeable', 'error')),
+          reason TEXT NOT NULL, vm TEXT NOT NULL, settlement TEXT NOT NULL,
+          chain_status TEXT NOT NULL, batches INTEGER NOT NULL, matched INTEGER NOT NULL,
+          findings TEXT NOT NULL, checked_at INTEGER NOT NULL
+        ) STRICT;
+        INSERT INTO rollup_audits VALUES
+          ('other-1', 'fraud_found', '', 'qledger-v1', 'optimistic', 'active', 2, 1, '[]', 5),
+          ('other-2', 'clean', '', 'qledger-v1', 'optimistic', 'active', 3, 3, '[]', 6);
+        PRAGMA user_version = 6;
+      `);
+      raw.close();
+      const reopened = Store.open(path);
+      expect(reopened.schemaVersion).toBe(7);
+      expect(reopened.rollupAudits().map((a) => [a.rollupId, a.status, a.matched])).toEqual([
+        ["other-1", "mismatch", 1],
+        ["other-2", "clean", 3],
+      ]);
       reopened.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });

@@ -1,6 +1,6 @@
 # Threat model
 
-This document says what Vigil protects, against whom, and where it stops. Every claim points to
+This document says what Vigil Watchtower protects, against whom, and where it stops. Every claim points to
 a test in this repository or to a transaction on the QoreChain testnet (`qorechain-diana`).
 Vigil is testnet software and has not been audited.
 
@@ -217,10 +217,11 @@ been observed during a real halt.
 (`pnpm export:site`) is a copy of that database at one moment, marked as such on every page. To
 verify independently, run your own watchtower: `ROLLUP_ID=vigil-1 pnpm watchtower --once`.
 
-## Independent review
+## Security review
 
-Before release the code was reviewed by two independent reviewers who had only the source, one
-for the contract and one for the services.
+Vigil Watchtower has not had a professional audit. Before release, the contract and the services
+each had a separate security review: an AI assistant, working read-only from the source alone,
+reviewed one or the other, and the team checked every finding before fixing or documenting it.
 
 - **Contract.** No critical, high or medium findings. Low and informational points are
   documented for consumers in the README ("Relying on recorded receipts"): events alone do not

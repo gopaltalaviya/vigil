@@ -1,6 +1,6 @@
 # Runbook
 
-How to run Vigil on a server and what to do when something goes wrong.
+How to run Vigil Watchtower on a server and what to do when something goes wrong.
 
 ## First deployment
 
