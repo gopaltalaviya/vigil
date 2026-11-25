@@ -87,6 +87,7 @@ const challenger =
 
 const history = chainHistory(chain.rest, config.restUrl, config.rollupId);
 const BACKFILL_EVERY_MS = 10 * 60_000;
+const OFFLINE_AFTER_SECS = 300;
 // Read before the first tick overwrites it: this is how long the watchtower was away.
 let previousHeartbeat = store.heartbeats().find((beat) => beat.service === "watchtower")?.at;
 let nextBackfill = 0;
@@ -98,6 +99,7 @@ const backfill = async (): Promise<void> => {
     const report = await watchtower.backfill(history, {
       ...(sender === undefined ? {} : { self: sender.address }),
       ...(previousHeartbeat === undefined ? {} : { previousHeartbeat }),
+      offlineAfterSecs: OFFLINE_AFTER_SECS,
     });
     previousHeartbeat = undefined;
     nextBackfill = Date.now() + BACKFILL_EVERY_MS;
@@ -139,6 +141,13 @@ const checkPqLayers = (): void => {
 };
 
 const tick = async (): Promise<void> => {
+  // A sleeping host or a hung tick stops the loop without restarting the process, so the
+  // start-up check alone never sees that gap. Compare against the last heartbeat every tick.
+  const lastBeat = store.heartbeats().find((beat) => beat.service === "watchtower")?.at;
+  if (lastBeat !== undefined && Date.now() / 1000 - lastBeat > OFFLINE_AFTER_SECS) {
+    previousHeartbeat ??= lastBeat;
+    nextBackfill = 0;
+  }
   // Challenge first, deliver alerts second: a slow chat API must not delay a fraud proof.
   const report = await watchtower.tick({ flush: false });
   if (challenger !== undefined && report.challengeable.length > 0) {
