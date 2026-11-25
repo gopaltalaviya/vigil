@@ -237,11 +237,11 @@ export function proofView({ el, pill, overview, verifyPanel }) {
         {
           tone: "info",
           status: ["good", "Contract relies on it"],
-          title: "A contract paid out only after a batch had settled",
+          title: "A contract paid out only after a batch had settled and was re-executed",
           story:
-            "SettlementGate, an escrow made with create-qorechain-dapp, locked 0.1 QOR until batch 29 of vigil-1 had a recorded receipt. Asked with a forged state root, it said no; asked with the batch's real anchor, it said yes.",
+            "SettlementGate, an escrow made with create-qorechain-dapp, locked 0.1 QOR until batch 29 of vigil-1 had a recorded receipt. Asked with a forged state root, it said no; asked with the batch's real anchor, it said yes. Version 2 also requires the watchtower's ML-DSA-87 attestation of the same batch: on batch 26 it said no with the real anchor and an unrecorded attestation, and yes with both recorded.",
           outcome:
-            "The escrow released 0.1 QOR to the payee. Any contract can gate money on a rollup batch's ML-DSA-87 settlement the same way.",
+            "Each version released 0.1 QOR to the payee. Any contract can gate money on a rollup batch's ML-DSA-87 settlement, and on an independent re-execution of it, the same way.",
           txs: [
             tx(
               "SettlementGate deployed",
@@ -256,6 +256,21 @@ export function proofView({ el, pill, overview, verifyPanel }) {
             tx(
               "Released to the payee",
               "0xc80015952bc57f2d48e4cee4034ba2415485ee482d35980cae389463a2f7eb70",
+              true,
+            ),
+            tx(
+              "Version 2 deployed",
+              "0x958204fcc2d2049d1260957ad9f4a92af89f5544a93e4098fab05afceda76264",
+              true,
+            ),
+            tx(
+              "0.1 QOR locked on batch 26",
+              "0x83dc35cb3ba32816b863a50fe660912a8d415f97653b878fe959537d6e9ad9f8",
+              true,
+            ),
+            tx(
+              "Released with anchor and attestation",
+              "0x1610167f21848b3b814834e04a8199e5d357e791bb969657b3633d832caa109f",
               true,
             ),
           ],

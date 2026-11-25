@@ -24,7 +24,35 @@ batch 29 of `vigil-1` (`0xfbc44efd07656a3f52d51f7e48582306f9af804dab724a557b008f
 `release` paid the payee 0.1 QOR
 (`0xc80015952bc57f2d48e4cee4034ba2415485ee482d35980cae389463a2f7eb70`). From the repository root,
 `pnpm settlement-gate deploy | open | status | release` runs the same steps with Vigil's deployer
-account.
+account. This first version stays deployed and documented as it is.
+
+## Version 2: settled and re-executed
+
+`SettlementGateV2` (`src/SettlementGateV2.sol`) pays only when **both** are recorded in
+`VigilReceipts`: the batch's settlement anchor, signed by the rollup's creator, and the
+watchtower's ML-DSA-87 attestation of the same batch (`recordAttestation` /
+`isAttestationRecorded`), signed by the watchtower's key after it re-executed the batch. The gate
+checks that both name the escrow's chain, layer, rollup and batch, and commit to the same state
+root. An anchor alone, which version 1 accepted, is refused with `NotAttested`.
+
+| Call | What it does |
+| --- | --- |
+| `open(payee, anchorSigner, attester, chainId, layerId, rollupId, batchIndex, refundAfter)` | Locks `msg.value` for `payee` until that batch is both settled and attested |
+| `isReleasable(id, receipt, attestation)` | Whether `release` would pay with this anchor and attestation |
+| `release(id, receipt, attestation)` | Pays the payee; anyone may call it, the money can only go to the payee |
+| `refund(id)` | Returns the money to the payer after `refundAfter`, if it was never released |
+
+Live on the testnet (25 Nov 2026): `SettlementGateV2` at
+`0xcc03488ffa85db2b664a95a173f694616caf9ff3`, deployed in
+`0x958204fcc2d2049d1260957ad9f4a92af89f5544a93e4098fab05afceda76264`. Escrow 0 locked 0.1 QOR on
+batch 26 of `vigil-1` (`0x83dc35cb3ba32816b863a50fe660912a8d415f97653b878fe959537d6e9ad9f8`), a
+batch with both a recorded anchor and a recorded attestation. `isReleasable` was true with both and
+false with the real anchor and an unrecorded attestation; `release` paid the payee 0.1 QOR
+(`0x1610167f21848b3b814834e04a8199e5d357e791bb969657b3633d832caa109f`). The same steps:
+`pnpm settlement-gate v2 deploy | open | status | release` with `SETTLEMENT_GATE_V2_ADDRESS`.
+
+Its fork test (`test/SettlementGateV2.fork.t.sol`) runs against the real `VigilReceipts` with
+the recorded anchor and attestation of batch 26.
 
 This folder was generated with QoreChain's scaffolder and then edited:
 

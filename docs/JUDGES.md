@@ -74,15 +74,19 @@ encodings. Vigil Watchtower adds:
   watchtower on GitHub Actions that alerts while the main host is down.
 - Receipt recording through a smart account whose key can call only the two record functions, with
   a scoped EVM window as the fallback.
-- `SettlementGate`, an example contract that pays only after a batch has settled.
+- `SettlementGate`, an example contract that pays only after a batch has settled, and
+  `SettlementGateV2`, which also requires the watchtower's ML-DSA-87 attestation of the batch
+  (live payout on batch 26, `0x1610167f…109f`).
 - One-command checks from a fresh clone with no key: `verify:proof`, `metrics`, `redteam`.
 
 ## Quality
 
-- 248 TypeScript tests, 28 contract tests (19 unit, 4 fuzz, 5 invariant) and 14 tests of the
-  SettlementGate example (3 invariant; 2 against the real `VigilReceipts` on a testnet fork),
+- 248 TypeScript tests, 28 contract tests (19 unit, 4 fuzz, 5 invariant) and 24 tests of the
+  SettlementGate example and its version 2 (3 invariant, fuzzing; 5 against the real
+  `VigilReceipts` on a testnet fork),
   including a golden test that replays a live rollup's public data and reproduces the state roots
-  the chain finalized. `forge coverage`: 100% of lines of `VigilReceipts` and of `SettlementGate`.
+  the chain finalized. `forge coverage`: 100% of lines of `VigilReceipts` and of `SettlementGate`, 97.8% of
+  `SettlementGateV2`.
 - A 170-check browser test of the web app in light and dark themes and at phone width, including
   Sign In With QoreChain through the browser.
 - `pnpm redteam`: ten attacks on live data, each refused by a named check with a passing control.

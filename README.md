@@ -149,14 +149,15 @@ Vigil runs its own rollup, `vigil-1`, on the QoreChain testnet (`qorechain-diana
 sequencing, `qledger-v1` execution, one-hour challenge window. Its batches are submitted by the
 batcher in this repository and carry the creator's ML-DSA-87 anchor signature.
 
-| What                   | Where                                                                                                                                                            |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Rollup                 | `vigil-1` (layer `vigil-1`) on `qorechain-diana`                                                                                                                 |
-| Receipts contract      | `0xced683ad4319a34873e2c1aa90d18e2fcf1af1d1` on EVM chain 9800                                                                                                   |
-| First recorded receipt | batch 0, transaction `0xa4e7838ccc9e11bb03d7650a53579aa99e34f3c7a67177b322f6dfe0cc7b1855`                                                                        |
-| Receipts deployer      | `qor1x2jpzzxspw9yl59uwgxyjtxnx8clehnwt2yt0c`: deploys and relays record calls; also the smart account                                                            |
-| Fraud-drill account    | `qor1hnfd8kf8kjegp8eyjm3shklydy443z7yw6fmuk`: bonded and posted the forged batches 1 and 18                                                                      |
-| Operator               | `qor107qxkklc0znm38tl0595asa9z73c69w85tsztr`: creator of `vigil-1`; submits batches with the ML-DSA-87 anchor, sends challenges, claims withdrawals, posts memos |
+| What                    | Where                                                                                                                                                                                                      |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rollup                  | `vigil-1` (layer `vigil-1`) on `qorechain-diana`                                                                                                                                                           |
+| Receipts contract       | `0xced683ad4319a34873e2c1aa90d18e2fcf1af1d1` on EVM chain 9800                                                                                                                                             |
+| First recorded receipt  | batch 0, transaction `0xa4e7838ccc9e11bb03d7650a53579aa99e34f3c7a67177b322f6dfe0cc7b1855`                                                                                                                  |
+| SettlementGate examples | v1 `0x8f05cd493adb455818ffe63e3eb09ecdd21c89af` (anchor only); v2 `0xcc03488ffa85db2b664a95a173f694616caf9ff3` (anchor and watchtower attestation), see [the example](examples/settlement-gate/README.md)  |
+| Receipts deployer       | `qor1x2jpzzxspw9yl59uwgxyjtxnx8clehnwt2yt0c`: deploys and relays record calls; also the smart account                                                                                                      |
+| Fraud-drill account     | `qor1hnfd8kf8kjegp8eyjm3shklydy443z7yw6fmuk`: bonded and posted the forged batches 1 and 18                                                                                                                |
+| Operator                | `qor107qxkklc0znm38tl0595asa9z73c69w85tsztr`: creator of `vigil-1`; submits batches with the ML-DSA-87 anchor, sends challenges, claims withdrawals, posts memos; also signs the watchtower's attestations |
 
 ```sh
 ROLLUP_ID=vigil-1 pnpm watchtower --once   # re-execute and judge every batch yourself
@@ -342,10 +343,11 @@ that lookups agree with what was recorded, and that the contract holds no funds.
 `SettlementGate` example has the same kind of tests: money is conserved, the balance is the sum of
 open escrows, nothing pays before its batch is recorded, and no escrow pays twice.
 
-| `forge coverage` (25 Nov 2026)      | Lines        | Statements    | Branches      | Functions    |
-| ----------------------------------- | ------------ | ------------- | ------------- | ------------ |
-| `VigilReceipts` + `ReceiptVerifier` | 100% (63/63) | 98.9% (92/93) | 90.9% (10/11) | 100% (13/13) |
-| `SettlementGate` (example)          | 100% (40/40) | 98.3% (57/58) | 92.3% (12/13) | 100% (7/7)   |
+| `forge coverage` (25 Nov 2026)      | Lines         | Statements    | Branches      | Functions    |
+| ----------------------------------- | ------------- | ------------- | ------------- | ------------ |
+| `VigilReceipts` + `ReceiptVerifier` | 100% (63/63)  | 98.9% (92/93) | 90.9% (10/11) | 100% (13/13) |
+| `SettlementGate` (example)          | 100% (40/40)  | 98.3% (57/58) | 92.3% (12/13) | 100% (7/7)   |
+| `SettlementGateV2` (example)        | 97.8% (45/46) | 97.3% (73/75) | 85.7% (12/14) | 100% (7/7)   |
 
 `LiveProbe.sol` is not in the first row: it is a diagnostic contract that `pnpm live:probe`
 simulates against the live node, with no unit tests of its own.

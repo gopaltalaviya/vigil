@@ -81,11 +81,11 @@ ROLLUP_ID=vigil-1 pnpm watchtower --once
 
 ## With the operator's keys (`.env`)
 
-| Command                                                    | What it does                                                                                                                            |
-| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm redteam:full`                                        | `redteam`, plus a simulated second claim of a paid withdrawal (nothing is sent)                                                         |
-| `pnpm ibc-exit --check` / `pnpm ibc-exit <qor>`            | Checks the IBC channel to Osmosis testnet, or sends QOR to the operator's own address there and waits for the relayer's acknowledgement |
-| `pnpm settlement-gate deploy \| open \| status \| release` | Runs the SettlementGate example with the receipts deployer account                                                                      |
+| Command                                                         | What it does                                                                                                                                    |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm redteam:full`                                             | `redteam`, plus a simulated second claim of a paid withdrawal (nothing is sent)                                                                 |
+| `pnpm ibc-exit --check` / `pnpm ibc-exit <qor>`                 | Checks the IBC channel to Osmosis testnet, or sends QOR to the operator's own address there and waits for the relayer's acknowledgement         |
+| `pnpm settlement-gate [v2] deploy \| open \| status \| release` | Runs the SettlementGate example (or, with `v2`, the version that also requires the watchtower's attestation) with the receipts deployer account |
 
 ## Development
 
