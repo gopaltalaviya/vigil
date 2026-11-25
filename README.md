@@ -401,10 +401,15 @@ Vigil builds on open-source work, used under their licences:
 - [`@qorechain/rdk`](https://github.com/qorechain/qorechain-rdk) (Apache-2.0): chain client,
   `qledger-v1` execution, inbox hashing, receipt and envelope helpers.
 - [forge-std](https://github.com/foundry-rs/forge-std) and [viem](https://github.com/wevm/viem).
+- [CosmJS](https://github.com/cosmos/cosmjs) (`@cosmjs/stargate`, `@cosmjs/proto-signing`):
+  the message registry and the chain connection the base-chain transactions of `packages/receipts`
+  and the SettlementGate example go through.
 - [pino](https://github.com/pinojs/pino), [zod](https://github.com/colinhacks/zod),
-  [vitest](https://github.com/vitest-dev/vitest), [fast-check](https://github.com/dubzzz/fast-check),
-  [TypeScript](https://www.typescriptlang.org/), [ESLint](https://eslint.org/) and
-  [Prettier](https://prettier.io/).
+  [vitest](https://github.com/vitest-dev/vitest) with
+  [`@vitest/coverage-v8`](https://github.com/vitest-dev/vitest/tree/main/packages/coverage-v8),
+  [fast-check](https://github.com/dubzzz/fast-check), [tsx](https://github.com/privatenumber/tsx),
+  [TypeScript](https://www.typescriptlang.org/), [ESLint](https://eslint.org/) with
+  [typescript-eslint](https://typescript-eslint.io/), and [Prettier](https://prettier.io/).
 
 Test fixtures under `packages/core/test/fixtures` are public data recorded from the QoreChain
 testnet.

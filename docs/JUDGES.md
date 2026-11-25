@@ -12,6 +12,12 @@ built and to evidence you can check yourself on the QoreChain testnet (`qorechai
 | Check it yourself | `ROLLUP_ID=vigil-1 pnpm watchtower --once` re-executes every batch from public data      |
 | One-command check | `pnpm verify:proof`: every Proof transaction and every receipt, with QoreChain's own CLI |
 
+## Timeline on chain
+
+`vigil-1` was created on the testnet on 17 Nov 2026 at 04:25 UTC (height 10,234,711). Its first
+batch, batch 0, was submitted at 04:27 UTC (height 10,234,764, transaction
+`B15BF4B9BACA1DE7ED0E290C8BD9D409AF11A8207D38FD5481066C047092E70E`).
+
 ## One-command check
 
 `pnpm verify:proof` needs no key, no `.env`, no Docker and no Vigil service. It uses QoreChain's
