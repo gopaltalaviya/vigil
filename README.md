@@ -6,16 +6,17 @@ Vigil Watchtower (Vigil for short) is a post-quantum rollup stack for [QoreChain
 ML-DSA-87, verified settlement receipts, withdrawals, ML-KEM-protected memos, and a watchtower
 that independently re-executes every batch and monitors the base chain underneath.
 
-Built for _Build Before Q-Day: The QoreChain Developer Fest_, Protocol Builders category.
+Built for _Build Before Q-Day: The QoreChain Developer Fest_, Protocol Builders category. Not to
+be confused with the fest's `/p/vigil` page, which is a different team's project.
 
 <!-- metrics:start -->
 
-| Measured on the testnet (2026-11-24, `pnpm metrics`)   | Value                                                                               |
+| Measured on the testnet (2026-11-25, `pnpm metrics`)   | Value                                                                               |
 | ------------------------------------------------------ | ----------------------------------------------------------------------------------- |
-| Final batches of `vigil-1`                             | 30, covering 45 inbox entries                                                       |
+| Final batches of `vigil-1`                             | 32, covering 47 inbox entries                                                       |
 | Inbox entries, checked against the chain's accumulator | 47: 5 deposits, 29 transfers, 9 withdrawals, 2 sealed memos, 2 other posts          |
-| Deposited / withdrawals paid out                       | 12 QOR / 2 paid, 2.5 QOR                                                            |
-| Settlement anchors recorded in `VigilReceipts`         | 29 of 30 final batches (1 without an anchor from the chain)                         |
+| Deposited / withdrawals paid out                       | 12 QOR / 8 paid, 2.85 QOR                                                           |
+| Settlement anchors recorded in `VigilReceipts`         | 31 of 32 final batches (1 without an anchor from the chain)                         |
 | Forged batches rejected by an upheld fraud proof       | 4: 1 by Vigil's watchtower (5 s after submission), 3 by other teams' bots (10–14 s) |
 | Bonds slashed from cheaters / paid to Vigil            | 4000 QOR / 500 QOR                                                                  |
 
@@ -24,6 +25,20 @@ Built for _Build Before Q-Day: The QoreChain Developer Fest_, Protocol Builders 
 Every number above is recomputed from the testnet alone by `pnpm metrics` (no key, no `.env`, no
 Vigil database). Watchtower uptime is not on chain, so it is not in the table; the Dashboard shows
 the age of each service's last tick.
+
+## What to check, and where
+
+| Requirement                 | What Vigil does                                                                                                      | Evidence on the testnet                                                                                                                                                                     |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ML-DSA-signed batches       | Every batch of `vigil-1` carries the creator's ML-DSA-87 anchor signature; base-chain transactions are hybrid-signed | Batch 0: `B15BF4B9BACA1DE7ED0E290C8BD9D409AF11A8207D38FD5481066C047092E70E`                                                                                                                 |
+| Withdrawal                  | Withdrawals are paid from the deposit pool with a Merkle proof once the batch is final                               | Claim of 0.5 QOR: `511A29444A436A13956E9A40D8199B40803EE79197C102A7FD6FBF7967833BE6`                                                                                                        |
+| Verified settlement receipt | `VigilReceipts` verifies the anchor with `pqcKeyStatus` and `pqcVerify` and records it                               | Batch 0 receipt: `0xa4e7838ccc9e11bb03d7650a53579aa99e34f3c7a67177b322f6dfe0cc7b1855`                                                                                                       |
+| Watchtower                  | Re-executes every batch from a verified inbox copy; challenges a wrong one with a re-execution fraud proof           | Forged batch 18: `E6993DBCAE77E735D138E03748A09321899525BAF24C464BEE360C2A9C02BDB4`; Vigil's upheld challenge 5 s later: `349C8DF05F888E2AEB8826101F49FD8960EB3662A47530B37C71307206822330` |
+| ML-KEM data protection      | Private memos sealed with ML-KEM-1024 to the recipient's registered key, bound to the transfer                       | Memo: `1D39B55A28FDD65478B4769200156D5785449DA02B33C751D0A067E125BCA674`                                                                                                                    |
+| Threat model                | Every claim tied to a test or a transaction, limits stated                                                           | [Threat model](docs/THREAT_MODEL.md)                                                                                                                                                        |
+
+Every case, with its transactions, is on the web app's **Proof** page and in
+[For judges](docs/JUDGES.md); `pnpm verify:proof` re-checks them all from a fresh clone.
 
 > **Status:** every component below runs on the QoreChain testnet and has tests in this
 > repository. Vigil is testnet software and has not been audited.
@@ -74,19 +89,20 @@ fills that gap, and adds the pieces an operator needs around it.
 
 ## Components
 
-| Component                 | What it does                                                                                                               | Status  |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------- |
-| `packages/core`           | Resilient chain access, verified inbox archive, ledger replay and snapshots, storage                                       | Working |
-| `packages/watchtower`     | Re-executes each batch, compares every commitment, raises alerts, and challenges fraud with a re-execution proof           | Working |
-| `packages/batcher`        | Bonded submitter: plans a batch, re-checks it against its own archive, signs and submits it                                | Working |
-| `packages/wallet`         | `vigil` command line: encrypted L2 keys, deposit, transfer, withdraw, claim                                                | Working |
-| `contracts/VigilReceipts` | Verifies a settlement receipt's ML-DSA-87 signature on chain through the `pqcVerify` precompile                            | Working |
-| `packages/receipts`       | Reads a batch's settlement anchor from the base chain and records it through the contract                                  | Working |
-| `packages/memo`           | Confidential memos sealed with ML-KEM-1024 to the recipient's registered key and bound to an L2 transfer                   | Working |
-| `packages/monitor`        | Base-chain monitor for testnet and mainnet: halts, block-time drift, upgrades, proposals, setting and feature-flag changes | Working |
-| `packages/api`            | Read-only JSON API and Prometheus metrics over the local database                                                          | Working |
-| `packages/console`        | Operator console: the web app's wallet actions behind a password                                                           | Working |
-| `apps/web`                | Web app: overview, wallet, batch explorer, account lookup, base-chain monitor, alerts                                      | Working |
+| Component                 | What it does                                                                                                                  | Status  |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `packages/core`           | Resilient chain access, verified inbox archive, ledger replay and snapshots, storage                                          | Working |
+| `packages/watchtower`     | Re-executes each batch, compares every commitment, raises alerts, and challenges fraud with a re-execution proof              | Working |
+| `packages/batcher`        | Bonded submitter: plans a batch, re-checks it against its own archive, signs and submits it                                   | Working |
+| `packages/wallet`         | `vigil` command line: encrypted L2 keys, deposit, transfer, withdraw, claim                                                   | Working |
+| `contracts/VigilReceipts` | Verifies a settlement receipt's ML-DSA-87 signature on chain through the `pqcVerify` precompile                               | Working |
+| `packages/receipts`       | Reads a batch's settlement anchor from the base chain and records it through the contract                                     | Working |
+| `packages/memo`           | Confidential memos sealed with ML-KEM-1024 to the recipient's registered key and bound to an L2 transfer                      | Working |
+| `packages/monitor`        | Base-chain monitor for testnet and mainnet: halts, block-time drift, upgrades, proposals, setting and feature-flag changes    | Working |
+| `packages/api`            | Read-only JSON API and Prometheus metrics over the local database                                                             | Working |
+| `packages/console`        | Operator console: the web app's wallet actions behind a password                                                              | Working |
+| `packages/mcp`            | MCP server (`pnpm mcp`): QoreChain's 14 read-only tools plus four Vigil tools for rollup status, batches, accounts and audits | Working |
+| `apps/web`                | Web app: overview, wallet, batch explorer, account lookup, base-chain monitor, alerts                                         | Working |
 
 ## How the watchtower decides
 
@@ -184,12 +200,17 @@ pnpm console   # the same site plus wallet actions, on 127.0.0.1:8090
 
 | Page       | What it shows                                                                           | Needs sign-in      |
 | ---------- | --------------------------------------------------------------------------------------- | ------------------ |
-| Overview   | Verdict counts, latest batches, service health                                          | No                 |
+| Home       | What Vigil is, live headline numbers                                                    | No                 |
+| Dashboard  | Verdict counts, latest batches, service health                                          | No                 |
+| Proof      | Every testnet case with its transactions, each linked to the chain                      | No                 |
 | Wallet     | Balance, send, deposit, withdraw, claim, private memos, activity                        | Yes (console only) |
 | Batches    | Every batch with the watchtower's verdict; each batch's roots and decoded inbox entries | No                 |
-| Accounts   | Balance and nonce of any rollup account, recent inbox activity                          | No                 |
+| Accounts   | Balance and nonce of any rollup account, withdrawals by base-chain address              | No                 |
 | Base chain | Block production and block time on testnet and mainnet, detected changes                | No                 |
+| Rollups    | The read-only audit of every other `qledger-v1` rollup on the network                   | No                 |
 | Alerts     | Everything the watchtower raised                                                        | No                 |
+| Learn      | The concept with an animated diagram, before and after, use cases                       | No                 |
+| Docs       | The documents of this repository                                                        | No                 |
 
 The public API reads only the local database: it holds no key and makes no chain requests. It
 accepts GET and HEAD only, limits requests per client and sets a strict content security policy.
