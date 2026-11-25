@@ -87,7 +87,7 @@ encodings. Vigil Watchtower adds:
   including a golden test that replays a live rollup's public data and reproduces the state roots
   the chain finalized. `forge coverage`: 100% of lines of `VigilReceipts` and of `SettlementGate`, 97.8% of
   `SettlementGateV2`.
-- A 170-check browser test of the web app in light and dark themes and at phone width, including
+- A 178-check browser test of the web app in light and dark themes and at phone width, including
   Sign In With QoreChain through the browser.
 - `pnpm redteam`: ten attacks on live data, each refused by a named check with a passing control.
 - No professional audit. The contract and the services each had a separate AI-assisted security

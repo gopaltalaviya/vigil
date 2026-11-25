@@ -64,7 +64,7 @@ was submitted in that gap). What is in place:
 - Every tick compares the time since the last heartbeat; after a gap of more than 300 seconds the
   watchtower raises "was offline" and re-reads what happened from chain events, so a missed
   forgery is reported. Live test: paused for 6 minutes, alert raised 1 second after resuming.
-- A second, key-less watchtower runs on GitHub Actions every 15 minutes
+- A second, key-less watchtower is scheduled on GitHub Actions every 15 minutes
   (`.github/workflows/sentinel.yml`). It re-executes and alerts, and its run fails while an
   invalid batch can still be challenged. It holds no seed phrase, so it cannot challenge; GitHub
   may delay a scheduled run, and a 15-minute cadence can see a forgery late in its one-hour
