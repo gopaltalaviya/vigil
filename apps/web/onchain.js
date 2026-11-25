@@ -75,6 +75,12 @@ export async function askContract(contract, call, fetchImpl = fetch) {
   return BigInt(body.result) === 1n;
 }
 
+/**
+ * Answers by panel id. Pages re-render while the chain moves, so a panel built again for the
+ * same receipt shows the answer (or the pending question) its visitor already asked for.
+ */
+const answers = new Map();
+
 /** A small panel: a button that asks the contract, and a toggle that changes one digit first. */
 export function verifyPanel({ el, pill }, contract, call) {
   const id = `tamper-${call.layerId}-${call.layerHeight}`;
@@ -86,34 +92,68 @@ export function verifyPanel({ el, pill }, contract, call) {
     className: "button onchain-verify",
     text: "Verify on chain",
   });
-  const run = async () => {
-    const asked = toggle.checked ? withOneDigitChanged(call) : call;
-    sent.textContent = `state root sent: ${strip(asked.stateRoot).slice(0, 10)}…${strip(asked.stateRoot).slice(-6)}`;
-    button.disabled = true;
-    result.replaceChildren(document.createTextNode("Asking VigilReceipts…"));
-    try {
-      const recorded = await askContract(contract, asked);
-      result.replaceChildren(
-        recorded
-          ? pill("good", "Recorded on chain")
-          : pill("bad", "Not recorded: no receipt matches these fields"),
-        document.createTextNode(
-          ` isAnchorRecorded returned ${recorded}, answered by ${new URL(EVM_RPC).host}.`,
-        ),
-      );
-      result.dataset.answer = String(recorded);
-    } catch (error) {
-      result.replaceChildren(pill("wait", "Could not ask the chain"), ` ${error.message}`);
-      result.dataset.answer = "error";
-    } finally {
-      button.disabled = false;
+  const show = (entry) => {
+    toggle.checked = entry.tamper;
+    sent.textContent = entry.sent;
+    if (entry.outcome === undefined) {
+      button.disabled = true;
+      result.replaceChildren(document.createTextNode("Asking VigilReceipts…"));
+      delete result.dataset.answer;
+      return;
     }
+    button.disabled = false;
+    if (entry.outcome.error !== undefined) {
+      result.replaceChildren(pill("wait", "Could not ask the chain"), ` ${entry.outcome.error}`);
+      result.dataset.answer = "error";
+      return;
+    }
+    const recorded = entry.outcome.recorded;
+    result.replaceChildren(
+      recorded
+        ? pill("good", "Recorded on chain")
+        : pill("bad", "Not recorded: no receipt matches these fields"),
+      document.createTextNode(
+        ` isAnchorRecorded returned ${recorded}, answered by ${new URL(EVM_RPC).host}.`,
+      ),
+    );
+    result.dataset.answer = String(recorded);
+  };
+  // Show the latest state of this panel's question on whichever copy of the panel is on the page.
+  const follow = (entry) => {
+    if (entry.outcome === undefined) {
+      entry.done.then(() => {
+        if (answers.get(id) === entry && result.isConnected) show(entry);
+      });
+    }
+    show(entry);
+  };
+  const run = () => {
+    const asked = toggle.checked ? withOneDigitChanged(call) : call;
+    const entry = {
+      tamper: toggle.checked,
+      sent: `state root sent: ${strip(asked.stateRoot).slice(0, 10)}…${strip(asked.stateRoot).slice(-6)}`,
+      outcome: undefined,
+    };
+    entry.done = askContract(contract, asked).then(
+      (recorded) => {
+        entry.outcome = { recorded };
+      },
+      (error) => {
+        entry.outcome = { error: error.message };
+      },
+    );
+    answers.set(id, entry);
+    follow(entry);
   };
   button.addEventListener("click", run);
   toggle.addEventListener("change", () => {
+    answers.delete(id);
+    sent.textContent = "";
     result.replaceChildren();
     delete result.dataset.answer;
   });
+  const earlier = answers.get(id);
+  if (earlier !== undefined) follow(earlier);
   return el("div", { className: "onchain" }, [
     el("p", {
       className: "muted",
