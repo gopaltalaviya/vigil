@@ -99,8 +99,31 @@ describe("replayRollup", () => {
     expect(replayRollup(env, [first, rejected, second], entries).findings).toEqual([]);
   });
 
-  it("refuses a batch list with a gap instead of judging it", () => {
-    expect(() => replayRollup(env, [second], entries)).toThrow(/does not continue/);
+  it("replays the entries before the first batch on record when older records are pruned", () => {
+    // The chain no longer lists batch 0: its entries are executed without a batch record.
+    expect(replayRollup(env, [second], entries)).toEqual({ checked: 1, matched: 1, findings: [] });
+  });
+
+  it("still proves fraud in the first batch on record after the bootstrap", () => {
+    const forged = { ...second, stateRoot: "cd".repeat(32) };
+    expect(replayRollup(env, [forged], entries).findings[0]).toMatchObject({
+      batchIndex: second.batchIndex,
+      reasons: ["state_root"],
+      proven: true,
+    });
+  });
+
+  it("flags a first batch on record whose previous state root does not follow the inbox", () => {
+    const wrongParent = { ...second, prevStateRoot: "ef".repeat(32) };
+    expect(replayRollup(env, [wrongParent], entries).findings[0]?.reasons).toContain(
+      "prev_state_root",
+    );
+  });
+
+  it("refuses a batch list with a gap after the first batch instead of judging it", () => {
+    expect(() =>
+      replayRollup(env, [first, { ...second, inboxStart: second.inboxStart + 1 }], entries),
+    ).toThrow(/does not continue/);
   });
 });
 

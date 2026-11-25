@@ -2,6 +2,7 @@ import {
   EMPTY_INBOX_ACC,
   QledgerLedger,
   buildQledgerFraudProof,
+  executeQledger,
   checkQledgerFraud,
   qledgerAccumulate,
   type QledgerEntry,
@@ -42,6 +43,10 @@ export function notJudgeableReason(rollup: ChainRollup): string | undefined {
 
 /**
  * Replays every standing batch from an empty ledger and compares each claim.
+ *
+ * The chain may stop serving its oldest finalized batch records. Ledger state depends only on the
+ * ordered inbox, so when the first batch on record starts after entry 0, the entries before it
+ * are executed first; that batch's previous state root must then match, or it is a finding.
  * A finding is `proven` only when the chain's own fraud check, run locally,
  * confirms it. This function reads and computes; it can send nothing.
  */
@@ -61,6 +66,11 @@ export function replayRollup(
 
   let ledger = new QledgerLedger();
   let cursor = 0;
+  const start = standing[0]?.inboxStart ?? 0;
+  if (start > 0 && start <= entries.length) {
+    executeQledger(env, ledger, entries.slice(0, start));
+    cursor = start;
+  }
   let matched = 0;
   const findings: StoredAuditFinding[] = [];
   for (const batch of standing) {
