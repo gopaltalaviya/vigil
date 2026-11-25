@@ -222,9 +222,6 @@ importers:
 
   packages/watchtower:
     dependencies:
-      '@qorechain/pqc':
-        specifier: 0.2.3
-        version: 0.2.3
       '@qorechain/qoresign':
         specifier: 0.2.0
         version: 0.2.0
