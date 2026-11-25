@@ -22,7 +22,8 @@ const cache = new Map();
 
 async function fetchDoc(name) {
   if (cache.has(name)) return cache.get(name);
-  const response = await fetch(`/docs/${name}.md`, { cache: "no-cache" });
+  // Relative, so the docs load under any base path, as in the static mirror.
+  const response = await fetch(`docs/${name}.md`, { cache: "no-cache" });
   if (!response.ok)
     throw Object.assign(new Error("This page is not available."), { status: response.status });
   const text = await response.text();

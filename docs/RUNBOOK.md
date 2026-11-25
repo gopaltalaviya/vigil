@@ -55,6 +55,24 @@ on GitHub's machines, so the rollup is still checked while the main host sleeps 
   and disables them after 60 days without a commit. A 15-minute schedule can see a forged batch
   late in its one-hour window; it is a backstop, not a replacement for the main watchtower.
 
+## Static mirror for visitors without Docker
+
+`pnpm export:site` writes a read-only copy of the web app, with every API answer the pages need
+as a JSON file, to `out/site`. It runs the same `Api` code as the live server over a copy of the
+database, so the numbers are those of the moment of export:
+
+```sh
+deploy/backup.sh ./backups                     # consistent copy of the live database
+ROLLUP_ID=vigil-1 VIGIL_RECEIPTS_ADDRESS=0x... pnpm export:site --db backups/vigil-<stamp>.sqlite
+```
+
+Every URL in the copy is relative, so any static host can serve it under any path (GitHub Pages
+serves a project at `/<repository>/`). Publish the folder, for example on a `gh-pages` branch.
+The pages show a "Read-only mirror" banner with the export time and mark the status as "at
+export". It holds every batch, every rollup account and every withdrawal recipient seen in the
+inbox; other lookups say the mirror has no copy. The wallet and sign-in need the operator console
+and are not in the copy.
+
 ## Routine operations
 
 - **Logs:** `docker compose --env-file .env -f deploy/compose.yaml logs -f watchtower`. Logs are JSON, one event

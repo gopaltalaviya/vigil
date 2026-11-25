@@ -11,6 +11,11 @@ import { diagram, learnView } from "./learn.js";
 const REFRESH_MS = 10_000;
 const $ = (id) => document.getElementById(id);
 
+// A static, read-only mirror (scripts/export-site.ts) carries its export time in this tag. It
+// serves each API answer as a JSON file next to the page, so every URL stays relative and the
+// mirror works under any base path.
+const MIRROR = document.querySelector('meta[name="vigil-mirror"]')?.getAttribute("content") ?? null;
+
 // ---------- small helpers ----------
 
 function el(tag, options = {}, children = []) {
@@ -89,7 +94,10 @@ function toast(title, detail, bad = false) {
 }
 
 async function api(path, body) {
-  const response = await fetch(path, {
+  if (MIRROR !== null && body !== undefined) {
+    throw new Error("This is a read-only mirror: nothing can be sent from it.");
+  }
+  const response = await fetch(MIRROR === null ? path : `${path.slice(1)}.json`, {
     method: body === undefined ? "GET" : "POST",
     cache: "no-store",
     credentials: "same-origin",
@@ -104,7 +112,12 @@ async function api(path, body) {
     /* an empty or non-JSON answer is handled by the status check below */
   }
   if (!response.ok) {
-    const error = new Error(data.error ?? `Request failed (${response.status})`);
+    const missing = MIRROR !== null && response.status === 404;
+    const error = new Error(
+      missing
+        ? "This read-only mirror has no copy of that page."
+        : (data.error ?? `Request failed (${response.status})`),
+    );
     error.status = response.status;
     throw error;
   }
@@ -865,7 +878,7 @@ const views = {
       const [entries, account, payouts] = await Promise.all([
         api("/api/entries"),
         param && /^[0-9a-fA-F]{64}$/.test(param)
-          ? api(`/api/accounts/${param}`)
+          ? api(`/api/accounts/${param.toLowerCase()}`)
           : Promise.resolve(null),
         isAddress
           ? api(`/api/withdrawals/${encodeURIComponent(param)}`).catch((error) => ({
@@ -1747,7 +1760,8 @@ async function refreshSession() {
 async function refreshOverview() {
   try {
     state.overview = await api("/api/overview");
-    setStatus(...overallStatus(state.overview));
+    const [kind, text] = overallStatus(state.overview);
+    setStatus(kind, MIRROR === null ? text : `${text} at export`);
     $("updated").textContent =
       ` Updated ${new Date(state.overview.generatedAt * 1000).toLocaleTimeString()}.`;
     return true;
@@ -1897,6 +1911,17 @@ $("sign-out").addEventListener("click", async () => {
   }
 });
 window.addEventListener("hashchange", () => show());
+
+if (MIRROR !== null) {
+  const when = new Date(MIRROR);
+  const label = Number.isNaN(when.getTime()) ? MIRROR : when.toUTCString();
+  $("view").before(
+    el("div", { className: "mirror-banner", role: "note" }, [
+      el("strong", { text: "Read-only mirror. " }),
+      `A copy of the live site exported ${label}. Nothing here updates and nothing can be sent. For live data, run Vigil Watchtower yourself (see Docs).`,
+    ]),
+  );
+}
 
 await refreshSession();
 await refreshOverview();

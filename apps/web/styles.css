@@ -483,6 +483,20 @@ main:focus {
   align-items: start;
 }
 
+/* Read-only mirror banner (static export) */
+
+.mirror-banner {
+  box-sizing: border-box;
+  width: min(1112px, calc(100% - 32px));
+  margin: 12px auto 0;
+  padding: 10px 16px;
+  border: 1px solid var(--warn);
+  border-radius: var(--radius);
+  background: var(--warn-soft);
+  color: var(--text);
+  font-size: 14px;
+}
+
 /* Surfaces */
 
 .card,
