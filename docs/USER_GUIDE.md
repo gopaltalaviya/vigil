@@ -45,6 +45,15 @@ Every batch, newest first, with two independent opinions side by side:
 Open a batch to see its settlement timeline, the roots the submitter claimed (and the re-executed
 values if they differ), and every inbox entry it covers, decoded.
 
+## Verify on chain
+
+On a batch with a recorded receipt, and on the Proof page for the latest one, **Verify on chain**
+makes your browser call `isAnchorRecorded` on `VigilReceipts` itself, through QoreChain's public
+EVM endpoint (`https://evm-testnet.qore.host`), with the exact fields the receipt was recorded with.
+Nothing passes through this site's server. Tick **Change one digit** to send the same call with
+the last digit of the state root changed: the contract answers that no such receipt is recorded.
+It works the same in the static mirror.
+
 ## Accounts
 
 Paste a rollup account id (64 hexadecimal characters) to see its balance and how many transactions

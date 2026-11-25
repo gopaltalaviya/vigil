@@ -211,6 +211,31 @@ describe("Api", () => {
     expect(api.overview().rollup.batches[0]).toMatchObject({ index: 2, receipt: undefined });
   });
 
+  it("gives the exact isAnchorRecorded arguments of a recorded receipt, for checking it on chain", () => {
+    const { api, store } = seeded();
+    const anchorCall = {
+      signer: "0x7f806b5bf878a7b89d7f7d0b4ec3a517a38d15c7",
+      chainId: "qorechain-diana",
+      layerId: "vigil-1",
+      layerHeight: "0",
+      stateRoot: `0x${"aa".repeat(32)}`,
+      validatorSetHash: "0x",
+      txCount: "1",
+    };
+    const batchZero = () => api.overview().rollup.batches.find((b) => b.index === 0);
+    expect(batchZero()?.receipt).toEqual({ txHash: "0xa4e7", contract: "0xced6" });
+    store.saveReceipt("vigil-1", {
+      batchIndex: 0,
+      stateRoot: batchZero()?.stateRoot ?? "",
+      contract: "0xced6",
+      txHash: "",
+      recordedAt: NOW + 5,
+      anchorCall,
+    });
+    expect(batchZero()?.receipt).toEqual({ txHash: "0xa4e7", contract: "0xced6", anchorCall });
+    expect(api.batchDetail(0)?.batch.receipt?.anchorCall).toEqual(anchorCall);
+  });
+
   it("reports when each service was last seen", () => {
     const { api, store } = seeded();
     expect(api.overview().services).toEqual([]);
@@ -294,6 +319,10 @@ describe("HTTP server", () => {
       expect(await page.text()).toContain("Vigil status");
       expect(page.headers.get("x-content-type-options")).toBe("nosniff");
       expect(page.headers.get("content-security-policy")).toContain("default-src 'self'");
+      // The browser may ask the public EVM endpoint (Verify on chain), and nothing else outside.
+      expect(page.headers.get("content-security-policy")).toContain(
+        "connect-src 'self' https://evm-testnet.qore.host;",
+      );
 
       const overview = await fetch(`${base}/api/overview?x=1`);
       expect(((await overview.json()) as { rollup: { id: string } }).rollup.id).toBe("vigil-1");

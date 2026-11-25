@@ -164,7 +164,7 @@ describe("store", () => {
       first.close();
 
       const second = Store.open(path);
-      expect(second.schemaVersion).toBe(7);
+      expect(second.schemaVersion).toBe(8);
       expect(second.inboxRange("r1", 0, 2).map((e) => e.sequence)).toEqual([1, 2]);
       expect(second.inboxEntry("r1", 2)?.payload).toEqual(new Uint8Array([2, 2, 3]));
       expect(second.inboxEntry("r1", 3)).toBeUndefined();
@@ -339,6 +339,26 @@ describe("store", () => {
     // A receipt for a different state root at the same index replaces the old one.
     store.saveReceipt("r1", { ...receipt, stateRoot: "bb".repeat(32), txHash: "0x3" });
     expect(store.receipts("r1")).toMatchObject([{ stateRoot: "bb".repeat(32), txHash: "0x3" }]);
+    // The call arguments are filled in later for an existing record, keeping its hash and time.
+    const anchorCall = {
+      signer: "0x" + "11".repeat(20),
+      chainId: "qorechain-diana",
+      layerId: "r1",
+      layerHeight: "0",
+      stateRoot: "0x" + "bb".repeat(32),
+      validatorSetHash: "0x",
+      txCount: "1",
+    };
+    store.saveReceipt("r1", {
+      ...receipt,
+      stateRoot: "bb".repeat(32),
+      txHash: "",
+      recordedAt: 99,
+      anchorCall,
+    });
+    expect(store.receipts("r1")).toEqual([
+      { ...receipt, stateRoot: "bb".repeat(32), txHash: "0x3", anchorCall },
+    ]);
 
     store.upsertBatch("r1", batch);
     expect(store.verdicts("r1")).toEqual([]);
@@ -352,7 +372,7 @@ describe("store", () => {
       store.appendInboxEntries("r1", [entry(1)]);
       store.close();
       const reopened = Store.open(path);
-      expect(reopened.schemaVersion).toBe(7);
+      expect(reopened.schemaVersion).toBe(8);
       expect(reopened.lastInboxEntry("r1")?.sequence).toBe(1);
       reopened.close();
     } finally {
@@ -360,12 +380,13 @@ describe("store", () => {
     }
   });
 
-  it("renames the old fraud_found audit status to mismatch when migrating to version 7", () => {
+  it("renames the old fraud_found audit status to mismatch when migrating to version 7 and later", () => {
     const dir = mkdtempSync(join(tmpdir(), "vigil-migrate-"));
     try {
       const path = join(dir, "vigil.sqlite");
       Store.open(path).close();
-      // Rebuild a version 6 database: the old audit table and one row in the old wording.
+      // Rebuild a version 6 database: the old audit table and one row in the old wording, and no
+      // anchor_call column yet.
       const raw = new DatabaseSync(path);
       raw.exec(`
         DROP TABLE rollup_audits;
@@ -379,11 +400,12 @@ describe("store", () => {
         INSERT INTO rollup_audits VALUES
           ('other-1', 'fraud_found', '', 'qledger-v1', 'optimistic', 'active', 2, 1, '[]', 5),
           ('other-2', 'clean', '', 'qledger-v1', 'optimistic', 'active', 3, 3, '[]', 6);
+        ALTER TABLE receipts DROP COLUMN anchor_call;
         PRAGMA user_version = 6;
       `);
       raw.close();
       const reopened = Store.open(path);
-      expect(reopened.schemaVersion).toBe(7);
+      expect(reopened.schemaVersion).toBe(8);
       expect(reopened.rollupAudits().map((a) => [a.rollupId, a.status, a.matched])).toEqual([
         ["other-1", "mismatch", 1],
         ["other-2", "clean", 3],

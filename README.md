@@ -215,6 +215,10 @@ pnpm console   # the same site plus wallet actions, on 127.0.0.1:8090
 
 The public API reads only the local database: it holds no key and makes no chain requests. It
 accepts GET and HEAD only, limits requests per client and sets a strict content security policy.
+The one outside address pages may reach is QoreChain's public EVM endpoint: **Verify on chain**
+(on a batch and on Proof) has the browser itself ask `VigilReceipts` whether a receipt is recorded,
+and **Change one digit** shows the contract refusing the same call with one digit of the state root
+changed. It works in the static mirror too.
 
 The console adds the wallet. It signs with the account in `.env`, so it is protected by
 `VIGIL_CONSOLE_PASSWORD` (session cookie: HttpOnly, SameSite=Strict; failed sign-ins are locked

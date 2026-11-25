@@ -1,5 +1,6 @@
 import { docsView } from "./docs.js";
 import { homeView } from "./home.js";
+import { verifyPanel } from "./onchain.js";
 import { proofView } from "./proof.js";
 import { rollupsView } from "./rollups.js";
 import { diagram, learnView } from "./learn.js";
@@ -746,6 +747,12 @@ const views = {
                 ]),
               ),
             ),
+            b.receipt?.anchorCall
+              ? el("div", { className: "onchain-box" }, [
+                  el("h3", { text: "Check the receipt yourself" }),
+                  verifyPanel({ el, pill }, b.receipt.contract, b.receipt.anchorCall),
+                ])
+              : null,
           ]),
           el("div", { className: "card" }, [
             el("h2", { text: "What the submitter claimed" }),
@@ -1731,7 +1738,7 @@ views.learn = learnView({
 });
 views.docs = docsView({ el });
 views.rollups = rollupsView({ el, pill, api, ago, short });
-views.proof = proofView({ el, pill, overview: () => state.overview });
+views.proof = proofView({ el, pill, overview: () => state.overview, verifyPanel });
 views.home = homeView({
   el,
   pill,

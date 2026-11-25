@@ -94,6 +94,22 @@ export interface StoredReceipt {
   contract: string;
   txHash: string;
   recordedAt: number;
+  /**
+   * The exact arguments of `isAnchorRecorded(signer, receipt)` for this record, so anyone can
+   * ask the contract directly. Absent for records saved before it was kept.
+   */
+  anchorCall?: StoredAnchorCall;
+}
+
+/** Arguments of `VigilReceipts.isAnchorRecorded`: hex fields `0x`-prefixed, numbers in decimal. */
+export interface StoredAnchorCall {
+  signer: string;
+  chainId: string;
+  layerId: string;
+  layerHeight: string;
+  stateRoot: string;
+  validatorSetHash: string;
+  txCount: string;
 }
 
 /**
@@ -449,6 +465,9 @@ const MIGRATIONS: readonly string[] = [
     FROM rollup_audits;
   DROP TABLE rollup_audits;
   ALTER TABLE rollup_audits_v2 RENAME TO rollup_audits;
+  `,
+  `
+  ALTER TABLE receipts ADD COLUMN anchor_call TEXT NOT NULL DEFAULT '';
   `,
 ];
 
@@ -1108,13 +1127,21 @@ export class Store {
   saveReceipt(rollupId: string, receipt: StoredReceipt): void {
     this.db
       .prepare(
-        `INSERT INTO receipts (rollup_id, batch_index, contract, tx_hash, recorded_at, state_root)
-         VALUES (?, ?, ?, ?, ?, ?)
+        `INSERT INTO receipts
+           (rollup_id, batch_index, contract, tx_hash, recorded_at, state_root, anchor_call)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (rollup_id, batch_index, contract)
-         DO UPDATE SET state_root = excluded.state_root,
+         DO UPDATE SET
            tx_hash = CASE WHEN excluded.tx_hash = '' THEN receipts.tx_hash ELSE excluded.tx_hash END,
-           recorded_at = excluded.recorded_at
-         WHERE receipts.state_root <> excluded.state_root OR receipts.tx_hash = ''`,
+           recorded_at = CASE
+             WHEN receipts.state_root <> excluded.state_root OR receipts.tx_hash = ''
+             THEN excluded.recorded_at ELSE receipts.recorded_at END,
+           anchor_call = CASE
+             WHEN receipts.state_root <> excluded.state_root OR excluded.anchor_call <> ''
+             THEN excluded.anchor_call ELSE receipts.anchor_call END,
+           state_root = excluded.state_root
+         WHERE receipts.state_root <> excluded.state_root OR receipts.tx_hash = ''
+           OR (receipts.anchor_call = '' AND excluded.anchor_call <> '')`,
       )
       .run(
         rollupId,
@@ -1123,6 +1150,7 @@ export class Store {
         receipt.txHash,
         receipt.recordedAt,
         receipt.stateRoot,
+        receipt.anchorCall === undefined ? "" : JSON.stringify(receipt.anchorCall),
       );
   }
 
@@ -1136,6 +1164,9 @@ export class Store {
       contract: text(row, "contract"),
       txHash: text(row, "tx_hash"),
       recordedAt: int(row, "recorded_at"),
+      ...(text(row, "anchor_call") === ""
+        ? {}
+        : { anchorCall: JSON.parse(text(row, "anchor_call")) as StoredAnchorCall }),
     }));
   }
 

@@ -4,7 +4,7 @@
 
 const TX_API = "https://api-testnet.qore.host/cosmos/tx/v1beta1/txs/";
 
-export function proofView({ el, pill, overview }) {
+export function proofView({ el, pill, overview, verifyPanel }) {
   const tx = (label, hash, evm = false) =>
     el("li", { className: "proof-tx" }, [
       el("span", { className: "proof-tx-label", text: label }),
@@ -25,7 +25,7 @@ export function proofView({ el, pill, overview }) {
           ),
     ]);
 
-  const card = ({ tone, status, title, story, outcome, steps, txs, live, source }) =>
+  const card = ({ tone, status, title, story, outcome, steps, txs, live, source, extra }) =>
     el("article", { className: `proof-card tone-${tone}` }, [
       el("div", { className: "proof-top" }, [
         pill(status[0], status[1]),
@@ -57,6 +57,7 @@ export function proofView({ el, pill, overview }) {
           ])
         : null,
       txs && txs.length > 0 ? el("ul", { className: "proof-txs" }, txs) : null,
+      extra ?? null,
     ]);
 
   return {
@@ -66,6 +67,12 @@ export function proofView({ el, pill, overview }) {
     },
     render(data) {
       const s = data.rollup.summary;
+      const recorded = data.rollup.batches.filter((b) => b.receipt?.anchorCall);
+      const latest = recorded.reduce(
+        (top, b) => (top === null || b.index > top.index ? b : top),
+        null,
+      );
+      const latestCall = latest ? { batch: latest, call: latest.receipt.anchorCall } : null;
       const mainnet = data.chain.find((c) => c.network === "mainnet");
       const blockTime = mainnet?.tip?.measuredBlockTimeSecs;
       const rejected = data.rollup.batches.filter(
@@ -207,7 +214,13 @@ export function proofView({ el, pill, overview }) {
           story:
             "VigilReceipts checks each final batch's ML-DSA-87 signature on chain, against the signer's key in QoreChain's registry, so any contract can rely on the settlement.",
           outcome:
-            "A capability QoreChain did not have before: contracts can now ask whether a rollup batch truly settled.",
+            "Any contract can ask whether a rollup batch truly settled. So can your browser: the button below asks the contract directly, for the latest recorded batch.",
+          extra: latestCall
+            ? el("div", { className: "onchain-box" }, [
+                el("h3", { text: `Check batch ${latestCall.batch.index} yourself` }),
+                verifyPanel({ el, pill }, latestCall.batch.receipt.contract, latestCall.call),
+              ])
+            : null,
           txs: [
             tx(
               "Contract deployed",

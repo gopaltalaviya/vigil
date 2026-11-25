@@ -1,4 +1,10 @@
-import { claimId, validateAddress, type Store, type StoredBatch } from "@vigil/core";
+import {
+  claimId,
+  validateAddress,
+  type Store,
+  type StoredAnchorCall,
+  type StoredBatch,
+} from "@vigil/core";
 import { Explorer } from "./explorer.js";
 
 export interface ApiOptions {
@@ -26,7 +32,7 @@ interface BatchView {
   submittedTime: number;
   verdict: string;
   reasons: string[];
-  receipt: { txHash: string; contract: string } | undefined;
+  receipt: { txHash: string; contract: string; anchorCall?: StoredAnchorCall } | undefined;
   /** The upheld fraud proof that rejected this claim, when known. */
   rejection: RejectionView | undefined;
   /** Post-quantum evidence stored when the batch was checked. */
@@ -222,7 +228,7 @@ export class Api {
 
   private batchView(
     batch: StoredBatch,
-    receipts: Map<string, { txHash: string; contract: string }>,
+    receipts: Map<string, { txHash: string; contract: string; anchorCall?: StoredAnchorCall }>,
   ): BatchView {
     const verdict = this.options.store.verdict(this.options.rollupId, claimId(batch));
     const fraud = this.options.store
@@ -247,7 +253,13 @@ export class Api {
       verdict: verdict?.verdict ?? "pending",
       reasons: verdict?.reasons ?? [],
       receipt:
-        receipt === undefined ? undefined : { txHash: receipt.txHash, contract: receipt.contract },
+        receipt === undefined
+          ? undefined
+          : {
+              txHash: receipt.txHash,
+              contract: receipt.contract,
+              ...(receipt.anchorCall === undefined ? {} : { anchorCall: receipt.anchorCall }),
+            },
       pq:
         pqCheck === undefined
           ? undefined

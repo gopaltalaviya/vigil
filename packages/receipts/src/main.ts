@@ -69,15 +69,26 @@ async function main(argv: string[]): Promise<void> {
   const chain = createChain(config);
   const context = { config, rdk: chain.rdk, log };
   const contract = new ReceiptsContract(config);
-  const remember = (batchIndex: number, stateRoot: string, txHash: string): void => {
+  const remember = (batchIndex: number, call: AnchorCall, txHash: string): void => {
     const store = Store.open(join(config.dataDir, "vigil.sqlite"));
     try {
+      const { receipt } = call;
       store.saveReceipt(config.rollupId, {
         batchIndex,
-        stateRoot: stateRoot.replace(/^0x/, "").toLowerCase(),
+        stateRoot: receipt.stateRoot.replace(/^0x/, "").toLowerCase(),
         contract: address(),
         txHash,
         recordedAt: Math.floor(Date.now() / 1_000),
+        // Kept so that anyone can ask the contract about this exact record (web "Verify on chain").
+        anchorCall: {
+          signer: call.signer,
+          chainId: receipt.chainId,
+          layerId: receipt.layerId,
+          layerHeight: receipt.layerHeight.toString(),
+          stateRoot: receipt.stateRoot,
+          validatorSetHash: receipt.validatorSetHash,
+          txCount: receipt.txCount.toString(),
+        },
       });
     } finally {
       store.close();
@@ -146,7 +157,7 @@ async function main(argv: string[]): Promise<void> {
    */
   const recordOne = async (index: number, call: AnchorCall): Promise<string> => {
     if (await contract.isAnchorRecorded(address(), call)) {
-      remember(index, call.receipt.stateRoot, "");
+      remember(index, call, "");
       return `Batch ${String(index)}: already recorded.`;
     }
     if (!(await contract.checkAnchor(address(), call))) {
@@ -157,11 +168,11 @@ async function main(argv: string[]): Promise<void> {
         await ensureScopedWindow();
         return contract.recordAnchor(await key(), address(), call);
       });
-      remember(index, call.receipt.stateRoot, hash);
+      remember(index, call, hash);
       return `Batch ${String(index)}: recorded. Transaction ${hash}`;
     } catch (error) {
       if (await contract.isAnchorRecorded(address(), call)) {
-        remember(index, call.receipt.stateRoot, "");
+        remember(index, call, "");
         return `Batch ${String(index)}: recorded by another sender first.`;
       }
       throw error;
