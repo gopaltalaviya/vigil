@@ -3,15 +3,14 @@ import {
   QledgerLedger,
   buildQledgerFraudProof,
   checkQledgerFraud,
-  fetchQledgerEntries,
   qledgerAccumulate,
   type QledgerEntry,
   type RollupView as ChainRollup,
 } from "@qorechain/rdk";
 import {
-  normalizeHex,
+  InboxArchive,
+  chainInboxSource,
   toBatchClaim,
-  toHex,
   toStoredBatch,
   verifyBatch,
   type Chain,
@@ -168,33 +167,20 @@ export class RollupAuditor {
     const reason = notJudgeableReason(rollup);
     if (reason !== undefined) return this.record(rollup, "not_judgeable", { reason });
 
-    const { chain, chainId } = this.options;
+    const { chain, chainId, store } = this.options;
     const rollupId = rollup.rollupId;
-    const [views, inbox] = await Promise.all([
-      chain.rdk.rest.listBatches(rollupId),
-      chain.rdk.rest.getInbox(rollupId),
-    ]);
-    const batches = views.map(toStoredBatch);
-    const entries =
-      inbox.headSequence === 0
-        ? []
-        : await fetchQledgerEntries(chain.rdk.rest, {
-            chainId,
-            rollupId,
-            from: 0,
-            to: inbox.headSequence,
-            accFrom: EMPTY_INBOX_ACC,
-          });
-    const acc = qledgerAccumulate({
+    // Batches first: every batch they list consumes entries at or below the head synced next.
+    const batches = (await chain.rdk.rest.listBatches(rollupId)).map(toStoredBatch);
+    // A persisted, accumulator-checked copy of the inbox: each audit reads only the new posts,
+    // and the replay keeps working after the chain prunes the posted data of old entries.
+    const archive = new InboxArchive({
       chainId,
       rollupId,
-      from: 0,
-      accFrom: EMPTY_INBOX_ACC,
-      entries,
+      store,
+      source: chainInboxSource(chain, chainId, rollupId),
     });
-    if (entries.length > 0 && toHex(acc) !== normalizeHex(inbox.headAcc)) {
-      throw new Error("the inbox read does not match the chain's accumulator");
-    }
+    const { head } = await archive.sync();
+    const entries = archive.range(0, head);
     const replay = replayRollup({ chainId, rollupId }, batches, entries);
     return this.record(rollup, replay.findings.some((f) => f.proven) ? "fraud_found" : "clean", {
       batches: replay.checked,

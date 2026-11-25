@@ -5,6 +5,7 @@ export * from "./errors.js";
 export * from "./hex.js";
 export * from "./history.js";
 export * from "./http.js";
+export * from "./inbox.js";
 export * from "./ledger.js";
 export * from "./log.js";
 export * from "./replay.js";

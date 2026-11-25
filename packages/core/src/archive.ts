@@ -7,8 +7,16 @@ import type { Store, StoredInboxEntry } from "./store.js";
 export interface InboxSource {
   /** Current head of the rollup's inbox and the accumulator value at that head. */
   head(): Promise<{ sequence: number; acc: string }>;
-  /** Entries with `from < sequence <= to`, in order, as posted on the base chain. */
-  entries(from: number, to: number, accFrom: Uint8Array): Promise<QledgerEntry[]>;
+  /**
+   * Entries with `from < sequence <= to`, in order, as posted on the base chain. `fromHeight`
+   * is the height of entry `from` when known: no later entry can sit in an earlier block.
+   */
+  entries(
+    from: number,
+    to: number,
+    accFrom: Uint8Array,
+    fromHeight?: number,
+  ): Promise<QledgerEntry[]>;
 }
 
 export interface InboxArchiveOptions {
@@ -16,7 +24,11 @@ export interface InboxArchiveOptions {
   rollupId: string;
   store: Store;
   source: InboxSource;
-  /** Entries fetched per round trip. */
+  /**
+   * Entries fetched per round trip. By default a sync reads up to the head in one call: the
+   * chain prunes the accumulator of older posts (about 11 days on testnet, and checkpoints once
+   * a finalized batch covers them), so a range that ends below the head may not be checkable.
+   */
   chunkSize?: number;
 }
 
@@ -44,7 +56,7 @@ export class InboxArchive {
     this.rollupId = options.rollupId;
     this.store = options.store;
     this.source = options.source;
-    this.chunkSize = options.chunkSize ?? 64;
+    this.chunkSize = options.chunkSize ?? Number.POSITIVE_INFINITY;
   }
 
   /** Pulls any entries posted since the last sync and verifies them. */
@@ -54,6 +66,7 @@ export class InboxArchive {
     const last = this.store.lastInboxEntry(this.rollupId);
     let sequence = last?.sequence ?? 0;
     let acc = last === undefined ? EMPTY_INBOX_ACC : fromHex(last.acc);
+    let height = last?.height ?? 0;
 
     if (head.sequence < sequence) {
       throw new IntegrityError("the chain's inbox is shorter than the local archive", {
@@ -69,7 +82,7 @@ export class InboxArchive {
     let added = 0;
     while (sequence < head.sequence) {
       const to = Math.min(head.sequence, sequence + this.chunkSize);
-      const fetched = await this.source.entries(sequence, to, acc);
+      const fetched = await this.source.entries(sequence, to, acc, height);
       if (fetched.length !== to - sequence) {
         throw new IntegrityError("the inbox source returned the wrong number of entries", {
           expected: to - sequence,
@@ -86,9 +99,10 @@ export class InboxArchive {
           entries: [entry],
         });
         sequence += 1;
+        height = Number(entry.height);
         rows.push({
           sequence,
-          height: Number(entry.height),
+          height,
           poster: entry.poster,
           payload: entry.payload,
           acc: toHex(acc),

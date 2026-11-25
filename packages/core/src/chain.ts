@@ -1,15 +1,10 @@
-import {
-  createRdkClient,
-  fetchQledgerEntries,
-  type BatchView,
-  type QledgerEntry,
-  type RdkClient,
-} from "@qorechain/rdk";
+import { createRdkClient, type BatchView, type QledgerEntry, type RdkClient } from "@qorechain/rdk";
 import type { InboxSource } from "./archive.js";
 import type { VigilConfig } from "./config.js";
 import { HttpClient, type Transport } from "./http.js";
 import { normalizeHex } from "./hex.js";
 import { flattenMessages } from "./history.js";
+import { INBOX_SEARCH_MAX_PAGES, readInboxEntries } from "./inbox.js";
 import type { BatchClaim } from "./replay.js";
 import type { StoredBatch } from "./store.js";
 
@@ -38,9 +33,11 @@ export function createChain(config: VigilConfig, transport?: Transport): Chain {
     fetch: rest.asFetch(),
   });
   // The kit matches inbox posts among top-level messages only, so a post relayed through an
-  // authz MsgExec would look missing. Open those up before it sees them.
+  // authz MsgExec would look missing. Open those up before it sees them. The kit also stops
+  // after 50 pages (5,000 transactions) unless told otherwise, which a busy rollup passes.
   const searchTxs = rdk.rest.searchTxs.bind(rdk.rest);
-  rdk.rest.searchTxs = async (query, options) => (await searchTxs(query, options)).map(unwrapAuthz);
+  rdk.rest.searchTxs = async (query, options) =>
+    (await searchTxs(query, { maxPages: INBOX_SEARCH_MAX_PAGES, ...options })).map(unwrapAuthz);
   return { rdk, rest, rpc: make("rpc"), evm: make("evm") };
 }
 
@@ -52,15 +49,30 @@ export function unwrapAuthz<T extends Record<string, unknown>>(record: T): T {
   return { ...record, tx: { ...tx, body: { ...tx.body, messages: flattenMessages(messages) } } };
 }
 
-/** Inbox reader backed by the base chain's REST API and transaction index. */
+/**
+ * Inbox reader backed by the base chain's REST API and transaction index. The archive passes
+ * the height of its last entry, so a resumed read only searches blocks from there on.
+ */
 export function chainInboxSource(chain: Chain, chainId: string, rollupId: string): InboxSource {
   return {
     async head() {
       const inbox = await chain.rdk.rest.getInbox(rollupId);
       return { sequence: inbox.headSequence, acc: inbox.headAcc };
     },
-    entries(from: number, to: number, accFrom: Uint8Array): Promise<QledgerEntry[]> {
-      return fetchQledgerEntries(chain.rdk.rest, { chainId, rollupId, from, to, accFrom });
+    entries(
+      from: number,
+      to: number,
+      accFrom: Uint8Array,
+      fromHeight?: number,
+    ): Promise<QledgerEntry[]> {
+      return readInboxEntries(chain.rdk.rest, {
+        chainId,
+        rollupId,
+        from,
+        to,
+        accFrom,
+        ...(fromHeight === undefined ? {} : { fromHeight }),
+      });
     },
   };
 }

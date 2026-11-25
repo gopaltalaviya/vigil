@@ -1,7 +1,15 @@
 import { readFileSync } from "node:fs";
 import type { RollupView as ChainRollup } from "@qorechain/rdk";
 import { describe, expect, it } from "vitest";
-import { Store, createLogger, type Chain, type StoredBatch } from "@vigil/core";
+import {
+  Store,
+  createChain,
+  createLogger,
+  loadConfig,
+  type Chain,
+  type StoredBatch,
+} from "@vigil/core";
+import { goldenChainIndex } from "../../core/test/chain-index.js";
 import { loadGolden, toEntries } from "../../core/test/helpers.js";
 import { AlertDispatcher, RollupAuditor, notJudgeableReason, replayRollup } from "../src/index.js";
 
@@ -126,6 +134,39 @@ describe("RollupAuditor", () => {
     const { auditor: a, store } = auditor(golden.batches, [rollup({ rollupId: "broken" })]);
     await a.runOnce();
     expect(store.rollupAudits()[0]).toMatchObject({ rollupId: "broken", status: "error" });
+  });
+
+  it("audits from a persisted inbox archive after the chain pruned every posted-data record", async () => {
+    const index = goldenChainIndex(golden, { pruned: () => true });
+    const chain = createChain(
+      loadConfig({ ROLLUP_ID: "vigil-1", HTTP_MAX_RETRIES: "0" }),
+      index.transport,
+    );
+    const views = golden.batches.map((batch) => ({ ...batch, rollupId: golden.rollupId }));
+    Object.assign(chain.rdk.rest, {
+      listRollups: () => Promise.resolve([rollup({})]),
+      listBatches: () => Promise.resolve(views),
+    });
+    const store = Store.open(":memory:");
+    const alerts = new AlertDispatcher({ store, sinks: [], log, now: () => 1 });
+    const a = new RollupAuditor({
+      chain,
+      chainId: golden.chainId,
+      ownRollupId: "vigil-1",
+      store,
+      alerts,
+      log,
+    });
+
+    await a.runOnce();
+    expect(store.rollupAudits()[0]).toMatchObject({ status: "clean", batches: 2, matched: 2 });
+    expect(store.lastInboxEntry(golden.rollupId)?.sequence).toBe(golden.head.sequence);
+
+    // The next audit finds the archive at the head and searches nothing.
+    const searchesBefore = index.urls.filter((u) => u.includes("/txs?")).length;
+    await a.runOnce();
+    expect(index.urls.filter((u) => u.includes("/txs?")).length).toBe(searchesBefore);
+    expect(store.rollupAudits()[0]).toMatchObject({ status: "clean", matched: 2 });
   });
 
   it("has no way to challenge: the module imports no sender or challenge message", () => {
