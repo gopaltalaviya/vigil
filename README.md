@@ -149,14 +149,14 @@ Vigil runs its own rollup, `vigil-1`, on the QoreChain testnet (`qorechain-diana
 sequencing, `qledger-v1` execution, one-hour challenge window. Its batches are submitted by the
 batcher in this repository and carry the creator's ML-DSA-87 anchor signature.
 
-| What                   | Where                                                                                                 |
-| ---------------------- | ----------------------------------------------------------------------------------------------------- |
-| Rollup                 | `vigil-1` (layer `vigil-1`) on `qorechain-diana`                                                      |
-| Receipts contract      | `0xced683ad4319a34873e2c1aa90d18e2fcf1af1d1` on EVM chain 9800                                        |
-| First recorded receipt | batch 0, transaction `0xa4e7838ccc9e11bb03d7650a53579aa99e34f3c7a67177b322f6dfe0cc7b1855`             |
-| Receipts deployer      | `qor1x2jpzzxspw9yl59uwgxyjtxnx8clehnwt2yt0c`: deploys and relays record calls; also the smart account |
-| Fraud-drill account    | `qor1hnfd8kf8kjegp8eyjm3shklydy443z7yw6fmuk`: bonded and posted the forged batches 1 and 18           |
-| Rollup creator         | the `creator` of `vigil-1` on chain: batches, anchors, challenges, withdrawals, memos                 |
+| What                   | Where                                                                                                                                                            |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rollup                 | `vigil-1` (layer `vigil-1`) on `qorechain-diana`                                                                                                                 |
+| Receipts contract      | `0xced683ad4319a34873e2c1aa90d18e2fcf1af1d1` on EVM chain 9800                                                                                                   |
+| First recorded receipt | batch 0, transaction `0xa4e7838ccc9e11bb03d7650a53579aa99e34f3c7a67177b322f6dfe0cc7b1855`                                                                        |
+| Receipts deployer      | `qor1x2jpzzxspw9yl59uwgxyjtxnx8clehnwt2yt0c`: deploys and relays record calls; also the smart account                                                            |
+| Fraud-drill account    | `qor1hnfd8kf8kjegp8eyjm3shklydy443z7yw6fmuk`: bonded and posted the forged batches 1 and 18                                                                      |
+| Operator               | `qor107qxkklc0znm38tl0595asa9z73c69w85tsztr`: creator of `vigil-1`; submits batches with the ML-DSA-87 anchor, sends challenges, claims withdrawals, posts memos |
 
 ```sh
 ROLLUP_ID=vigil-1 pnpm watchtower --once   # re-execute and judge every batch yourself
