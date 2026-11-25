@@ -82,7 +82,7 @@ encodings. Vigil adds:
 
 ## Videos
 
-- `media/vigil-demo.mp4`: the demo, 2 minutes 48 seconds, with a real testnet transfer, the fraud
+- `media/vigil-demo.mp4`: the demo, 2 minutes 47 seconds, with a real testnet transfer, the fraud
   catch, the audit of other rollups, SettlementGate and the IBC exit.
-- `media/vigil-overview.mp4`: the concept in one minute.
+- `media/vigil-overview.mp4`: the concept in a minute and a half.
 - `media/vigil-security.mp4`: the forged batch 18 stopped by the watchtower, step by step.

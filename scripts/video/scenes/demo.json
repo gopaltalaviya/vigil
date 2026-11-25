@@ -309,7 +309,7 @@
     {
       "card": "brand/cover.png",
       "name": "end",
-      "narration": "Vigil Watchtower. Post-quantum settlement, always watched. Open source under Apache 2.",
+      "narration": "Vigil Watchtower. Post-quantum settlement that anyone can check. Open source under Apache 2.",
       "minSeconds": 4
     }
   ]

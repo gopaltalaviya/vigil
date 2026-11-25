@@ -376,6 +376,10 @@ for (const [index, scene] of scenes.entries()) {
       "-y",
       "-loglevel",
       "error",
+      // Frame-threaded PNG decoding fails at random in recent ffmpeg builds
+      // ("inflate returned error -3"): decode the images on one thread.
+      "-threads",
+      "1",
       "-loop",
       "1",
       "-t",
@@ -419,6 +423,8 @@ for (const [index, scene] of scenes.entries()) {
       "-y",
       "-loglevel",
       "error",
+      "-threads",
+      "1",
       "-f",
       "concat",
       "-safe",

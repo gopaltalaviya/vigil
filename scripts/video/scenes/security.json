@@ -4,7 +4,7 @@
     {
       "card": "brand/cover.png",
       "name": "title",
-      "narration": "How Vigil stopped a forged batch on the QoreChain testnet.",
+      "narration": "How Vigil Watchtower stopped a forged batch on the QoreChain testnet.",
       "minSeconds": 3.5
     },
     {
@@ -86,8 +86,8 @@
           "hash": "#/alerts"
         }
       ],
-      "caption": "The operator is told at once",
-      "narration": "The invalid batch and the challenge were raised as critical alerts, to the console and to Telegram.",
+      "caption": "Raised at once as a critical alert",
+      "narration": "The invalid batch and the challenge were raised as critical alerts in the app, and are sent to Telegram or a webhook when one is configured.",
       "steps": [
         {
           "action": "wait",
@@ -98,7 +98,7 @@
     {
       "card": "brand/cover.png",
       "name": "end",
-      "narration": "Vigil. Someone is always watching.",
+      "narration": "Vigil Watchtower. Every batch, checked.",
       "minSeconds": 3
     }
   ]

@@ -77,8 +77,9 @@ concept with an animated diagram.
 
 ## Videos
 
-Three narrated videos are recorded from the live app with `scripts/video`: an overview of the
-concept, the full demo with real testnet transactions, and how a forged batch is caught.
+Three narrated videos are recorded from the live app with `scripts/video` (re-recorded 25 Nov
+2026): the full demo with a real testnet transfer (2:47), an overview of the concept (1:28), and
+how a forged batch is caught (1:05). The video files are not stored in the repository.
 
 ## Why
 

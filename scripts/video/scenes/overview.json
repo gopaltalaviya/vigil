@@ -4,7 +4,7 @@
     {
       "card": "brand/cover.png",
       "name": "title",
-      "narration": "Vigil. A post-quantum rollup on QoreChain, with a watchtower that never sleeps.",
+      "narration": "Vigil Watchtower. A post-quantum rollup on QoreChain, with a watchtower that re-checks every batch.",
       "minSeconds": 4
     },
     {
@@ -128,7 +128,7 @@
     {
       "card": "brand/cover.png",
       "name": "end",
-      "narration": "Vigil. Open source, and running now.",
+      "narration": "Vigil Watchtower. Open source, and running now.",
       "minSeconds": 3.5
     }
   ]
