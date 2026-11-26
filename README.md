@@ -11,12 +11,12 @@ be confused with the fest's `/p/vigil` page, which is a different team's project
 
 <!-- metrics:start -->
 
-| Measured on the testnet (2026-11-25, `pnpm metrics`)   | Value                                                                               |
+| Measured on the testnet (2026-11-26, `pnpm metrics`)   | Value                                                                               |
 | ------------------------------------------------------ | ----------------------------------------------------------------------------------- |
-| Final batches of `vigil-1`                             | 34, covering 49 inbox entries                                                       |
-| Inbox entries, checked against the chain's accumulator | 49: 5 deposits, 31 transfers, 9 withdrawals, 2 sealed memos, 2 other posts          |
+| Final batches of `vigil-1`                             | 36, covering 51 inbox entries                                                       |
+| Inbox entries, checked against the chain's accumulator | 51: 5 deposits, 33 transfers, 9 withdrawals, 2 sealed memos, 2 other posts          |
 | Deposited / withdrawals paid out                       | 12 QOR / 8 paid, 2.85 QOR                                                           |
-| Settlement anchors recorded in `VigilReceipts`         | 33 of 34 final batches (1 without an anchor from the chain)                         |
+| Settlement anchors recorded in `VigilReceipts`         | 35 of 36 final batches (1 without an anchor from the chain)                         |
 | Forged batches rejected by an upheld fraud proof       | 4: 1 by Vigil's watchtower (5 s after submission), 3 by other teams' bots (10–14 s) |
 | Bonds slashed from cheaters / paid to Vigil            | 4000 QOR / 500 QOR                                                                  |
 
