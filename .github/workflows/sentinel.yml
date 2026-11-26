@@ -2,7 +2,7 @@
 # still checked when the main host is asleep or down. It re-executes every batch from public
 # chain data, delivers alerts through the same code as the main watchtower, and cannot
 # challenge: it has no seed phrase. A run fails (exit 3) while an invalid batch can still be
-# challenged. Schedules run on the default branch only, and GitHub may delay them.
+# challenged. Schedules run on the default branch only, and GitHub may delay or skip them under load.
 name: Sentinel
 
 on:
