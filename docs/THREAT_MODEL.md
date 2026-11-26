@@ -125,9 +125,10 @@ seeded from a backup.
 - A receipt is recorded once; an anchor signature cannot be used as an attestation; attestations
   are bound to the EVM chain id and the contract address; field boundaries cannot be shifted.
 - A chain without the precompiles is detected and refused, never treated as "valid".
-  Tests: `contracts/test/VigilReceipts.t.sol` (19 tests, including fuzz tests).
+  Tests: `contracts/test/VigilReceipts.t.sol` (19 tests, 2 of them fuzz tests) and
+  `contracts/test/VigilReceipts.invariant.t.sol` (4 fuzz and 5 invariant tests).
 - On the testnet the contract at `0xced683ad4319a34873e2c1aa90d18e2fcf1af1d1` recorded the
-  receipts of batches 0, 1 and 2 of `vigil-1`
+  receipts of 35 of the 36 final batches of `vigil-1` (batch 28 has no anchor on chain to record)
   (for example `0xa4e7838ccc9e11bb03d7650a53579aa99e34f3c7a67177b322f6dfe0cc7b1855`).
 
 **Limits.** The contract records that a registered key signed an anchor. Whether that signer is

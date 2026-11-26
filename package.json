@@ -38,7 +38,8 @@
     "settlement-gate": "tsx --env-file=.env scripts/settlement-gate.ts",
     "cbom": "qorescan scan --name vigil --network testnet --address qor1x2jpzzxspw9yl59uwgxyjtxnx8clehnwt2yt0c --tls evm-testnet.qore.host:443 --tls api-testnet.qore.host:443 --solidity contracts --out docs/cbom.json && node scripts/check-cbom.mjs docs/cbom.json",
     "video": "node scripts/video/record.mjs",
-    "export:site": "tsx scripts/export-site.ts"
+    "export:site": "tsx scripts/export-site.ts",
+    "receipt:verify": "tsx scripts/settlement-receipt.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

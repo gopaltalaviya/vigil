@@ -253,6 +253,10 @@ const summary = {
   },
   attestationsRecorded: receipts.rows.filter((r) => r.attested === true).length,
   failures,
+  // A run where every transaction was pruned, or no anchor could be read, proves nothing: say so and fail.
+  nothingVerified:
+    txRows.every((r) => r.result === "pruned") ||
+    receipts.rows.every((r) => r.anchor !== "recorded"),
   seconds: Math.round((Date.now() - started) / 100) / 10,
 };
 
@@ -281,4 +285,9 @@ if (asJson) {
       `${String(summary.attestationsRecorded)} attestations, ${String(failures)} failures, ${String(summary.seconds)} s.`,
   );
 }
-process.exit(failures === 0 ? 0 : 1);
+if (summary.nothingVerified && !asJson) {
+  console.log(
+    "Nothing could be verified: every transaction was pruned, or no anchor was recorded.",
+  );
+}
+process.exit(failures === 0 && !summary.nothingVerified ? 0 : 1);

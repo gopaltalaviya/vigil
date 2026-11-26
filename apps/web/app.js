@@ -1738,7 +1738,7 @@ views.learn = learnView({
 });
 views.docs = docsView({ el });
 views.rollups = rollupsView({ el, pill, api, ago, short });
-views.proof = proofView({ el, pill, overview: () => state.overview, verifyPanel });
+views.proof = proofView({ el, pill, overview: () => state.overview, verifyPanel, copyable });
 views.home = homeView({
   el,
   pill,
@@ -1764,14 +1764,21 @@ async function refreshSession() {
   $("sign-out").hidden = !state.session.signedIn;
 }
 
+const TICKING = new Set(["generatedAt", "ageSecs", "lastSeen"]);
+const overviewKey = (overview) =>
+  JSON.stringify(overview ?? null, (key, value) => (TICKING.has(key) ? undefined : value));
+
+/** Fetches the overview. True when its content changed (timestamps and ages aside). */
 async function refreshOverview() {
   try {
+    const before = overviewKey(state.overview);
     state.overview = await api("/api/overview");
     const [kind, text] = overallStatus(state.overview);
     setStatus(kind, MIRROR === null ? text : `${text} at export`);
     $("updated").textContent =
       ` Updated ${new Date(state.overview.generatedAt * 1000).toLocaleTimeString()}.`;
-    return true;
+    // Re-render only on real changes, so keyboard focus and scroll position are not lost every tick.
+    return overviewKey(state.overview) !== before;
   } catch {
     setStatus("warn", "Cannot reach the server");
     return false;
