@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Vigil Watchtower mark">
+  <title>Vigil Watchtower</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0C2A20"/>
+      <stop offset="1" stop-color="#04100C"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="100" cy="96" r="110" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#34D399" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#34D399" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="200" height="200" rx="46" fill="url(#bg)"/>
+  <rect x="1" y="1" width="198" height="198" rx="45" fill="none" stroke="#A7F3D0" stroke-opacity="0.14" stroke-width="2"/>
+  <rect width="200" height="200" rx="46" fill="url(#glow)"/>
+  <!-- An emerald crystal: six facets, lit from the upper left -->
+  <polygon points="100,16 50,64 100,86" fill="#D1FAE5"/>
+  <polygon points="100,16 150,64 100,86" fill="#6EE7B7"/>
+  <polygon points="50,64 100,86 100,152 50,130" fill="#34D399"/>
+  <polygon points="150,64 100,86 100,152 150,130" fill="#10B981"/>
+  <polygon points="50,130 100,152 100,186" fill="#059669"/>
+  <polygon points="150,130 100,152 100,186" fill="#047857"/>
+  <path d="M50 64 L100 86 L150 64 M100 86 V152 M50 130 L100 152 L150 130" fill="none" stroke="#ECFDF5" stroke-opacity="0.55" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M160 30 l4 10 10 4 -10 4 -4 10 -4 -10 -10 -4 10 -4z" fill="#ECFDF5"/>
+</svg>
