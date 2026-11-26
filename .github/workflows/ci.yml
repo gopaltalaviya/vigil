@@ -28,7 +28,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
       - run: pnpm lint
-      - run: pnpm typecheck
+      # The contracts package is built by forge in the contracts job below.
+      - run: pnpm -r --filter "!@vigil/contracts" typecheck
       - run: pnpm test:coverage
       - run: pnpm audit --prod --audit-level high
 
