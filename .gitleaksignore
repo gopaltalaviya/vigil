@@ -1,0 +1,6 @@
+# Not secrets: the public testnet transaction hash 9409BE32…4CBC (the ML-KEM key registration), which
+# earlier versions of docs/JUDGES.md labelled "Key published:", so the generic-api-key rule matched it.
+dd7c6bcec2977e8e5f47ab7290809c5ca770aabb:docs/JUDGES.md:generic-api-key:44
+be99629c6877fda171198a15679537651df8353d:docs/JUDGES.md:generic-api-key:44
+723369e3933d494e9fd4494627faf04461632d3f:docs/JUDGES.md:generic-api-key:22
+8ffedab009157188945def5893d1244f9a99ec74:docs/JUDGES.md:generic-api-key:22
