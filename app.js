@@ -1924,7 +1924,58 @@ $("sign-out").addEventListener("click", async () => {
     await show(true);
   }
 });
-window.addEventListener("hashchange", () => show());
+window.addEventListener("hashchange", () => {
+  closeMenu();
+  return show();
+});
+
+// Header menu: when the section links do not fit on the bar, they fold into a menu.
+const header = document.querySelector(".top");
+const bar = header.querySelector(".bar");
+// The width the links need on one row: the list itself stretches to fill the bar, so add up its items.
+const tabsWidth = [...$("tabs").children].reduce(
+  (sum, item) => sum + item.getBoundingClientRect().width,
+  (Number.parseFloat(getComputedStyle($("tabs")).columnGap) || 0) * ($("tabs").children.length - 1),
+);
+function closeMenu(focus = false) {
+  if (!header.classList.contains("open")) return;
+  header.classList.remove("open");
+  $("menu").setAttribute("aria-expanded", "false");
+  if (focus) $("menu").focus();
+}
+function fitHeader() {
+  const style = getComputedStyle(bar);
+  const gap = Number.parseFloat(style.columnGap) || 0;
+  const menu = $("menu");
+  const endWidth =
+    bar.querySelector(".bar-end").offsetWidth - (menu.offsetWidth > 0 ? menu.offsetWidth + gap : 0);
+  const room =
+    bar.clientWidth -
+    Number.parseFloat(style.paddingLeft) -
+    Number.parseFloat(style.paddingRight) -
+    bar.querySelector(".brand").offsetWidth -
+    endWidth -
+    2 * gap;
+  const compact = room < tabsWidth;
+  header.classList.toggle("compact", compact);
+  if (!compact) closeMenu();
+}
+$("menu").addEventListener("click", () => {
+  const open = !header.classList.contains("open");
+  header.classList.toggle("open", open);
+  $("menu").setAttribute("aria-expanded", String(open));
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeMenu(true);
+});
+document.addEventListener("click", (event) => {
+  if (!header.contains(/** @type {Node} */ (event.target))) closeMenu();
+});
+$("tabs").addEventListener("click", (event) => {
+  if (/** @type {Element} */ (event.target).closest("a")) closeMenu();
+});
+new ResizeObserver(fitHeader).observe(bar);
+fitHeader();
 
 if (MIRROR !== null) {
   const when = new Date(MIRROR);

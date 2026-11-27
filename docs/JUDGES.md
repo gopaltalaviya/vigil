@@ -97,5 +97,5 @@ encodings. Vigil Watchtower adds:
 ## Video
 
 The demo video (under three minutes: a real testnet transfer, the fraud catch, the audit of other
-rollups, SettlementGate and the IBC exit) is linked from the project page on the fest site. Video
-files are not stored in this repository.
+rollups, SettlementGate and the IBC exit): https://youtu.be/dmncCT0_svU. It also plays on the Home
+page of the web app. Video files are not stored in this repository.
