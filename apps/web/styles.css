@@ -2639,14 +2639,19 @@ td.wrap {
     padding: 22px;
   }
 
+  /* Batch, verdict and status on one line when they fit; a long status wraps under them. */
   .live-list li {
-    grid-template-columns: 70px auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+  }
+
+  .live-list li > a {
+    min-width: 70px;
   }
 
   .live-status {
-    grid-column: 1 / -1;
-    justify-self: stretch;
-    text-align: left;
+    margin-left: auto;
   }
 }
 
@@ -2866,4 +2871,193 @@ td.wrap {
 
 .proof-source {
   margin: 0.5rem 0 0;
+}
+
+/* Header menu: when the section links do not fit, they fold into a menu */
+
+.top .bar {
+  max-width: 1320px;
+}
+
+.tabs a {
+  padding: 8px 10px;
+}
+
+.menu-toggle {
+  display: none;
+}
+
+.top.compact .menu-toggle {
+  display: inline-grid;
+}
+
+.menu-toggle path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.top.compact nav {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  box-shadow: var(--shadow-lg);
+  overflow: visible;
+}
+
+.top.compact.open nav {
+  display: block;
+}
+
+.top.compact .tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 4px;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 12px 24px 16px;
+}
+
+.top.compact .tabs a {
+  padding: 12px 14px;
+  font-size: 15px;
+}
+
+.top.compact .bar {
+  flex-wrap: nowrap;
+  justify-content: space-between;
+}
+
+@media (max-width: 760px) {
+  .top.compact .tabs {
+    padding: 10px 16px 14px;
+  }
+}
+
+@media (max-width: 520px) {
+  .state {
+    padding: 8px;
+  }
+
+  #state-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* Demo video on the home page: YouTube loads only after a click */
+
+.demo-video {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(120% 90% at 20% 10%, var(--wash-a), transparent 60%),
+    radial-gradient(100% 80% at 90% 90%, var(--wash-b), transparent 60%), var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.demo-video iframe,
+.demo-play {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.demo-play {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 24px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.demo-play .play-icon {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+  box-shadow: 0 0 0 10px var(--primary-soft);
+  transition: transform 0.2s ease;
+}
+
+.demo-play:hover .play-icon,
+.demo-play:focus-visible .play-icon {
+  transform: scale(1.08);
+}
+
+.demo-play .play-icon svg {
+  width: 30px;
+  height: 30px;
+  margin-left: 4px;
+  fill: currentColor;
+}
+
+.demo-play strong {
+  font-size: 20px;
+}
+
+.demo-play span.muted {
+  font-size: 14px;
+}
+
+.demo-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+/* A document's grid column never grows past the page: wide tables scroll inside their own box. */
+.prose {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.onchain-actions label {
+  white-space: nowrap;
+}
+
+.onchain-actions input[type="checkbox"] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--primary);
+}
+
+@media (max-width: 700px) {
+  .diagram-wrap::before {
+    content: "Swipe sideways to see the whole diagram.";
+    color: var(--muted);
+    font-size: 13px;
+  }
+}
+
+/* Long hashes in running text break instead of running off the page. */
+.prose :not(pre) > code {
+  overflow-wrap: anywhere;
 }

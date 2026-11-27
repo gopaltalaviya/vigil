@@ -61,7 +61,7 @@ const SECURITY_HEADERS = {
   "x-frame-options": "DENY",
   "referrer-policy": "no-referrer",
   "content-security-policy":
-    "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self' https://evm-testnet.qore.host; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+    "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self' https://evm-testnet.qore.host; frame-src https://www.youtube-nocookie.com; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
 };
 
 const MAX_BODY_BYTES = 16 * 1024;

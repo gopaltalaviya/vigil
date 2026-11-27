@@ -78,11 +78,12 @@ and reports the four forged batches the chain rejected (state is written to `./d
 The same documents are built into the web app under **Docs**, and the **Learn** tab explains the
 concept with an animated diagram.
 
-## Videos
+## Video
 
-Three narrated videos are recorded from the live app with `scripts/video` (re-recorded 25 Nov
-2026): the full demo with a real testnet transfer (2:47), an overview of the concept (1:28), and
-how a forged batch is caught (1:05). The video files are not stored in the repository.
+**Demo (2:47): https://youtu.be/dmncCT0_svU**. A real testnet transfer, the fraud catch, the
+audit of other rollups, SettlementGate and the IBC exit, recorded from the live app with
+`scripts/video`. It also plays on the **Home** page of the web app. Video files are not stored in
+the repository.
 
 ## Why
 

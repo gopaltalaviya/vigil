@@ -2,6 +2,8 @@
 // The first screen alone should tell a visitor what the product is, how it
 // works and that it is running.
 
+const DEMO_VIDEO = "dmncCT0_svU";
+
 export function homeView({
   el,
   pill,
@@ -158,6 +160,39 @@ export function homeView({
     ],
   ];
 
+  // YouTube is contacted only after the visitor presses play.
+  function demoVideo() {
+    const frame = el("div", { className: "demo-video" });
+    const play = el("button", { className: "demo-play", type: "button" }, [
+      el("span", { className: "play-icon" }, icon(["M8 5v14l11-7z"])),
+      el("strong", { text: "Play the demo video · 2:47" }),
+      el("span", { className: "muted", text: "Loads the video from YouTube" }),
+    ]);
+    play.addEventListener("click", () => {
+      const iframe = el("iframe", {
+        src: `https://www.youtube-nocookie.com/embed/${DEMO_VIDEO}?autoplay=1&rel=0`,
+        title: "Vigil Watchtower demo video",
+        allow: "accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture",
+        allowfullscreen: true,
+        referrerpolicy: "strict-origin-when-cross-origin",
+      });
+      play.replaceWith(iframe);
+      iframe.focus();
+    });
+    frame.append(play);
+    return el("div", {}, [
+      frame,
+      el("p", { className: "demo-links" }, [
+        el("a", {
+          href: `https://youtu.be/${DEMO_VIDEO}`,
+          target: "_blank",
+          rel: "noopener",
+          text: "Watch on YouTube",
+        }),
+      ]),
+    ]);
+  }
+
   return {
     title: "Home",
     async load() {
@@ -197,6 +232,19 @@ export function homeView({
               href: "#/learn/how-it-works",
               text: "How it works",
             }),
+            el("button", {
+              className: "button ghost",
+              type: "button",
+              text: "Watch the demo",
+              on: {
+                click: () => {
+                  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+                  document
+                    .getElementById("demo")
+                    ?.scrollIntoView({ behavior: still ? "auto" : "smooth" });
+                },
+              },
+            }),
           ]),
         ]),
         data ? liveCard(data) : null,
@@ -204,6 +252,17 @@ export function homeView({
 
       return el("div", { className: "stack home" }, [
         hero,
+
+        el("section", { className: "home-section", "aria-labelledby": "demo" }, [
+          el("div", { className: "home-head" }, [
+            el("span", { className: "kicker", text: "Demo" }),
+            el("h2", { id: "demo", text: "See it in under three minutes" }),
+            el("p", {
+              text: "A real testnet transfer, the forged batch caught and challenged, the audit of other rollups, SettlementGate and the IBC exit.",
+            }),
+          ]),
+          demoVideo(),
+        ]),
 
         el("section", { className: "home-section", "aria-labelledby": "why" }, [
           el("div", { className: "home-head" }, [
