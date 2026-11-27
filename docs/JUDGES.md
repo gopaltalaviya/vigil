@@ -30,7 +30,7 @@ CLI (`@qorechain/qore-cli`) against the public testnet endpoints:
   that has a settlement anchor, and `isAttestationRecorded` for the watchtower's attestations.
 
 It exits non-zero on any mismatch. A transaction the node no longer keeps is reported as `pruned`.
-On 26 Nov 2026 it reported 32 of 32 transactions as expected, 35 of 36 final batches with a
+On 27 Nov 2026 it reported 32 of 32 transactions as expected, 36 of 37 final batches with a
 recorded anchor (batch 28 has no anchor served by the chain) and 2 attestations, in about 10 s.
 
 ## Requirements
