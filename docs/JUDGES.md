@@ -30,19 +30,19 @@ CLI (`@qorechain/qore-cli`) against the public testnet endpoints:
   that has a settlement anchor, and `isAttestationRecorded` for the watchtower's attestations.
 
 It exits non-zero on any mismatch. A transaction the node no longer keeps is reported as `pruned`.
-On 25 Nov 2026 it reported 32 of 32 transactions as expected, 33 of 34 final batches with a
+On 27 Nov 2026 it reported 32 of 32 transactions as expected, 36 of 37 final batches with a
 recorded anchor (batch 28 has no anchor served by the chain) and 2 attestations, in about 10 s.
 
 ## Requirements
 
-| Requirement                 | What Vigil does                                                                                                      | Evidence                                                                                                                                                                                                            |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ML-DSA-signed batches       | Every batch of `vigil-1` carries the creator's ML-DSA-87 anchor signature; base-chain transactions are hybrid-signed | Batch 0: `B15BF4B9BACA1DE7ED0E290C8BD9D409AF11A8207D38FD5481066C047092E70E`; anchor on layer `vigil-1` with a 4,627-byte signature                                                                                  |
-| Withdrawal                  | Withdrawals are paid from the deposit pool with a Merkle proof once the batch is final; 8 of 9 are paid              | Claim of 0.5 QOR: `511A29444A436A13956E9A40D8199B40803EE79197C102A7FD6FBF7967833BE6`; claim of 0.3 QOR: `EF08E2F0A81C1DC9A8A35770577DFFB2CAF958C3EF80EA5047177CDD5FEE8617`                                          |
-| Verified settlement receipt | `VigilReceipts` verifies the anchor with `pqcKeyStatus` and `pqcVerify` and records it                               | Batch 0 receipt: `0xa4e7838ccc9e11bb03d7650a53579aa99e34f3c7a67177b322f6dfe0cc7b1855`                                                                                                                               |
-| Watchtower                  | Re-executes every batch from a verified inbox copy; challenges a wrong one with a re-execution fraud proof           | Forged batch 18: `E6993DBCAE77E735D138E03748A09321899525BAF24C464BEE360C2A9C02BDB4`; Vigil's challenge 5 s later, fraud upheld and bond slashed: `349C8DF05F888E2AEB8826101F49FD8960EB3662A47530B37C71307206822330` |
-| ML-KEM data protection      | Private memos sealed with ML-KEM-1024 to the recipient's registered key, bound to the transfer                       | Key published: `9409BE3284B456530AE1EDBA7622D04AB1D6B12A6D7C28835FE6000D36FD4CBC`; memo: `1D39B55A28FDD65478B4769200156D5785449DA02B33C751D0A067E125BCA674`                                                         |
-| Threat model                | Every claim tied to a test or a transaction, limits stated                                                           | [Threat model](THREAT_MODEL.md)                                                                                                                                                                                     |
+| Requirement                 | What Vigil does                                                                                                                                                                                                         | Evidence                                                                                                                                                                                                            |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ML-DSA-signed batches       | Every final batch of `vigil-1` but batch 28 is anchored with the creator's ML-DSA-87 signature (no anchor on chain commits batch 28's root); base-chain transactions are hybrid-signed                                  | Batch 0: `B15BF4B9BACA1DE7ED0E290C8BD9D409AF11A8207D38FD5481066C047092E70E`; anchor on layer `vigil-1` with a 4,627-byte signature                                                                                  |
+| Withdrawal                  | Withdrawals are paid from the deposit pool with a Merkle proof once the batch is final; 8 of 9 are paid                                                                                                                 | Claim of 0.5 QOR: `511A29444A436A13956E9A40D8199B40803EE79197C102A7FD6FBF7967833BE6`; claim of 0.3 QOR: `EF08E2F0A81C1DC9A8A35770577DFFB2CAF958C3EF80EA5047177CDD5FEE8617`                                          |
+| Verified settlement receipt | The RDK's `buildSettlementReceipt` and `verifySettlementReceipt` (chain mode, six checks, `valid: true`): `pnpm receipt:verify`. `VigilReceipts` also verifies each anchor on chain with `pqcKeyStatus` and `pqcVerify` | Batch 0 receipt: `0xa4e7838ccc9e11bb03d7650a53579aa99e34f3c7a67177b322f6dfe0cc7b1855`                                                                                                                               |
+| Watchtower                  | Re-executes every batch from a verified inbox copy; challenges a wrong one with a re-execution fraud proof                                                                                                              | Forged batch 18: `E6993DBCAE77E735D138E03748A09321899525BAF24C464BEE360C2A9C02BDB4`; Vigil's challenge 5 s later, fraud upheld and bond slashed: `349C8DF05F888E2AEB8826101F49FD8960EB3662A47530B37C71307206822330` |
+| ML-KEM data protection      | Private memos sealed with ML-KEM-1024 to the recipient's registered key, bound to the transfer                                                                                                                          | ML-KEM key registration transaction: `9409BE3284B456530AE1EDBA7622D04AB1D6B12A6D7C28835FE6000D36FD4CBC`; memo: `1D39B55A28FDD65478B4769200156D5785449DA02B33C751D0A067E125BCA674`                                   |
+| Threat model                | Every claim tied to a test or a transaction, limits stated                                                                                                                                                              | [Threat model](THREAT_MODEL.md)                                                                                                                                                                                     |
 
 About the fraud drills: in the first, before Vigil's watchtower was running, forged batch 1
 (`E5F81D81…`) was rejected only because an independent watcher challenged it (`D5D73974…`). In the
@@ -71,7 +71,7 @@ encodings. Vigil Watchtower adds:
   reports ([their proof log](https://github.com/timix648/wicketgate/blob/main/PROOF.md)), and re-executes all 1,521 batches of `sealed-scouts-1`
   (12,580 inbox entries) from its own verified archive.
 - An inbox reader that keeps working after the chain prunes posted data, and a key-less second
-  watchtower on GitHub Actions that alerts while the main host is down.
+  watchtower scheduled on GitHub Actions, so the rollup is still checked while the main host is down.
 - Receipt recording through a smart account whose key can call only the two record functions, with
   a scoped EVM window as the fallback.
 - `SettlementGate`, an example contract that pays only after a batch has settled, and
@@ -87,16 +87,15 @@ encodings. Vigil Watchtower adds:
   including a golden test that replays a live rollup's public data and reproduces the state roots
   the chain finalized. `forge coverage`: 100% of lines of `VigilReceipts` and of `SettlementGate`, 97.8% of
   `SettlementGateV2`.
-- A 178-check browser test of the web app in light and dark themes and at phone width, including
-  Sign In With QoreChain through the browser.
+- The web app was checked with a scripted browser test (178 checks, light and dark themes, phone
+  width, Sign In With QoreChain); that script is a development tool and is not in this repository.
 - `pnpm redteam`: ten attacks on live data, each refused by a named check with a passing control.
 - No professional audit. The contract and the services each had a separate AI-assisted security
   review of the source, checked by the team; the findings are fixed or documented in the
   [threat model](THREAT_MODEL.md).
 
-## Videos
+## Video
 
-- `media/vigil-demo.mp4`: the demo, 2 minutes 47 seconds, with a real testnet transfer, the fraud
-  catch, the audit of other rollups, SettlementGate and the IBC exit.
-- `media/vigil-overview.mp4`: the concept in a minute and a half.
-- `media/vigil-security.mp4`: the forged batch 18 stopped by the watchtower, step by step.
+The demo video (under three minutes: a real testnet transfer, the fraud catch, the audit of other
+rollups, SettlementGate and the IBC exit) is linked from the project page on the fest site. Video
+files are not stored in this repository.

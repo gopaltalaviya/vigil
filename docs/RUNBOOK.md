@@ -38,8 +38,8 @@ Requirements: a Linux host with Docker and the Compose plugin, and a funded test
 
 ## Sentinel: a second watchtower on GitHub Actions
 
-`.github/workflows/sentinel.yml` runs `pnpm watchtower --once` for `vigil-1` four times an hour
-on GitHub's machines, so the rollup is still checked while the main host sleeps or is down.
+`.github/workflows/sentinel.yml` is scheduled to run `pnpm watchtower --once` for `vigil-1` four times
+an hour on GitHub's machines (GitHub may delay or skip scheduled runs; it can also be started by hand), so the rollup is still checked while the main host sleeps or is down.
 
 - It holds no seed phrase and `WATCHTOWER_CHALLENGE` is `off`: it re-executes and alerts, it
   cannot challenge. Challenging stays with the main watchtower.

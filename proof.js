@@ -4,12 +4,13 @@
 
 const TX_API = "https://api-testnet.qore.host/cosmos/tx/v1beta1/txs/";
 
-export function proofView({ el, pill, overview, verifyPanel }) {
+export function proofView({ el, pill, overview, verifyPanel, copyable }) {
   const tx = (label, hash, evm = false) =>
     el("li", { className: "proof-tx" }, [
       el("span", { className: "proof-tx-label", text: label }),
       evm
-        ? el("code", { text: `${hash.slice(0, 14)}…${hash.slice(-8)}`, title: hash })
+        ? // An EVM-lane hash has no page on the Cosmos API: show it with a copy button (keyboard and touch reachable).
+          copyable(hash, `${hash.slice(0, 14)}…${hash.slice(-8)}`)
         : el(
             "a",
             {
@@ -197,7 +198,7 @@ export function proofView({ el, pill, overview, verifyPanel }) {
           live: true,
           title: `${s.batches} batches submitted, every one re-executed`,
           story:
-            "Each batch of vigil-1 carries an ML-DSA-87 post-quantum anchor signature. The watchtower re-executes every one from its own verified copy of the inbox and compares the results.",
+            "Every final batch of vigil-1 but one (batch 28, whose state root no anchor on chain commits) is anchored with an ML-DSA-87 post-quantum signature; pnpm receipt:verify verifies one end to end with the RDK. The watchtower re-executes every one from its own verified copy of the inbox and compares the results.",
           outcome: `${s.valid} judged valid and ${s.invalid} judged invalid; ${rejected} of the invalid ones ${rejected === 1 ? "was" : "were"} rejected by the chain after a challenge. ${s.finalized} batches are final. No honest batch was ever flagged.`,
           txs: [
             tx(
@@ -395,7 +396,7 @@ export function proofView({ el, pill, overview, verifyPanel }) {
         el("div", { className: "page-head" }, [
           el("h1", { text: "Proof" }),
           el("p", {
-            text: "Every claim on this site, with the QoreChain testnet transactions that show it happened. Open any hash: it is the chain's own record, not ours.",
+            text: "Every claim on this site, with the QoreChain testnet transactions that show it happened. Open any linked hash: it is the chain's own record, not ours. EVM-lane hashes can be copied and checked with pnpm verify:proof.",
           }),
         ]),
         el("div", { className: "proof-grid" }, cases.map(card)),
